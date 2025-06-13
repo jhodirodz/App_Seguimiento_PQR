@@ -14,4 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Indicar a Gunicorn que escuche en el puerto que Cloud Run le asigne
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]
+# ------ ESTA ES LA LÍNEA QUE CAMBIAMOS ------
+CMD exec gunicorn --bind 0.0.0.0:8080 main:app
