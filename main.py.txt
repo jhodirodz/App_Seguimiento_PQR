@@ -1,0 +1,56 @@
+import os
+from flask import Flask, request, jsonify
+import google.generativeai as genai
+
+# Inicializa la aplicación Flask
+app = Flask(__name__)
+
+# --- CONFIGURACIÓN DE SEGURIDAD ---
+# Lee la API Key desde una variable de entorno segura.
+# El comando de despliegue se encargará de crear esta variable.
+api_key = os.environ.get('GEMINI_API_KEY')
+
+# Variable global para el modelo
+model = None
+
+# Intenta configurar la API de Gemini al iniciar la app
+if not api_key:
+    # Este mensaje se verá en los logs de Google Cloud si hay un problema
+    print("ERROR: La variable de entorno GEMINI_API_KEY no fue encontrada.")
+else:
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        print("INFO: Modelo de Gemini configurado exitosamente.")
+    except Exception as e:
+        print(f"ERROR: No se pudo configurar el modelo de Gemini: {e}")
+
+# --- RUTAS DE LA APLICACIÓN ---
+
+@app.route('/')
+def home():
+    """Ruta principal para verificar que la app está viva."""
+    return "Mi servidor de Gemini está funcionando correctamente.", 200
+
+@app.route('/ask', methods=['POST'])
+def ask_gemini():
+    """Ruta para hacerle una pregunta al modelo de Gemini."""
+    if not model:
+        return jsonify({"error": "El modelo de Gemini no está disponible. Revisa los logs del servidor."}), 503
+
+    data = request.json
+    if not data or 'prompt' not in data:
+        return jsonify({"error": "La solicitud debe ser un JSON con un campo 'prompt'."}), 400
+
+    prompt_text = data['prompt']
+
+    try:
+        response = model.generate_content(prompt_text)
+        return jsonify({"response": response.text})
+    except Exception as e:
+        return jsonify({"error": f"Ocurrió un error al contactar a la API de Gemini: {e}"}), 500
+
+# Este bloque final permite a Google App Engine iniciar la aplicación
+if __name__ == '__main__':
+    # El puerto es proporcionado por App Engine a través de la variable de entorno PORT
+    app.run(host='127.0.0.1', port=int(os.environ.get('PORT', 8080)), debug=False)
