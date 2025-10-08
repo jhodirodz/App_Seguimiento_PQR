@@ -12,23 +12,20 @@ export async function callGeminiAPI(prompt) {
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         })
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Error HTTP ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta de la IA.";
+
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ Sin respuesta de la IA.";
   } catch (error) {
     console.error("❌ Error al conectar con Gemini:", error);
-    return "Error al conectar con la IA. Intenta más tarde.";
+    return "⚠️ Error al conectar con la IA. Intenta más tarde.";
   }
 }
+
