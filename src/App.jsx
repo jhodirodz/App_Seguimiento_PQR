@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, onSnapshot, getDocs, deleteDoc, doc, updateDoc, where, writeBatch, documentId } from 'firebase/firestore';
+import {    getFirestore, collection, addDoc, getDocs, query, onSnapshot, deleteDoc,    doc, getDoc, updateDoc, setDoc, where, writeBatch, documentId  } from "firebase/firestore";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 
 // =================================================================================================
 // Global Configuration
