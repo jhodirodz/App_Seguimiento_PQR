@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import {    getFirestore, collection, addDoc, getDocs, query, onSnapshot, deleteDoc,    doc, getDoc, updateDoc, setDoc, where, writeBatch, documentId  } from "firebase/firestore";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { jsPDF } from 'jspdf';
-import { saveAs } from 'file-saver';
+import React, { useState, useEffect } from "react";
+import { getDocs, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "./firebaseConfig"; // ✅ tu nueva conexión centralizada
+import { jsPDF } from "jspdf";
+import { saveAs } from "file-saver";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { FaPlus, FaSearch, FaFilePdf, FaEdit, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
+import { motion } from "framer-motion";
 
 // =================================================================================================
 // Global Configuration
