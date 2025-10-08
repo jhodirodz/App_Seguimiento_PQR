@@ -1,31 +1,23 @@
-// src/utils/ai.js
-export const GEMINI_API_KEY = "AIzaSyCHDyifRztWNyrsgHlmPgmCtM2fn3tmR_w";
-
-/**
- * Envía un prompt al modelo Gemini de Google AI.
- * @param {string} prompt - Texto con la instrucción o pregunta.
- * @returns {Promise<string>} - Respuesta generada por la IA.
- */
 export async function callGeminiAPI(prompt) {
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
       }
     );
 
-    if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
-    const data = await response.json();
-
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ Sin respuesta de la IA.";
-  } catch (error) {
-    console.error("❌ Error al conectar con Gemini:", error);
-    return "⚠️ Error al conectar con la IA. Intenta más tarde.";
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || "Error en la API");
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta.";
+  } catch (err) {
+    console.error("Error AI:", err);
+    return `Error IA: ${err.message}`;
   }
 }
-
