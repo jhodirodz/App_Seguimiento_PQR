@@ -5,7 +5,6 @@ import { getFirestore, collection, addDoc, query, onSnapshot, getDocs, deleteDoc
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 
 // =================================================================================================
 // Global Configuration
