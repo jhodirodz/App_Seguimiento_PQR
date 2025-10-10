@@ -12,8 +12,7 @@ import { saveAs } from 'file-saver';
 
 // Global variables provided by the Canvas environment. These should not be changed.
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-// Global variables provided by the Canvas environment. These should not be changed.
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
 
 // MODIFICADO: Lee desde variables de entorno si la variable global no está disponible
 const firebaseConfig = typeof __firebase_config !== 'undefined'
@@ -27,7 +26,7 @@ const firebaseConfig = typeof __firebase_config !== 'undefined'
       appId: import.meta.env.VITE_FIREBASE_APP_ID
     };
 
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 // Define the specific headers for the main table display
 const MAIN_TABLE_HEADERS = [
