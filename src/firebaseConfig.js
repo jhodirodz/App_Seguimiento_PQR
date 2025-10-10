@@ -8,12 +8,12 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// 🔹 Configuración de Firebase (la tuya es correcta)
+// 🔹 Configuración CORREGIDA de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAt0641WOEfdzlUbPFmQUj1AL6C4O-06KM",
   authDomain: "miseguimientocasosapp.firebaseapp.com",
   projectId: "miseguimientocasosapp",
-  storageBucket: "miseguimientocasosapp.firebasestorage.app",
+  storageBucket: "miseguimientocasosapp.appspot.com", // ✅ corregido
   messagingSenderId: "53181891397",
   appId: "1:53181891397:web:b1ae28198993ba3ac9742c",
   measurementId: "G-BZ91D4STKK"
