@@ -3,7 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 // 👇 Importa el wrapper con autenticación de Google
-import App from './App_GoogleAuth.jsx';
+import App from './App.jsx';
 
 // Si usas estilos globales, mantenlos igual
 import './index.css';
