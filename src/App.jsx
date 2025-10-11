@@ -15,7 +15,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 
 // MODIFICADO: Lee desde variables de entorno si la variable global no está disponible
-function firebaseConfig = typeof __firebase_config !== 'undefined'
+const firebaseConfig = typeof __firebase_config !== 'undefined'
   ? JSON.parse(__firebase_config)
   : {
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -26,10 +26,10 @@ function firebaseConfig = typeof __firebase_config !== 'undefined'
       appId: import.meta.env.VITE_FIREBASE_APP_ID
     };
 
-function initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 // Define the specific headers for the main table display
-function MAIN_TABLE_HEADERS = [
+const MAIN_TABLE_HEADERS = [
     'SN',
     'CUN',
     'Fecha Radicado',
@@ -44,7 +44,7 @@ function MAIN_TABLE_HEADERS = [
 ];
 
 // Define the specific headers for the case details modal's main grid
-function MODAL_DISPLAY_HEADERS = [
+const MODAL_DISPLAY_HEADERS = [
     'SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'fecha_asignacion', 'user',
     'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos',
     'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Dia', 'Fecha Vencimiento',
@@ -59,8 +59,8 @@ function MODAL_DISPLAY_HEADERS = [
 ]
 
 // Constants for various dropdowns and logic
-function TIPOS_OPERACION_ASEGURAMIENTO = ["Aseguramiento FS", "Aseguramiento TELCO", "Aseguramiento SINTEL", "Aseguramiento D@VOX"];
-function TIPOS_ASEGURAMIENTO = [
+const TIPOS_OPERACION_ASEGURAMIENTO = ["Aseguramiento FS", "Aseguramiento TELCO", "Aseguramiento SINTEL", "Aseguramiento D@VOX"];
+const TIPOS_ASEGURAMIENTO = [
     "Eliminar cobros facturados (paz y salvo)", "Ajustes to invoice de cartera", "Aprobación envío SMS",
     "Aseguramiento clientes reconectados", "Aseguramiento FS - No cobro RX - RXM", "Calidad de impresión",
     "Cambio de localidad FS", "Carga a tablas FS", "NO Cobros gastos de cobranza",
@@ -68,13 +68,13 @@ function TIPOS_ASEGURAMIENTO = [
     "Validación cambio de suscriptor", "Ajustar cobros por aceleración Baseport", "Confirmar BAJA del servicio",
     "Recepción factura electronica", "Recepción factura fisica", "No cobros plataforma Streaming"
 ];
-function MESES_ASEGURAMIENTO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-function ESTADOS_TT = ["Pendiente", "Aplicado"];
-function ALL_STATUS_OPTIONS = ['Pendiente','Iniciado','Lectura','Resuelto', 'Finalizado', 'Escalado','Decretado','Traslado SIC', 'Pendiente Ajustes'];
-function ALL_PRIORITY_OPTIONS = ['Alta', 'Media', 'Baja'];
+const MESES_ASEGURAMIENTO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const ESTADOS_TT = ["Pendiente", "Aplicado"];
+const ALL_STATUS_OPTIONS = ['Pendiente','Iniciado','Lectura','Resuelto', 'Finalizado', 'Escalado','Decretado','Traslado SIC', 'Pendiente Ajustes'];
+const ALL_PRIORITY_OPTIONS = ['Alta', 'Media', 'Baja'];
 
 // UPDATED: Escalation structure based on the provided tree
-function MOTIVOS_ESCALAMIENTO_POR_AREA = {
+const MOTIVOS_ESCALAMIENTO_POR_AREA = {
     "Voz del cliente Individual": [
         "Datos Movil - No navega - No tiene equipo para pruebas", "Datos Movil - No navega - Problemas Red", "Datos Movil - No navega - Problemas Cobertura", "Datos Movil - No navega - Inconveniente Atipico-Requiere Pruebas", "Datos Movil - No navega - Conciliacion - Cierre de ciclo", "Datos Movil - No navega - Conciliacion Plataformas HLR-DPI-TI", "Datos Movil - No navega - Escalamiento tecnico abierto excede SLA", "Datos Movil - No navega - Falla en Bonos - Altamira",
         "Datos Movil - Intermitencia - No tiene equipo para pruebas", "Datos Movil - Intermitencia - Problemas Red", "Datos Movil - Intermitencia - Problemas Cobertura", "Datos Movil - Intermitencia - Inconveniente Atipico-Requiere Pruebas", "Datos Movil - Intermitencia - Conciliacion - Cierre de ciclo", "Datos Movil - Intermitencia - Conciliacion Plataformas HLR-DPI-TI", "Datos Movil - Intermitencia - Escalamiento tecnico abierto excede SLA",
@@ -160,17 +160,17 @@ function MOTIVOS_ESCALAMIENTO_POR_AREA = {
         "Cambio de plan BA FMC en terreno", "Cambio de plan BA en terreno", "Decos de mas en terreno", "Decos de menos en terreno", "Baja de SVA", "Cambio de oferta FMC en terreno",
     ],
 };
-function AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
+const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
 // =================================================================================================
 // Helper and Utility Functions
 // =================================================================================================
 // Función para convertir un archivo a formato Base64. Necesaria para procesar imágenes y audio.
-function fileToBase64 = (file) => {
+function fileToBase64(
     return new Promise((resolve, reject) => {
-        function reader = new FileReader();
+        const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => {
-            function base64String = reader.result.split(',')[1];
+            const base64String = reader.result.split(',')[1];
             resolve(base64String);
         };
         reader.onerror = (error) => reject(error);
@@ -178,29 +178,29 @@ function fileToBase64 = (file) => {
 };
 
 // Nueva función de llamada a la API de Gemini, más genérica.
-function geminiApiCall = async (prompt, modelName = "gemini-2.0-flash", isJson = false) => {
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+async function geminiApiCall(
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch };
+    const payload = { contents: ch };
     if (isJson) {
         payload.generationConfig = { responseMimeType: "application/json" };
     }
 
     try {
-        function response = await fetch(apiUrl, {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        function result = await response.json();
+        const result = await response.json();
 
         if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
-            function responseText = result.candidates[0].content.parts[0].text;
+            const responseText = result.candidates[0].content.parts[0].text;
             return isJson ? JSON.parse(responseText) : responseText;
         } else {
-            function errorMessage = result.error ? result.error.message : 'Respuesta de API inesperada.';
+            const errorMessage = result.error ? result.error.message : 'Respuesta de API inesperada.';
             throw new Error(errorMessage);
         }
     } catch (error) {
@@ -213,7 +213,7 @@ function geminiApiCall = async (prompt, modelName = "gemini-2.0-flash", isJson =
  * Gets the current date in 'YYYY-MM-DD' format for Colombia.
  * @returns {string} The formatted date string.
  */
-function getColombianDateISO = () => {
+function getColombianDateISO(
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Bogota',
         year: 'numeric',
@@ -226,16 +226,16 @@ function getColombianDateISO = () => {
  * @param {string} dateStr - La cadena de fecha a parsear.
  * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
  */
-function parseDate = (dateStr) => {
+function parseDate(
     if (!dateStr || typeof dateStr !== 'string') return '';
 
     // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
     let parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (parts) {
         // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
-        function month = parts[1].padStart(2, '0');
-        function day = parts[2].padStart(2, '0');
-        function year = parts[3];
+        const month = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        const year = parts[3];
         return `${year}-${month}-${day}`;
     }
 
@@ -247,18 +247,18 @@ function parseDate = (dateStr) => {
  * Esta función ajusta el día de inicio si es un fin de semana o festivo, y
  * también ajusta si el inicio es en un día hábil para que el primer día de conteo sea el siguiente.
  */
-function calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => {
+function calculateBusinessDays(
     try {
-        function startParts = startDateStr.split('-').map(Number);
-        function endParts = endDateStr.split('-').map(Number);
-        function startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-        function endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+        const startParts = startDateStr.split('-').map(Number);
+        const endParts = endDateStr.split('-').map(Number);
+        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
         if (startDate > endDate) return 0;
 
         let currentDate = new Date(startDate);
-        function nonBusinessDaysSet = new Set(nonBusinessDays);
+        const nonBusinessDaysSet = new Set(nonBusinessDays);
 
         // Lógica para encontrar el primer día hábil después de la radicación
         // Se mueve al día siguiente
@@ -266,9 +266,9 @@ function calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => 
 
         // Bucle para encontrar el siguiente día hábil si el día posterior a la radicación cae en fin de semana o festivo
         while (true) {
-            function dayOfWeek = currentDate.getDay();
-            function dateStr = currentDate.toISOString().slice(0, 10);
-            function isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
 
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
                 break;
@@ -281,9 +281,9 @@ function calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => 
         let safetyCounter = 0;
 
         while (currentDate <= endDate && safetyCounter < 10000) {
-            function dayOfWeek = currentDate.getDay();
-            function dateStr = currentDate.toISOString().slice(0, 10);
-            function isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
 
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
                 count++;
@@ -303,15 +303,15 @@ function calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => 
  * Calcula la antigüedad del caso en días hábiles.
  * La antigüedad es simplemente el resultado de calculateBusinessDays, sin ajustes adicionales.
  */
-function calculateCaseAge = (caseItem, nonBusinessDays) => {
+function calculateCaseAge(
     // Si el caso ya está resuelto o finalizado, devuelve el último valor registrado en 'Dia'.
     if (caseItem.Estado_Gestion === 'Resuelto' || caseItem.Estado_Gestion === 'Finalizado') {
         return caseItem.Dia; // O el campo que almacena el conteo final
     }
 
     if (!caseItem || !caseItem['Fecha Radicado']) return 'N/A';
-    function startDate = caseItem['Fecha Radicado'];
-    function today = getColombianDateISO();
+    const startDate = caseItem['Fecha Radicado'];
+    const today = getColombianDateISO();
 
     let age = calculateBusinessDays(startDate, today, nonBusinessDays);
 
@@ -330,20 +330,20 @@ function calculateCaseAge = (caseItem, nonBusinessDays) => {
  * @param {string} text - The CSV content as a string.
  * @returns {{headers: string[], data: object[]}} Parsed headers and data rows.
  */
-function parseCSV = (text) => {
-    function headerLineEnd = text.indexOf('\n');
+function parseCSV(
+    const headerLineEnd = text.indexOf('\n');
     if (headerLineEnd === -1) return { headers: [], data: [] };
     let headerLine = text.substring(0, headerLineEnd).trim();
-    function delimiter = (headerLine.match(/,/g) || []).length >= (headerLine.match(/;/g) || []).length ? ',' : ';';
+    const delimiter = (headerLine.match(/,/g) || []).length >= (headerLine.match(/;/g) || []).length ? ',' : ';';
 
-    function rows = [];
+    const rows = [];
     let currentRow = [];
     let currentField = '';
     let inQuotes = false;
 
     for (let i = headerLineEnd + 1; i < text.length; i++) {
-        function char = text[i];
-        function nextChar = text[i+1];
+        const char = text[i];
+        const nextChar = text[i+1];
 
         if (inQuotes) {
             if (char === '"' && nextChar !== '"') {
@@ -384,11 +384,11 @@ function parseCSV = (text) => {
         return { headers: [], data: [] };
     }
 
-    function headers = headerLine.split(delimiter).map(h => h.trim().replace(/"/g, ''));
-    function data = [];
+    const headers = headerLine.split(delimiter).map(h => h.trim().replace(/"/g, ''));
+    const data = [];
 
-    for (function rowData of rows) {
-        function row = {};
+    for (const rowData of rows) {
+        const row = {};
         headers.forEach((header, index) => {
             if (header && header.trim() !== '') {
                 let value = (rowData[index] || '').trim();
@@ -407,14 +407,14 @@ function parseCSV = (text) => {
         data.push(row);
     }
 
-    function finalHeaders = headers.filter(h => h && h.trim() !== '');
+    const finalHeaders = headers.filter(h => h && h.trim() !== '');
 
     return { headers: finalHeaders, data };
 };
 
 
 // List of Colombian holidays for calculations.
-function COLOMBIAN_HOLIDAYS = [
+const COLOMBIAN_HOLIDAYS = [
     '2025-01-01', '2025-01-06', '2025-03-24', '2025-03-20', '2025-03-21', '2025-05-01', '2025-05-26',
     '2025-06-16', '2025-06-23', '2025-07-04', '2025-07-20', '2025-08-07', '2025-08-18', '2025-10-13',
     '2025-11-03', '2025-11-17', '2025-12-08', '2025-12-25','2026-01-01', '2026-01-12',   '2026-03-23',   '2026-04-02',  '2026-04-03', '2026-05-01', '2026-05-18',   '2026-06-08',   '2026-06-15',   '2026-06-29',   '2026-07-20',   '2026-08-07',  '2026-08-17',  '2026-10-12',   '2026-11-02',  '2026-11-16',   '2026-12-08',   '2026-12-25',
@@ -427,9 +427,9 @@ function COLOMBIAN_HOLIDAYS = [
  * @param {string} endDateISO - The end date in ISO format.
  * @returns {number|string} Duration in minutes or 'N/A'.
  */
-function getDurationInMinutes = (startDateISO, endDateISO) => {
+function getDurationInMinutes(
     if (!startDateISO || !endDateISO) return 'N/A';
-    function start = new Date(startDateISO); function end = new Date(endDateISO);
+    const start = new Date(startDateISO); const end = new Date(endDateISO);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
     return Math.round((end.getTime() - start.getTime()) / 60000);
 };
@@ -439,7 +439,7 @@ function getDurationInMinutes = (startDateISO, endDateISO) => {
  * @param {number} ms - Milliseconds to sleep.
  * @returns {Promise<void>}
  */
-function sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * A fetch wrapper with exponential backoff retry logic.
@@ -449,10 +449,10 @@ function sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {number} delay - Initial delay in ms.
  * @returns {Promise<Response>}
  */
-function retryFetch = async (url, options, retries = 5, delay = 2000) => {
+async function retryFetch(
     for (let i = 0; i < retries; i++) {
         try {
-            function response = await fetch(url, options);
+            const response = await fetch(url, options);
             if (response.ok) return response;
             console.warn(`Fetch attempt ${i+1} failed: ${response.status}. Retrying...`);
             if (i < retries - 1) await sleep(delay * (i+1) + Math.random() * 500);
@@ -468,15 +468,15 @@ function retryFetch = async (url, options, retries = 5, delay = 2000) => {
 // AI (Gemini) Integration Functions
 // =================================================================================================
 
-function getAIAnalysisAndCategory = async (caseData) => {
+async function getAIAnalysisAndCategory(
     // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
-function accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
     .map((item, index) => 
         `Reclamo Acumulado ${index + 1} (SN: ${item.sn}):\n- Observación: ${item.obs}`
     ).join('\n\n');
     // --- FIN: Lógica para formatear ---
 
-    function prompt = `Analiza el siguiente caso de reclamo y su historial para proporcionar:
+    const prompt = `Analiza el siguiente caso de reclamo y su historial para proporcionar:
 1.  Un "Analisis de la IA" detallado y completo.
 2.  Una "Categoria del reclamo" que refleje la problemática principal.
 
@@ -501,45 +501,45 @@ Formato de respuesta JSON:
 }`;
     
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "analisis_ia": { "type": "STRING" }, "categoria_reclamo": { "type": "STRING" } }, "propertyOrdering": ["analisis_ia", "categoria_reclamo"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "analisis_ia": { "type": "STRING" }, "categoria_reclamo": { "type": "STRING" } }, "propertyOrdering": ["analisis_ia", "categoria_reclamo"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
-            function json = JSON.parse(res.candidates[0].content.parts[0].text);
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
             return { 'Analisis de la IA': json.analisis_ia, 'Categoria del reclamo': json.categoria_reclamo };
         }
         throw new Error(res.error?.message || 'Respuesta IA inesperada (análisis).');
     } catch (e) { console.error("Error AI analysis:", e); throw new Error(`Error IA (análisis): ${e.message}`); }
 };
 
-function getAIPriority = async (obsText) => {
-    function prompt = `Asigna "Prioridad" ("Alta", "Media", "Baja") a obs: ${obsText || 'N/A'}. Default "Media". JSON: {"prioridad": "..."}`;
+async function getAIPriority(
+    const prompt = `Asigna "Prioridad" ("Alta", "Media", "Baja") a obs: ${obsText || 'N/A'}. Default "Media". JSON: {"prioridad": "..."}`;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "prioridad": { "type": "STRING" } }, "propertyOrdering": ["prioridad"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "prioridad": { "type": "STRING" } }, "propertyOrdering": ["prioridad"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).prioridad || 'Media';
         throw new Error(res.error?.message || 'Respuesta IA inesperada (prioridad).');
     } catch (e) { console.error("Error AI priority:", e); throw new Error(`Error IA (prioridad): ${e.message}`); }
 };
 
-function getAISentiment = async (obsText) => {
-    function prompt = `Analiza el sentimiento del siguiente texto y clasifícalo como "Positivo", "Negativo" o "Neutral".
+async function getAISentiment(
+    const prompt = `Analiza el sentimiento del siguiente texto y clasifícalo como "Positivo", "Negativo" o "Neutral".
     Texto: "${obsText || 'N/A'}"
     Responde solo con JSON: {"sentimiento_ia": "..."}`;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "sentimiento_ia": { "type": "STRING" } }, "propertyOrdering": ["sentimiento_ia"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "sentimiento_ia": { "type": "STRING" } }, "propertyOrdering": ["sentimiento_ia"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
-            function json = JSON.parse(res.candidates[0].content.parts[0].text);
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
             return { Sentimiento_IA: json.sentimiento_ia || 'Neutral' };
         }
         throw new Error(res.error?.message || 'Respuesta IA inesperada (sentimiento).');
@@ -549,15 +549,15 @@ function getAISentiment = async (obsText) => {
     }
 };
 
-function getAISummary = async (caseData) => {
+async function getAISummary(
     // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
-function accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
     .map((item, index) => 
         `Sobre un reclamo anterior (SN: ${item.sn}), también manifesté: "${item.obs}"`
     ).join('\n');
     // --- FIN: Lógica para formatear ---
 
-    function prompt = `Eres un asistente experto que resume casos de reclamos de telecomunicaciones.
+    const prompt = `Eres un asistente experto que resume casos de reclamos de telecomunicaciones.
         Genera un resumen conciso (máximo 700 caracteres, en primera persona) de los hechos y pretensiones del caso.
         Tu resumen debe sintetizar la "Observación Principal" y, si se proporcionan, también el "Historial de SN Acumulados" y las "Observaciones del Reclamo Relacionado".
 
@@ -576,19 +576,19 @@ ${accumulatedSNInfo || 'No hay historial de reclamos anteriores.'}
 Formato de respuesta JSON: {"resumen_cliente": "..."}`;
 
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "resumen_cliente": { "type": "STRING" } }, "propertyOrdering": ["resumen_cliente"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "resumen_cliente": { "type": "STRING" } }, "propertyOrdering": ["resumen_cliente"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).resumen_cliente || 'No se pudo generar resumen.';
         throw new Error(res.error?.message || 'Respuesta IA inesperada (resumen).');
     } catch (e) { console.error("Error AI summary:", e);
     throw new Error(`Error IA (resumen): ${e.message}`); }
 };
 
-function getAIResponseProjection = async (lastObservationText, caseData, contractType) => {
+async function getAIResponseProjection(
     let contractSpecificInstructions = '';
     if (contractType === 'Contrato Marco') {
         contractSpecificInstructions = `
@@ -602,22 +602,22 @@ function getAIResponseProjection = async (lastObservationText, caseData, contrac
 
     // --- LÓGICA MEJORADA ---
     // Se formatea el historial completo de observaciones para que la IA lo entienda claramente.
-    function internalHistoryInfo = (caseData.Observaciones_Historial || [])
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
         .map(obs =>
             ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`
         ).join('\n\n');
 
-function accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
     `  Reclamo Acumulado ${index + 1}:\n   - SN: ${item.sn} (CUN: ${item.cun || 'No disponible'})\n   - Observación: ${item.obs}`
 ).join('\n');
     
-    function relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
+    const relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
         ? `**Reclamo Relacionado (SN: ${caseData.Numero_Reclamo_Relacionado}):**\n   - Observaciones: ${caseData.Observaciones_Reclamo_Relacionado || 'N/A'}\n` 
         : 'No hay un reclamo principal relacionado.';
 
     // --- INSTRUCCIONES DEL PROMPT MEJORADAS ---
     // El prompt ahora es mucho más específico y exige una respuesta definitiva basada en el historial.
-    function prompt = `Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
+    const prompt = `Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
 Genera una 'Proyección de Respuesta' integral para la empresa (COLOMBIA TELECOMUNICACIONES S.A. E.S.P BIC) dirigida al cliente.
 
 **Instrucciones CRÍTICAS para la Proyección de Respuesta:**
@@ -650,20 +650,20 @@ ${internalHistoryInfo || 'No hay historial de gestiones internas.'}
 Formato de respuesta JSON: {"proyeccion_respuesta_ia": "..."}`;
     
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "proyeccion_respuesta_ia": { "type": "STRING" } }, "propertyOrdering": ["proyeccion_respuesta_ia"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "proyeccion_respuesta_ia": { "type": "STRING" } }, "propertyOrdering": ["proyeccion_respuesta_ia"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).proyeccion_respuesta_ia || 'No se pudo generar proyección.';
         throw new Error(res.error?.message || 'Respuesta IA inesperada (proyección).');
     } catch (e) { console.error("Error AI projection:", e);
         throw new Error(`Error IA (proyección): ${e.message}`); }
 };
 
-function getAIEscalationSuggestion = async (caseData) => {
-    function prompt = `Basado en los detalles de este caso, sugiere un "Área Escalada" y un "Motivo/Acción Escalado".
+async function getAIEscalationSuggestion(
+    const prompt = `Basado en los detalles de este caso, sugiere un "Área Escalada" y un "Motivo/Acción Escalado".
 Áreas Disponibles: ${AREAS_ESCALAMIENTO.join(', ')}.
 Razones por Área: ${JSON.stringify(MOTIVOS_ESCALAMIENTO_POR_AREA)}.
 Detalles del Caso:
@@ -673,12 +673,12 @@ Detalles del Caso:
 Responde SOLO con JSON: {"area": "...", "motivo": "..."}`;
 
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "area": { "type": "STRING" }, "motivo": { "type": "STRING" } }, "propertyOrdering": ["area", "motivo"] }}};
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "area": { "type": "STRING" }, "motivo": { "type": "STRING" } }, "propertyOrdering": ["area", "motivo"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     try {
-        function response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function result = await response.json();
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
         if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
             return JSON.parse(result.candidates[0].content.parts[0].text);
         }
@@ -689,8 +689,8 @@ Responde SOLO con JSON: {"area": "...", "motivo": "..."}`;
     }
 };
 
-function getAINextActions = async (caseData) => {
-    function prompt = `Basado en el siguiente caso y su historial, sugiere 3 a 5 acciones concretas y priorizadas para que el agente resuelva el caso.
+async function getAINextActions(
+    const prompt = `Basado en el siguiente caso y su historial, sugiere 3 a 5 acciones concretas y priorizadas para que el agente resuelva el caso.
     Historial:
     ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
     Última observación: ${caseData.Observaciones || 'N/A'}
@@ -699,7 +699,7 @@ function getAINextActions = async (caseData) => {
 
     Responde solo con JSON en el formato: {"acciones": ["Acción 1", "Acción 2", "Acción 3"]}`;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -710,13 +710,13 @@ function getAINextActions = async (caseData) => {
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
-            function json = JSON.parse(res.candidates[0].content.parts[0].text);
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
             return json.acciones || [];
         }
         throw new Error(res.error?.message || 'Respuesta IA inesperada (siguientes acciones).');
@@ -726,8 +726,8 @@ function getAINextActions = async (caseData) => {
     }
 };
 
-function getAIRootCause = async (caseData) => {
-    function prompt = `Analiza el historial completo de este caso RESUELTO y proporciona un análisis conciso de la causa raíz más probable del problema original.
+async function getAIRootCause(
+    const prompt = `Analiza el historial completo de este caso RESUELTO y proporciona un análisis conciso de la causa raíz más probable del problema original.
     Historial:
     ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
     Categoría: ${caseData['Categoria del reclamo'] || 'N/A'}
@@ -736,7 +736,7 @@ function getAIRootCause = async (caseData) => {
 
     Responde solo con JSON en el formato: {"causa_raiz": "Análisis detallado de la causa raíz..."}`;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -747,13 +747,13 @@ function getAIRootCause = async (caseData) => {
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
-            function json = JSON.parse(res.candidates[0].content.parts[0].text);
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
             return json.causa_raiz || 'No se pudo determinar la causa raíz.';
         }
         throw new Error(res.error?.message || 'Respuesta IA inesperada (causa raíz).');
@@ -763,8 +763,8 @@ function getAIRootCause = async (caseData) => {
     }
 };
 
-function getAIEscalationEmail = async (caseData) => {
-    function prompt = `
+async function getAIEscalationEmail(
+    const prompt = `
     Redacta un correo electrónico de escalación interna formal y profesional.
     
     Destinatario: ${caseData.areaEscalada || '[Nombre del área]'}
@@ -792,7 +792,7 @@ function getAIEscalationEmail = async (caseData) => {
     Responde SOLO con JSON: {"email_body": "Cuerpo completo del correo..."}
     `;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -803,13 +803,13 @@ function getAIEscalationEmail = async (caseData) => {
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function result = await response.json();
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
         if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
-            function json = JSON.parse(result.candidates[0].content.parts[0].text);
+            const json = JSON.parse(result.candidates[0].content.parts[0].text);
             return json.email_body || 'No se pudo generar el correo.';
         }
         throw new Error(result.error?.message || 'Respuesta IA inesperada (email escalación).');
@@ -819,8 +819,8 @@ function getAIEscalationEmail = async (caseData) => {
     }
 };
 
-function getAIRiskAnalysis = async (caseData) => {
-    function prompt = `
+async function getAIRiskAnalysis(
+    const prompt = `
     Evalúa el riesgo de que este caso sea escalado a la Superintendencia de Industria y Comercio (SIC).
     Considera los siguientes factores:
     - Antigüedad del caso (Día): ${calculateCaseAge(caseData)}
@@ -833,7 +833,7 @@ function getAIRiskAnalysis = async (caseData) => {
     Formato: {"riesgo": "...", "justificacion": "..."}
     `;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -847,11 +847,11 @@ function getAIRiskAnalysis = async (caseData) => {
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function result = await response.json();
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
         if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
             return JSON.parse(result.candidates[0].content.parts[0].text);
         }
@@ -862,9 +862,9 @@ function getAIRiskAnalysis = async (caseData) => {
     }
 };
 
-function getAIComprehensiveResponse = async (caseData, contractType) => {
+async function getAIComprehensiveResponse(
     // Formatea el historial completo de observaciones
-    function internalHistoryInfo = (caseData.Observaciones_Historial || [])
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
         .map(obs =>
            ` - Observación de gestión: "${obs.text}"`
         ).join('\n\n');
@@ -889,14 +889,14 @@ function getAIComprehensiveResponse = async (caseData, contractType) => {
     }
     
     // Nueva plantilla de inicio
-    function startTemplate = `En la presente damos atención al CUN/SN ${caseData.CUN || caseData.SN} y si es un caso de traslado por competencia SIC, CRC tambien relacionarlo`;
+    const startTemplate = `En la presente damos atención al CUN/SN ${caseData.CUN || caseData.SN} y si es un caso de traslado por competencia SIC, CRC tambien relacionarlo`;
     
     // Lógica para SN acumulados
-    function accumulatedSNInfo = (caseData.SNAcumulados_Historial || []).length > 0
+    const accumulatedSNInfo = (caseData.SNAcumulados_Historial || []).length > 0
         ? `Adicionalmente, esta respuesta también atiende a los SN/CUN acumulados: ${caseData.SNAcumulados_Historial.map(s => `${s.sn}/${s.cun}`).join(', ')}.`
         : '';
 
-    function prompt = `Eres un asistente legal experto que genera respuestas para clientes de telecomunicaciones.
+    const prompt = `Eres un asistente legal experto que genera respuestas para clientes de telecomunicaciones.
 Tu identidad es Colombia Telecomunicaciones S.A. E.S.P BIC - Movistar.
 **Tarea Crítica:** Genera una proyección de respuesta integral para el cliente, que sea exhaustiva, fluida y coherente.
 La respuesta debe ser inmediata, no a futuro, y basarse exclusivamente en la información del caso.
@@ -961,8 +961,8 @@ Comienza con la plantilla obligatoria y genera el contenido en párrafos separad
 Párrafo de saldos pendientes (si aplica):
     ...`;
 
-    function ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -972,11 +972,11 @@ Párrafo de saldos pendientes (si aplica):
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     try {
-        function r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function res = await r.json();
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
         if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
             return JSON.parse(res.candidates[0].content.parts[0].text).respuesta_integral_ia || 'No se pudo generar la respuesta integral.';
         }
@@ -986,9 +986,9 @@ Párrafo de saldos pendientes (si aplica):
         throw new Error(`Error IA (respuesta integral): ${e.message}`);
     }
 };
-function getAIValidation = async (caseData) => {
+async function getAIValidation(
     // Se prepara un prompt detallado para la IA, pidiéndole que actúe como el cliente.
-    function prompt = `Eres un cliente que presentó un reclamo. Basado en tus pretensiones originales, lee la 'respuesta de la empresa' y determina si todas tus pretensiones fueron atendidas de manera completa. La favorabilidad de la respuesta no es relevante, solo si se abordó cada punto.
+    const prompt = `Eres un cliente que presentó un reclamo. Basado en tus pretensiones originales, lee la 'respuesta de la empresa' y determina si todas tus pretensiones fueron atendidas de manera completa. La favorabilidad de la respuesta no es relevante, solo si se abordó cada punto.
 
 **MIS PRETENSIONES ORIGINALES (hechos del caso):**
 - Mi observación inicial: "${caseData.obs || 'N/A'}"
@@ -1015,8 +1015,8 @@ Formato de respuesta JSON:
   "justificacion": "..."
 }`;
 
-    function ch = [{ role: "user", parts: [{ text: prompt }] }];
-    function payload = {
+    const ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
         contents: ch,
         generationConfig: {
             responseMimeType: "application/json",
@@ -1030,12 +1030,12 @@ Formato de respuesta JSON:
             }
         }
     };
-    function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-    function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     try {
-        function response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        function result = await response.json();
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
         if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
             return JSON.parse(result.candidates[0].content.parts[0].text);
         }
@@ -1045,23 +1045,23 @@ Formato de respuesta JSON:
         throw new Error(`Error IA (validación): ${e.message}`);
     }
 };
-function generateAITextContext = (caseData) => {
+function generateAITextContext(
     // Formatea el historial completo de observaciones
-    function internalHistoryInfo = (caseData.Observaciones_Historial || [])
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
         .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
         .join('\n\n');
 
     // Lógica para SN acumulados
-    function accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
+    const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
         `  Reclamo Acumulado ${index + 1}:\n   - SN: ${item.sn} (CUN: ${item.cun || 'No disponible'})\n   - Observación: ${item.obs}`
     ).join('\n');
 
     // Contexto del reclamo relacionado
-    function relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
+    const relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
         ? `**Reclamo Relacionado (SN: ${caseData.Numero_Reclamo_Relacionado}):**\n   - Observaciones: ${caseData.Observaciones_Reclamo_Relacionado || 'N/A'}\n`
         : 'No hay un reclamo principal relacionado.';
 
-    function textContext = `
+    const textContext = `
     Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
     Necesito que me ayudes a redactar una "Proyección de Respuesta" para un cliente.
     La respuesta debe ser exhaustiva, fluida y coherente, y basarse solo en la información que te proporciono a continuación.
@@ -1096,9 +1096,9 @@ function generateAITextContext = (caseData) => {
     return textContext;
 };
 
-function extractRelatedComplaintNumber = (obsText) => {
+function extractRelatedComplaintNumber(
     if (!obsText || typeof obsText !== 'string') return 'N/A';
-    function match = obsText.toLowerCase().match(/\b(\d{16}|\d{20})\b/i);
+    const match = obsText.toLowerCase().match(/\b(\d{16}|\d{20})\b/i);
     return match ? (match[1] || 'N/A') : 'N/A';
 };
 
@@ -1107,17 +1107,17 @@ function extractRelatedComplaintNumber = (obsText) => {
  * @param {string} nuip - The NUIP string.
  * @returns {string} The normalized NUIP.
  */
-function normalizeNuip = (nuip) => {
+function normalizeNuip(
     if (!nuip || typeof nuip !== 'string') return '';
     return nuip.split('-')[0].trim();
 };
 
-function copyToClipboard = (text, fieldName, showMessageCallback) => {
+function copyToClipboard(
     if (!text) {
         showMessageCallback(`No hay contenido en "${fieldName}" para copiar.`);
         return;
     }
-    function textArea = document.createElement('textarea');
+    const textArea = document.createElement('textarea');
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.select();
@@ -1135,19 +1135,19 @@ function copyToClipboard = (text, fieldName, showMessageCallback) => {
  * @param {string} text - El texto a analizar.
  * @returns {{emails: string[], addresses: string[]}} Un objeto con las direcciones encontradas.
  */
-function extractAddressesFromText = (text) => {
+function extractAddressesFromText(
     if (!text || typeof text !== 'string') {
         return { emails: [], addresses: [] };
     }
 
     // Expresión regular para encontrar correos electrónicos.
-    function emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
-    function emails = text.match(emailRegex) || [];
+    const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
+    const emails = text.match(emailRegex) || [];
 
     // Expresión regular para encontrar direcciones físicas colombianas (simplificada).
     // Busca patrones comunes como "Calle", "Carrera", "Avenida", "Transversal", "Diagonal" seguidos de números.
-    function addressRegex = /(?:calle|cll|carrera|cra|k|avenida|av|transversal|trans|diagonal|diag|dg)\.?\s*[\d\sA-Za-zñÑáéíóúÁÉÍÓÚ#\-\.]+/gi;
-    function addresses = text.match(addressRegex) || [];
+    const addressRegex = /(?:calle|cll|carrera|cra|k|avenida|av|transversal|trans|diagonal|diag|dg)\.?\s*[\d\sA-Za-zñÑáéíóúÁÉÍÓÚ#\-\.]+/gi;
+    const addresses = text.match(addressRegex) || [];
 
     // Devuelve los resultados únicos para evitar duplicados.
     return {
@@ -1159,15 +1159,15 @@ function extractAddressesFromText = (text) => {
 // React Components
 // =================================================================================================
 
-function PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, priorityColors, selectedCaseIds, handleSelectCase, handleOpenCaseDetails, onScanClick, nonBusinessDays, calculateCaseAge }) => {
-    function [currentPage, setCurrentPage] = useState(1);
-    function casesPerPage = 10;
+function PaginatedTable(
+    const [currentPage, setCurrentPage] = useState(1);
+    const casesPerPage = 10;
 
-    function indexOfLastCase = currentPage * casesPerPage;
-    function indexOfFirstCase = indexOfLastCase - casesPerPage;
-    function currentCases = cases.slice(indexOfFirstCase, indexOfLastCase);
-    function totalPages = Math.ceil(cases.length / casesPerPage);
-    function paginate = (pageNumber) => {
+    const indexOfLastCase = currentPage * casesPerPage;
+    const indexOfFirstCase = indexOfLastCase - casesPerPage;
+    const currentCases = cases.slice(indexOfFirstCase, indexOfLastCase);
+    const totalPages = Math.ceil(cases.length / casesPerPage);
+    function paginate(
         if (pageNumber < 1 || pageNumber > totalPages) return;
         setCurrentPage(pageNumber);
     };
@@ -1184,7 +1184,7 @@ function PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, prior
                                     type="checkbox"
                                     className="form-checkbox h-4 w-4 text-blue-600"
                                     onChange={(e) => {
-                                        function newSelectedIds = new Set(selectedCaseIds);
+                                        const newSelectedIds = new Set(selectedCaseIds);
                                         if (e.target.checked) {
                                             cases.forEach(c => newSelectedIds.add(c.id));
                                         } else {
@@ -1264,9 +1264,9 @@ function PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, prior
 function App() {
 // Asegúrate de importar setDoc también si no lo has hecho
 
-function updateCaseInFirestore = async (caseId, newData) => {
+async function updateCaseInFirestore(
     if (!db || !userId) return;
-    function docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
+    const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
     
     try {
         await setDoc(docRef, newData, { merge: true });
@@ -1277,19 +1277,19 @@ function updateCaseInFirestore = async (caseId, newData) => {
     }
 };
     // State for Firebase services
-    function [db, setDb] = useState(null);
-    function [auth, setAuth] = useState(null);
-    function [userId, setUserId] = useState(null);
+    const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [userId, setUserId] = useState(null);
 
     // --------------------------
     // Autenticación integrada
     // --------------------------
-    function [authLoading, setAuthLoading] = useState(false);
-    function [userRole, setUserRole] = useState(null);
-    function [showAuthModal, setShowAuthModal] = useState(false);
-    function [authEmail, setAuthEmail] = useState('');
-    function [authPassword, setAuthPassword] = useState('');
-    function [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
+    const [authLoading, setAuthLoading] = useState(false);
+    const [userRole, setUserRole] = useState(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authEmail, setAuthEmail] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
 
     // Effect: open auth modal if not signed in (and not loading app)
     useEffect(() => {
@@ -1302,13 +1302,13 @@ function updateCaseInFirestore = async (caseId, newData) => {
 
     // When userId changes, fetch role from Firestore
     useEffect(() => {
-        function fetchRole = async () => {
+        async function fetchRole(
             if (!db || !userId) return;
             try {
-                function uDoc = doc(db, `artifacts/${appId}/users`, userId);
-                function snap = await getDoc(uDoc);
+                const uDoc = doc(db, `artifacts/${appId}/users`, userId);
+                const snap = await getDoc(uDoc);
                 if (snap && snap.exists()) {
-                    function d = snap.data();
+                    const d = snap.data();
                     setUserRole(d.role || 'user');
                 } else {
                     setUserRole('user');
@@ -1321,17 +1321,17 @@ function updateCaseInFirestore = async (caseId, newData) => {
         fetchRole();
     }, [db, userId]);
 
-    function signInWithGoogleHandler = async () => {
+    async function signInWithGoogleHandler(
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
-            function provider = new GoogleAuthProvider();
-            function res = await signInWithPopup(auth, provider);
-            function fbUser = res.user;
+            const provider = new GoogleAuthProvider();
+            const res = await signInWithPopup(auth, provider);
+            const fbUser = res.user;
             setUserId(fbUser.uid);
             // Ensure Firestore user doc exists
-            function userDocRef = doc(db, `artifacts/${appId}/users`, fbUser.uid);
-            function snap = await getDoc(userDocRef);
+            const userDocRef = doc(db, `artifacts/${appId}/users`, fbUser.uid);
+            const snap = await getDoc(userDocRef);
             if (!snap || !snap.exists()) {
                 await setDoc(userDocRef, {
                     email: fbUser.email || null,
@@ -1341,7 +1341,7 @@ function updateCaseInFirestore = async (caseId, newData) => {
                 });
                 setUserRole('user');
             } else {
-                function d = snap.data();
+                const d = snap.data();
                 setUserRole(d.role || 'user');
             }
             displayModalMessage('Inicio de sesión con Google exitoso.');
@@ -1353,12 +1353,12 @@ function updateCaseInFirestore = async (caseId, newData) => {
         }
     };
 
-    function registerWithEmail = async () => {
+    async function registerWithEmail(
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
-            function cred = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-            function fbUser = cred.user;
+            const cred = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+            const fbUser = cred.user;
             // Create user doc in Firestore
             await setDoc(doc(db, `artifacts/${appId}/users`, fbUser.uid), {
                 email: authEmail,
@@ -1377,12 +1377,12 @@ function updateCaseInFirestore = async (caseId, newData) => {
         }
     };
 
-    function loginWithEmail = async () => {
+    async function loginWithEmail(
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
-            function cred = await signInWithEmailAndPassword(auth, authEmail, authPassword);
-            function fbUser = cred.user;
+            const cred = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+            const fbUser = cred.user;
             setUserId(fbUser.uid);
             displayModalMessage('Inicio de sesión exitoso.');
         } catch (e) {
@@ -1393,7 +1393,7 @@ function updateCaseInFirestore = async (caseId, newData) => {
         }
     };
 
-    function logout = async () => {
+    async function logout(
         if (!auth) return;
         try {
             await firebaseSignOut(auth);
@@ -1407,18 +1407,18 @@ function updateCaseInFirestore = async (caseId, newData) => {
     };
 
     // Admin helper: create user (client-side fallback — NOT recommended for production)
-    function createUserAsAdmin = async (email, password, role = 'user') => {
+    async function createUserAsAdmin(
         if (!auth || !userId) { displayModalMessage('No hay sesión activa.'); return { ok: false }; }
         // Check current user's role
         try {
-            function currentSnap = await getDoc(doc(db, `artifacts/${appId}/users`, userId));
+            const currentSnap = await getDoc(doc(db, `artifacts/${appId}/users`, userId));
             if (!currentSnap.exists() || currentSnap.data().role !== 'admin') {
                 displayModalMessage('Solo administradores pueden crear usuarios.');
                 return { ok: false };
             }
             // WARNING: client-side creation will sign in as the created user.
-            function cred = await createUserWithEmailAndPassword(auth, email, password);
-            function newUser = cred.user;
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            const newUser = cred.user;
             await setDoc(doc(db, `artifacts/${appId}/users`, newUser.uid), {
                 email,
                 displayName: null,
@@ -1437,47 +1437,47 @@ function updateCaseInFirestore = async (caseId, newData) => {
 
     
     // Application status states
-    function [loading, setLoading] = useState(true);
-    function [refreshing, setRefreshing] = useState(false);
-    function [uploading, setUploading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [uploading, setUploading] = useState(false);
     
     // Core data state
-    function [cases, setCases] = useState([]);
+    const [cases, setCases] = useState([]);
     
     // UI/Modal states
-    function [showModal, setShowModal] = useState(false);
-    function [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => {}, confirmText: 'Confirmar', cancelText: 'Cancelar' });
-    function [selectedCase, setSelectedCase] = useState(null);
-    function [showManualEntryModal, setShowManualEntryModal] = useState(false);
-    function [activeModule, setActiveModule] = useState('casos');
-    function [currentDateTime, setCurrentDateTime] = useState(new Date());
+    const [showModal, setShowModal] = useState(false);
+    const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => {}, confirmText: 'Confirmar', cancelText: 'Cancelar' });
+    const [selectedCase, setSelectedCase] = useState(null);
+    const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+    const [activeModule, setActiveModule] = useState('casos');
+    const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
     // AI-related loading states
-    function [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
-    function [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    function [isGeneratingResponseProjection, setIsGeneratingResponseProjection] = useState(false);
-    function [isSuggestingEscalation, setIsSuggestingEscalation] = useState(false);
-    function [isGeneratingNextActions, setIsGeneratingNextActions] = useState(false);
-    function [isGeneratingRootCause, setIsGeneratingRootCause] = useState(false);
-    function [isGeneratingEscalationEmail, setIsGeneratingEscalationEmail] = useState(false);
-    function [isGeneratingRiskAnalysis, setIsGeneratingRiskAnalysis] = useState(false);
-    function [isGeneratingComprehensiveResponse, setIsGeneratingComprehensiveResponse] = useState(false);
-function [isGeneratingValidation, setIsGeneratingValidation] = useState(false); 
-    function [isTranscribingObservation, setIsTranscribingObservation] = useState(false);
+    const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [isGeneratingResponseProjection, setIsGeneratingResponseProjection] = useState(false);
+    const [isSuggestingEscalation, setIsSuggestingEscalation] = useState(false);
+    const [isGeneratingNextActions, setIsGeneratingNextActions] = useState(false);
+    const [isGeneratingRootCause, setIsGeneratingRootCause] = useState(false);
+    const [isGeneratingEscalationEmail, setIsGeneratingEscalationEmail] = useState(false);
+    const [isGeneratingRiskAnalysis, setIsGeneratingRiskAnalysis] = useState(false);
+    const [isGeneratingComprehensiveResponse, setIsGeneratingComprehensiveResponse] = useState(false);
+const [isGeneratingValidation, setIsGeneratingValidation] = useState(false); 
+    const [isTranscribingObservation, setIsTranscribingObservation] = useState(false);
 
     // Filtering and selection states
-    function [searchTerm, setSearchTerm] = useState('');
-    function [activeFilter, setActiveFilter] = useState('all');
-    function [contractFilter, setContractFilter] = useState('todos');
-    function [priorityFilter, setPriorityFilter] = useState('todos');
-    function [statusFilter, setStatusFilter] = useState('todos');
-    function [selectedCaseIds, setSelectedCaseIds] = useState(new Set());
-    function [massUpdateTargetStatus, setMassUpdateTargetStatus] = useState('');
-    function [isMassUpdating, setIsMassUpdating] = useState(false);
-    function [massUpdateObservation, setMassUpdateObservation] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeFilter, setActiveFilter] = useState('all');
+    const [contractFilter, setContractFilter] = useState('todos');
+    const [priorityFilter, setPriorityFilter] = useState('todos');
+    const [statusFilter, setStatusFilter] = useState('todos');
+    const [selectedCaseIds, setSelectedCaseIds] = useState(new Set());
+    const [massUpdateTargetStatus, setMassUpdateTargetStatus] = useState('');
+    const [isMassUpdating, setIsMassUpdating] = useState(false);
+    const [massUpdateObservation, setMassUpdateObservation] = useState('');
 
     // Form and data entry states
-    function initialManualFormData = {
+    const initialManualFormData = {
         SN: '', CUN: '', FechaRadicado: '', FechaVencimiento: '', Nro_Nuip_Cliente: '', Nombre_Cliente: '',
         OBS: '', Dia: '', Tipo_Contrato: 'Condiciones Uniformes', Numero_Contrato_Marco: '', isNabis: false,
         Requiere_Aseguramiento_Facturas: false, ID_Aseguramiento: '', Corte_Facturacion: '',
@@ -1487,7 +1487,7 @@ function [isGeneratingValidation, setIsGeneratingValidation] = useState(false);
         cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '',
         areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', Estado_Gestion: 'Pendiente'
     };
-function [reliquidacionData, setReliquidacionData] = useState([{
+const [reliquidacionData, setReliquidacionData] = useState([{
     id: 1, // Identificador único para cada formulario
     numeroCuenta: '',
     valorMensual: '',
@@ -1496,34 +1496,34 @@ function [reliquidacionData, setReliquidacionData] = useState([{
     fechaBaja: '',
     montoNotaCredito: null,
 }]);
-    function [manualFormData, setManualFormData] = useState(initialManualFormData);
-    function [duplicateCasesDetails, setDuplicateCasesDetails] = useState([]);
-    function [reporteCruceData, setReporteCruceData] = useState([]);
+    const [manualFormData, setManualFormData] = useState(initialManualFormData);
+    const [duplicateCasesDetails, setDuplicateCasesDetails] = useState([]);
+    const [reporteCruceData, setReporteCruceData] = useState([]);
 
     // File handling states and refs
-    function fileInputRef = useRef(null);
-    function observationFileInputRef = useRef(null);
-    function cancelUpload = useRef(false);
-    function [caseToScan, setCaseToScan] = useState(null);
-    function [isScanning, setIsScanning] = useState(false);
-    function scanFileInputRef = useRef(null);
-    function contractMarcoFileInputRef = useRef(null);
-    function reporteCruceFileInputRef = useRef(null);
-    function nonBusinessDays = new Set(COLOMBIAN_HOLIDAYS);
+    const fileInputRef = useRef(null);
+    const observationFileInputRef = useRef(null);
+    const cancelUpload = useRef(false);
+    const [caseToScan, setCaseToScan] = useState(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const scanFileInputRef = useRef(null);
+    const contractMarcoFileInputRef = useRef(null);
+    const reporteCruceFileInputRef = useRef(null);
+    const nonBusinessDays = new Set(COLOMBIAN_HOLIDAYS);
 
     // Case detail modal specific states
-    function [tieneSNAcumulados, setTieneSNAcumulados] = useState(false);
-    function [cantidadSNAcumulados, setCantidadSNAcumulados] = useState(0);
-    function [snAcumuladosData, setSnAcumuladosData] = useState([]);
-    function [showGestionesAdicionales, setShowGestionesAdicionales] = useState(true);
-    function [aseguramientoObs, setAseguramientoObs] = useState('');
-function [showAlarmModal, setShowAlarmModal] = useState(false);
-    function [alarmCases, setAlarmCases] = useState([]);
-    function [alarmObservation, setAlarmObservation] = useState('');
-    function [selectedAlarmCase, setSelectedAlarmCase] = useState(null);
-function asignadosPorDiaData = useMemo(() => {
-        function counts = cases.reduce((acc, caseItem) => {
-            function fecha = caseItem.fecha_asignacion || 'Sin Fecha';
+    const [tieneSNAcumulados, setTieneSNAcumulados] = useState(false);
+    const [cantidadSNAcumulados, setCantidadSNAcumulados] = useState(0);
+    const [snAcumuladosData, setSnAcumuladosData] = useState([]);
+    const [showGestionesAdicionales, setShowGestionesAdicionales] = useState(true);
+    const [aseguramientoObs, setAseguramientoObs] = useState('');
+const [showAlarmModal, setShowAlarmModal] = useState(false);
+    const [alarmCases, setAlarmCases] = useState([]);
+    const [alarmObservation, setAlarmObservation] = useState('');
+    const [selectedAlarmCase, setSelectedAlarmCase] = useState(null);
+const asignadosPorDiaData = useMemo(() => {
+        const counts = cases.reduce((acc, caseItem) => {
+            const fecha = caseItem.fecha_asignacion || 'Sin Fecha';
             acc[fecha] = (acc[fecha] || 0) + 1;
             return acc;
         }, {});
@@ -1533,14 +1533,14 @@ function asignadosPorDiaData = useMemo(() => {
         })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     }, [cases]);
 
-    function distribucionPorDiaData = useMemo(() => {
-    function pendStates = ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC','Decretado', 'Pendiente Ajustes'];
-    function counts = cases
+    const distribucionPorDiaData = useMemo(() => {
+    const pendStates = ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC','Decretado', 'Pendiente Ajustes'];
+    const counts = cases
         .filter(c => pendStates.includes(c.Estado_Gestion))
         .reduce((acc, caseItem) => {
-            function dia = calculateCaseAge(caseItem, nonBusinessDays);
+            const dia = calculateCaseAge(caseItem, nonBusinessDays);
             if (dia !== 'N/A' && !isNaN(dia)) {
-                function key = `${String(dia).padStart(2, '0')} Días`;
+                const key = `${String(dia).padStart(2, '0')} Días`;
                 acc[key] = (acc[key] || 0) + 1;
             }
             return acc;
@@ -1551,20 +1551,20 @@ function asignadosPorDiaData = useMemo(() => {
     })).sort((a, b) => a.dia.localeCompare(b.dia));
 }, [cases]);
 
-function [showCancelAlarmModal, setShowCancelAlarmModal] = useState(false);
-function [cancelAlarmCases, setCancelAlarmCases] = useState([]);
-function calculateTimePerCaseForDay15 = (allCases) => {
-    function timeAvailableInMinutes = 9 * 60; // 9 horas
+const [showCancelAlarmModal, setShowCancelAlarmModal] = useState(false);
+const [cancelAlarmCases, setCancelAlarmCases] = useState([]);
+function calculateTimePerCaseForDay15(
+    const timeAvailableInMinutes = 9 * 60; // 9 horas
 
     // Se usa la función de cálculo en tiempo real
-    function pendingDay15Cases = allCases.filter(c => 
+    const pendingDay15Cases = allCases.filter(c => 
         ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC', 'Decretado', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && 
         calculateCaseAge(c, nonBusinessDays) === 15
     );
 
     if (pendingDay15Cases.length === 0) {
         // Se busca si hay casos resueltos en día 15 para mostrar el tiempo congelado
-        function resolvedCasesWithTime = allCases.filter(c => 
+        const resolvedCasesWithTime = allCases.filter(c => 
             (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') &&
             calculateCaseAge(c, nonBusinessDays) === 15 &&
             c.Tiempo_Gestion_Dia15_Congelado
@@ -1575,20 +1575,20 @@ function calculateTimePerCaseForDay15 = (allCases) => {
         return 'No hay casos en Día 15.';
     }
 
-    function timePerCase = timeAvailableInMinutes / pendingDay15Cases.length;
+    const timePerCase = timeAvailableInMinutes / pendingDay15Cases.length;
     return `~${timePerCase.toFixed(2)} minutos por caso`;
 };
-    function timePerCaseDay15 = useMemo(
+    const timePerCaseDay15 = useMemo(
         () => calculateTimePerCaseForDay15(cases), 
         [cases, calculateTimePerCaseForDay15]
     );
-function checkCancellationAlarms = useCallback(() => {
-    function today = new Date();
-    function todayISO = getColombianDateISO();
+const checkCancellationAlarms = useCallback(() => {
+    const today = new Date();
+    const todayISO = getColombianDateISO();
     
-    function casesToAlert = cases.filter(caseItem => {
+    const casesToAlert = cases.filter(caseItem => {
         // Check if the AI category includes "cancelación" or "prepago"
-        function isCancellationRelated = String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('cancelacion') ||
+        const isCancellationRelated = String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('cancelacion') ||
                                       String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('prepago');
         
         if (!isCancellationRelated) {
@@ -1596,12 +1596,12 @@ function checkCancellationAlarms = useCallback(() => {
         }
 
         // Extract cut-off day from `Corte_Facturacion`
-        function cutOffDay = parseInt(caseItem.Corte_Facturacion);
+        const cutOffDay = parseInt(caseItem.Corte_Facturacion);
         if (isNaN(cutOffDay) || cutOffDay < 1 || cutOffDay > 31) {
             return false;
         }
 
-        function alertShownKey = `cancelAlarmShown_${caseItem.id}_${todayISO}`;
+        const alertShownKey = `cancelAlarmShown_${caseItem.id}_${todayISO}`;
         if (sessionStorage.getItem(alertShownKey)) {
             return false;
         }
@@ -1615,24 +1615,24 @@ function checkCancellationAlarms = useCallback(() => {
         }
         
         // Calculate 3 business days before the cut-off date
-        function daysToSubtract = 3;
-        function threeBusinessDaysBefore = new Date(nextCutOffDate);
+        const daysToSubtract = 3;
+        const threeBusinessDaysBefore = new Date(nextCutOffDate);
         let businessDaysCount = 0;
         let tempDate = new Date(nextCutOffDate);
 
         while (businessDaysCount < daysToSubtract) {
             tempDate.setDate(tempDate.getDate() - 1);
-            function dayOfWeek = tempDate.getDay();
-            function dateStr = tempDate.toISOString().slice(0, 10);
-            function isNonBusinessDay = nonBusinessDays.has(dateStr);
+            const dayOfWeek = tempDate.getDay();
+            const dateStr = tempDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDays.has(dateStr);
 
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
                 businessDaysCount++;
             }
         }
 
-        function alertDate = tempDate;
-        function todayWithoutTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const alertDate = tempDate;
+        const todayWithoutTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
         return todayWithoutTime.getTime() === alertDate.getTime();
     });
@@ -1643,17 +1643,17 @@ function checkCancellationAlarms = useCallback(() => {
     }
 }, [cases, nonBusinessDays, getColombianDateISO]);
 // Función para el manejo de cambios en los campos de entrada
-function handleReliquidacionChange = (index, e) => {
-    function { name, value } = e.target;
+function handleReliquidacionChange(
+    const { name, value } = e.target;
     setReliquidacionData(prev => {
-        function newForms = [...prev];
+        const newForms = [...prev];
         newForms[index][name] = value;
         return newForms;
     });
 };
 
-function handleAddForm = () => {
-    function newId = reliquidacionData.length > 0 ? Math.max(...reliquidacionData.map(f => f.id)) + 1 : 1;
+function handleAddForm(
+    const newId = reliquidacionData.length > 0 ? Math.max(...reliquidacionData.map(f => f.id)) + 1 : 1;
     setReliquidacionData(prev => [...prev, {
         id: newId,
         numeroCuenta: '',
@@ -1665,20 +1665,20 @@ function handleAddForm = () => {
     }]);
 };
 
-function handleRemoveForm = (idToRemove) => {
+function handleRemoveForm(
     setReliquidacionData(prev => prev.filter(form => form.id !== idToRemove));
 };
 
 // Función de cálculo principal
-function calcularNotaCredito = async () => {
+async function calcularNotaCredito(
     // Validar que hay un caso seleccionado
     if (!selectedCase) {
         displayModalMessage("Error: No hay un caso seleccionado para actualizar.");
         return;
     }
 
-    function newForms = reliquidacionData.map(form => {
-        function { numeroCuenta, fechaInicioCiclo, fechaFinCiclo, fechaBaja, valorMensual } = form;
+    const newForms = reliquidacionData.map(form => {
+        const { numeroCuenta, fechaInicioCiclo, fechaFinCiclo, fechaBaja, valorMensual } = form;
 
         // Validaciones internas de cada formulario
         if (!numeroCuenta || !fechaInicioCiclo || !fechaFinCiclo || !fechaBaja || !valorMensual) {
@@ -1686,9 +1686,9 @@ function calcularNotaCredito = async () => {
             return form;
         }
 
-        function start = new Date(fechaInicioCiclo + 'T00:00:00-05:00');
-        function end = new Date(fechaFinCiclo + 'T00:00:00-05:00');
-        function baja = new Date(fechaBaja + 'T00:00:00-05:00');
+        const start = new Date(fechaInicioCiclo + 'T00:00:00-05:00');
+        const end = new Date(fechaFinCiclo + 'T00:00:00-05:00');
+        const baja = new Date(fechaBaja + 'T00:00:00-05:00');
 
         if (isNaN(start) || isNaN(end) || isNaN(baja)) {
             displayModalMessage("Una de las fechas ingresadas no es válida.");
@@ -1700,10 +1700,10 @@ function calcularNotaCredito = async () => {
             return form;
         }
 
-        function diasTotales = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
-        function diasAReliquidar = (end.getTime() - baja.getTime()) / (1000 * 60 * 60 * 24) + 1;
-        function valorDiario = parseFloat(valorMensual) / diasTotales;
-        function monto = valorDiario * diasAReliquidar;
+        const diasTotales = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
+        const diasAReliquidar = (end.getTime() - baja.getTime()) / (1000 * 60 * 60 * 24) + 1;
+        const valorDiario = parseFloat(valorMensual) / diasTotales;
+        const monto = valorDiario * diasAReliquidar;
 
         return { ...form, montoNotaCredito: monto.toFixed(2) };
     });
@@ -1711,17 +1711,17 @@ function calcularNotaCredito = async () => {
     setReliquidacionData(newForms);
 
     // Formatear el texto de la observación para el historial
-    function newObservationText = newForms.map(form =>
+    const newObservationText = newForms.map(form =>
         `Cálculo de nota de crédito para Cuenta ${form.numeroCuenta}:\n- Ciclo: ${form.fechaInicioCiclo} a ${form.fechaFinCiclo}\n- Fecha de baja: ${form.fechaBaja}\n- Valor mensual: $${form.valorMensual}\n- Monto a reliquidar: $${form.montoNotaCredito}`
     ).join('\n\n');
 
-    function newHistoryEntry = {
+    const newHistoryEntry = {
         text: newObservationText,
         timestamp: new Date().toISOString(),
     };
     
     // Preparar la actualización del historial
-    function updatedHistory = [...(selectedCase.Observaciones_Historial || []), newHistoryEntry];
+    const updatedHistory = [...(selectedCase.Observaciones_Historial || []), newHistoryEntry];
     
     // Llamar a la función para actualizar el documento en Firestore
     await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHistory });
@@ -1735,22 +1735,22 @@ function calcularNotaCredito = async () => {
 
     displayModalMessage("Cálculo de nota de crédito completado y guardado en el historial.");
 };
-    function statusColors = {
+    const statusColors = {
         'Pendiente':'bg-yellow-200 text-yellow-800', 'Resuelto':'bg-green-200 text-green-800',
         'Finalizado': 'bg-gray-500 text-white', 'Escalado':'bg-red-200 text-red-800',
         'Iniciado':'bg-indigo-200 text-indigo-800', 'Lectura':'bg-blue-200 text-blue-800',
         'Decretado':'bg-purple-200 text-purple-800', 'Traslado SIC':'bg-orange-600 text-white',
         'Pendiente Ajustes': 'bg-pink-200 text-pink-800', 'N/A':'bg-gray-200 text-gray-800'
     };
-    function priorityColors = {'Alta':'bg-red-500 text-white','Media':'bg-orange-400 text-white','Baja':'bg-blue-400 text-white','N/A':'bg-gray-400 text-white'};
+    const priorityColors = {'Alta':'bg-red-500 text-white','Media':'bg-orange-400 text-white','Baja':'bg-blue-400 text-white','N/A':'bg-gray-400 text-white'};
 
     // Memoized modal display functions to prevent re-renders
-    function displayModalMessage = useCallback((message) => {
+    const displayModalMessage = useCallback((message) => {
         setModalContent({ message, isConfirm: false, onConfirm: () => {} });
         setShowModal(true);
     }, []);
 
-    function displayConfirmModal = useCallback((message, { onConfirm, onCancel, confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) => {
+    const displayConfirmModal = useCallback((message, { onConfirm, onCancel, confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) => {
         setModalContent({
             message, isConfirm: true,
             onConfirm: onConfirm || (() => {}),
@@ -1764,7 +1764,7 @@ useEffect(() => {
     // Evita cargar el script varias veces si el componente se re-renderiza
     if (document.getElementById('pdfjs-script')) return; 
 
-    function script = document.createElement('script');
+    const script = document.createElement('script');
     script.id = 'pdfjs-script';
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js';
     script.onload = () => {
@@ -1776,7 +1776,7 @@ useEffect(() => {
 
     return () => {
         // Elimina el script cuando el componente se desmonte para evitar fugas de memoria
-        function scriptTag = document.getElementById('pdfjs-script');
+        const scriptTag = document.getElementById('pdfjs-script');
         if (scriptTag) {
             document.body.removeChild(scriptTag);
         }
@@ -1793,14 +1793,14 @@ useEffect(() => {
             return;
         }
 
-        function app = initializeApp(firebaseConfig);
-        function authInstance = getAuth(app);
-        function dbInstance = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const authInstance = getAuth(app);
+        const dbInstance = getFirestore(app);
         
         setDb(dbInstance);
         setAuth(authInstance);
 
-        function authStateUnsubscribe = onAuthStateChanged(authInstance, async (user) => {
+        const authStateUnsubscribe = onAuthStateChanged(authInstance, async (user) => {
             if (user) {
                 // A user is signed in (either from persistence, or a fresh sign-in).
                 setUserId(user.uid);
@@ -1847,12 +1847,12 @@ useEffect(() => {
     useEffect(() => {
         if (!db || !userId) return; // Wait for Firebase services and user to be ready
 
-        function q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`));
-        function unsub = onSnapshot(q, async snapshot => {
+        const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`));
+        const unsub = onSnapshot(q, async snapshot => {
             let fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             
             // One-time data migration logic for user 'jediazro'
-            function updates = fetched.filter(c => c.user === 'jediazro' && c.user !== userId).map(c => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/cases`, c.id), { user: userId }));
+            const updates = fetched.filter(c => c.user === 'jediazro' && c.user !== userId).map(c => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/cases`, c.id), { user: userId }));
             if (updates.length > 0) {
                 await Promise.all(updates).catch(e => console.error("Auto-assign error:", e));
             }
@@ -1875,15 +1875,15 @@ useEffect(() => {
 useEffect(() => {
     if (!db || !userId || cases.length === 0) return;
 
-    function casesToFinalize = cases.filter(c => {
+    const casesToFinalize = cases.filter(c => {
         // Caso 'Resuelto' que no requiere gestiones adicionales
-        function simpleResolved = c.Estado_Gestion === 'Resuelto' && 
+        const simpleResolved = c.Estado_Gestion === 'Resuelto' && 
                                !c.Requiere_Aseguramiento_Facturas && 
                                !c.requiereBaja && 
                                !c.requiereAjuste;
         
         // Caso 'Resuelto' que sí requería gestiones adicionales y ya las tiene completadas
-        function complexResolvedAndCompleted = c.Estado_Gestion === 'Resuelto' &&
+        const complexResolvedAndCompleted = c.Estado_Gestion === 'Resuelto' &&
                                            (c.Requiere_Aseguramiento_Facturas || c.requiereBaja || c.requiereAjuste) &&
                                            c.gestionAseguramientoCompletada;
 
@@ -1891,9 +1891,9 @@ useEffect(() => {
     });
 
     if (casesToFinalize.length > 0) {
-        function batch = writeBatch(db);
+        const batch = writeBatch(db);
         casesToFinalize.forEach(caseItem => {
-            function caseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
+            const caseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
             batch.update(caseRef, { Estado_Gestion: 'Finalizado' });
         });
 
@@ -1904,7 +1904,7 @@ useEffect(() => {
     }
 }, [cases, db, userId, appId, displayModalMessage]);
 
-    function forceRefreshCases = async () => {
+    async function forceRefreshCases(
         if (!db || !userId) {
             displayModalMessage("Base de datos no disponible o usuario no autenticado.");
             return;
@@ -1912,9 +1912,9 @@ useEffect(() => {
         setRefreshing(true);
         displayModalMessage("Actualizando lista de casos...");
         try {
-            function collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            function snapshot = await getDocs(collRef);
-            function fetchedCases = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const snapshot = await getDocs(collRef);
+            const fetchedCases = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             fetchedCases.sort((a,b) => (new Date(b['Fecha Radicado'] || 0)) - (new Date(a['Fecha Radicado'] || 0) || a.id.localeCompare(b.id)));
             setCases(fetchedCases);
             displayModalMessage("Lista de casos actualizada.");
@@ -1929,9 +1929,9 @@ useEffect(() => {
 
     useEffect(() => {
         if (cases.length > 0 && !sessionStorage.getItem('decretadoAlarmShown')) {
-            function today = new Date(); today.setHours(0,0,0,0);
-            function twoDaysHence = new Date(today); twoDaysHence.setDate(today.getDate()+2); twoDaysHence.setHours(23,59,59,999);
-            function expiring = cases.filter(c => c.Estado_Gestion === 'Decretado' && c.Fecha_Vencimiento_Decreto && new Date(c.Fecha_Vencimiento_Decreto) >= today && new Date(c.Fecha_Vencimiento_Decreto) <= twoDaysHence);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const twoDaysHence = new Date(today); twoDaysHence.setDate(today.getDate()+2); twoDaysHence.setHours(23,59,59,999);
+            const expiring = cases.filter(c => c.Estado_Gestion === 'Decretado' && c.Fecha_Vencimiento_Decreto && new Date(c.Fecha_Vencimiento_Decreto) >= today && new Date(c.Fecha_Vencimiento_Decreto) <= twoDaysHence);
             if (expiring.length > 0) {
                 displayModalMessage(`ALERTA! Casos "Decretados" próximos a vencer:\n${expiring.map(c=>`SN: ${c.SN}, Vence: ${c.Fecha_Vencimiento_Decreto}`).join('\n')}`);
                 sessionStorage.setItem('decretadoAlarmShown', 'true');
@@ -1940,13 +1940,13 @@ useEffect(() => {
     }, [cases, displayModalMessage]);
 
     useEffect(() => {
-        function checkIniciadoCases = () => {
-            function now = new Date().toISOString();
+        function checkIniciadoCases(
+            const now = new Date().toISOString();
             cases.forEach(caseItem => {
                 if (caseItem.Estado_Gestion === 'Iniciado' && caseItem.Fecha_Inicio_Gestion) {
-                    function duration = getDurationInMinutes(caseItem.Fecha_Inicio_Gestion, now);
+                    const duration = getDurationInMinutes(caseItem.Fecha_Inicio_Gestion, now);
                     if (duration !== 'N/A' && duration > 45) {
-                        function alertShownKey = `iniciadoAlertShown_${caseItem.id}`;
+                        const alertShownKey = `iniciadoAlertShown_${caseItem.id}`;
                         if (!sessionStorage.getItem(alertShownKey)) {
                             displayModalMessage(`¡ALERTA! El caso SN: ${caseItem.SN} (CUN: ${caseItem.CUN || 'N/A'}) ha estado en estado "Iniciado" por más de 45 minutos.`);
                             sessionStorage.setItem(alertShownKey, 'true');
@@ -1955,38 +1955,38 @@ useEffect(() => {
                 }
             });
         };
-        function intervalId = setInterval(checkIniciadoCases, 30000);
+        const intervalId = setInterval(checkIniciadoCases, 30000);
         return () => clearInterval(intervalId);
     }, [cases, displayModalMessage]);
 useEffect(() => {
     if (cases.length === 0) return;
     
-    function timerId = setInterval(checkCancellationAlarms, 60000); // Check every 60 seconds
+    const timerId = setInterval(checkCancellationAlarms, 60000); // Check every 60 seconds
     checkCancellationAlarms(); // Initial check on component mount
 
     return () => clearInterval(timerId); // Cleanup on unmount
 }, [cases, checkCancellationAlarms]);
 
-    useEffect(() => { function timer = setInterval(() => setCurrentDateTime(new Date()), 1000); return () => clearInterval(timer); }, []);
+    useEffect(() => { const timer = setInterval(() => setCurrentDateTime(new Date()), 1000); return () => clearInterval(timer); }, []);
 useEffect(() => {
         if (cases.length === 0) return;
 
-        function checkAlarms = () => {
-            function todayISO = getColombianDateISO();
-            function casesToAlert = cases.filter(c => {
-                function caseId = c.id;
-                function alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
+        function checkAlarms(
+            const todayISO = getColombianDateISO();
+            const casesToAlert = cases.filter(c => {
+                const caseId = c.id;
+                const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
 
                 // Si la alarma para este caso ya fue cerrada hoy, no la mostramos.
                 if (sessionStorage.getItem(alarmKey)) {
                     return false;
                 }
 
-                function dia = calculateCaseAge(c, nonBusinessDays);
+                const dia = calculateCaseAge(c, nonBusinessDays);
                 if (isNaN(dia)) return false;
 
-                function isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
-                function isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
+                const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
+                const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
 
                 return isTrasladoSIC || isDecretado;
             });
@@ -1998,20 +1998,20 @@ useEffect(() => {
         };
 
         // Revisa las alarmas 5 segundos después de que los casos se carguen.
-        function timer = setTimeout(checkAlarms, 5000);
+        const timer = setTimeout(checkAlarms, 5000);
         return () => clearTimeout(timer);
 
     }, [cases]);
 
-function handleFileUpload = async (event) => {
-    function file = event.target.files[0];
+async function handleFileUpload(
+    const file = event.target.files[0];
     if (!file) return;
     setUploading(true);
     cancelUpload.current = false;
-    function reader = new FileReader();
+    const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            function { data: csvDataRows } = parseCSV(e.target.result);
+            const { data: csvDataRows } = parseCSV(e.target.result);
             if (csvDataRows.length === 0) {
                 displayModalMessage('CSV vacío o inválido.');
                 setUploading(false);
@@ -2023,12 +2023,12 @@ function handleFileUpload = async (event) => {
                 return;
             }
 
-            function collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            function today = getColombianDateISO();
-            function nonBusinessDaysSet = new Set(COLOMBIAN_HOLIDAYS);
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const today = getColombianDateISO();
+            const nonBusinessDaysSet = new Set(COLOMBIAN_HOLIDAYS);
 
-            function existingDocsSnapshot = await getDocs(collRef);
-            function existingCasesMap = new Map(existingDocsSnapshot.docs.map(d => [String(d.data().SN || '').trim(), { id: d.id, ...d.data() }]));
+            const existingDocsSnapshot = await getDocs(collRef);
+            const existingCasesMap = new Map(existingDocsSnapshot.docs.map(d => [String(d.data().SN || '').trim(), { id: d.id, ...d.data() }]));
             let addedCount = 0;
             let updatedCount = 0;
             let skippedCount = 0;
@@ -2038,8 +2038,8 @@ function handleFileUpload = async (event) => {
                     console.log("Carga cancelada por el usuario.");
                     break;
                 }
-                function row = csvDataRows[i];
-                function currentSN = String(row.SN || '').trim();
+                const row = csvDataRows[i];
+                const currentSN = String(row.SN || '').trim();
 
                 if (!currentSN) {
                     skippedCount++;
@@ -2047,7 +2047,7 @@ function handleFileUpload = async (event) => {
                 }
 
                 displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
-                function parsedFechaRadicado = parseDate(row['Fecha Radicado']);
+                const parsedFechaRadicado = parseDate(row['Fecha Radicado']);
                 
                 let calculatedDia = calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
 
@@ -2062,9 +2062,9 @@ function handleFileUpload = async (event) => {
                 // --- FIN DE LÓGICA REINCORPORADA ---
 
 if (existingCasesMap.has(currentSN)) {
-    function existingCaseData = existingCasesMap.get(currentSN);
-    function docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
-    function updatedData = {
+    const existingCaseData = existingCasesMap.get(currentSN);
+    const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
+    const updatedData = {
         ...row,
         'Fecha Radicado': parsedFechaRadicado,
         'Dia': calculatedDia
@@ -2077,7 +2077,7 @@ if (existingCasesMap.has(currentSN)) {
                     let relNum = 'N/A';
                     let aiSentiment = { Sentimiento_IA: 'N/A' };
                     try {
-                        function [analysis, priority, sentiment] = await Promise.all([
+                        const [analysis, priority, sentiment] = await Promise.all([
                             getAIAnalysisAndCategory(row),
                             getAIPriority(row['obs']),
                             getAISentiment(row['obs'])
@@ -2154,40 +2154,40 @@ if (existingCasesMap.has(currentSN)) {
     reader.readAsText(file, 'ISO-8859-1');
 };
 
-    function handleContractMarcoUpload = async (event) => {
-        function file = event.target.files[0];
+    async function handleContractMarcoUpload(
+        const file = event.target.files[0];
         if (!file) return;
         setUploading(true);
         displayModalMessage('Procesando CSV de Contrato Marco para reclasificación...');
 
-        function reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = async (e) => {
             try {
                 if (!db || !userId) throw new Error('DB no lista o usuario no autenticado.');
 
-                function { headers, data: csvDataRows } = parseCSV(e.target.result);
+                const { headers, data: csvDataRows } = parseCSV(e.target.result);
                 if (csvDataRows.length === 0) throw new Error('CSV de Contrato Marco vacío o inválido.');
 
-                function nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
                 if (!nuipHeader) {
                     throw new Error("El CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente' o 'NUIP').");
                 }
 
-                function collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-                function batch = writeBatch(db);
+                const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+                const batch = writeBatch(db);
                 let updatedCasesCount = 0;
                 let nuipsNotFoundCount = 0;
                 let skippedNabisCount = 0;
                 
                 // Fetch all cases to check the 'isNabis' flag before updating
-                function allCasesSnapshot = await getDocs(collRef);
-                function casesByClienteNuip = new Map();
-                function casesByReclamanteNuip = new Map();
+                const allCasesSnapshot = await getDocs(collRef);
+                const casesByClienteNuip = new Map();
+                const casesByReclamanteNuip = new Map();
 
                 allCasesSnapshot.forEach(docSnap => {
-                    function caseData = { id: docSnap.id, ...docSnap.data() };
-                    function clienteNuip = normalizeNuip(caseData.Nro_Nuip_Cliente);
-                    function reclamanteNuip = normalizeNuip(caseData.Nro_Nuip_Reclamante);
+                    const caseData = { id: docSnap.id, ...docSnap.data() };
+                    const clienteNuip = normalizeNuip(caseData.Nro_Nuip_Cliente);
+                    const reclamanteNuip = normalizeNuip(caseData.Nro_Nuip_Reclamante);
 
                     if (clienteNuip && clienteNuip !== '0' && clienteNuip !== 'N/A') {
                         if (!casesByClienteNuip.has(clienteNuip)) {
@@ -2203,9 +2203,9 @@ if (existingCasesMap.has(currentSN)) {
                    }
                 });
 
-                function processedNuips = new Set();
-                for (function row of csvDataRows) {
-                    function nuipToSearch = normalizeNuip(row[nuipHeader]);
+                const processedNuips = new Set();
+                for (const row of csvDataRows) {
+                    const nuipToSearch = normalizeNuip(row[nuipHeader]);
 
                     if (!nuipToSearch || processedNuips.has(nuipToSearch)) {
                         continue;
@@ -2213,12 +2213,12 @@ if (existingCasesMap.has(currentSN)) {
                     processedNuips.add(nuipToSearch);
                     
                     let foundMatch = false;
-                    function potentialMatches = [
+                    const potentialMatches = [
                         ...(casesByClienteNuip.get(nuipToSearch) || []),
                         ...(casesByReclamanteNuip.get(nuipToSearch) || [])
                     ];
                     
-                    function uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
+                    const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
 
                     if (uniqueMatches.length > 0) {
                         foundMatch = true;
@@ -2228,8 +2228,8 @@ if (existingCasesMap.has(currentSN)) {
                                 return; // Skip this case, it was manually marked
                             }
 
-                            function docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
-                            function updateData = {
+                            const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
+                            const updateData = {
                                 Tipo_Contrato: 'Contrato Marco'
                             };
                             if (row.Numero_Contrato_Marco) {
@@ -2265,17 +2265,17 @@ if (existingCasesMap.has(currentSN)) {
         reader.readAsText(file);
     };
 
-    function handleReporteCruceUpload = async (event) => {
-        function file = event.target.files[0];
+    async function handleReporteCruceUpload(
+        const file = event.target.files[0];
         if (!file) return;
 
         setUploading(true);
         displayModalMessage('Procesando reporte para cruce de información...');
 
-        function reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = async (e) => {
             try {
-                function { headers, data: reportData } = parseCSV(e.target.result);
+                const { headers, data: reportData } = parseCSV(e.target.result);
 
                 if (reportData.length === 0) {
                     throw new Error('El archivo CSV está vacío o tiene un formato no válido.');
@@ -2283,12 +2283,12 @@ if (existingCasesMap.has(currentSN)) {
                 
                 setReporteCruceData(reportData); // Store the data in state
 
-                function nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
                 if (!nuipHeader) {
                     throw new Error("El archivo CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente').");
                 }
 
-                function reportNuips = new Set(
+                const reportNuips = new Set(
                     reportData.map(row => normalizeNuip(row[nuipHeader])).filter(nuip => nuip)
                 );
 
@@ -2296,9 +2296,9 @@ if (existingCasesMap.has(currentSN)) {
                     throw new Error("No se encontraron Documentos de Identidad (NUIP) válidos en el reporte.");
                 }
                 
-                function casesByNuip = new Map();
+                const casesByNuip = new Map();
                 cases.forEach(caseItem => {
-                    function nuips = [normalizeNuip(caseItem.Nro_Nuip_Cliente), normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
+                    const nuips = [normalizeNuip(caseItem.Nro_Nuip_Cliente), normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
                     nuips.forEach(nuip => {
                         if (nuip && nuip !== '0' && nuip !== 'N/A') {
                             if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
@@ -2307,7 +2307,7 @@ if (existingCasesMap.has(currentSN)) {
                     });
                 });
                 
-                function matches = new Map();
+                const matches = new Map();
                 reportNuips.forEach(nuip => {
                     if (casesByNuip.has(nuip)) {
                         matches.set(nuip, casesByNuip.get(nuip));
@@ -2340,13 +2340,13 @@ if (existingCasesMap.has(currentSN)) {
         reader.readAsText(file, 'ISO-8859-1');
     };
 
-    function handleAssignFromReport = (reportRowData) => {
-        function nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
-        function snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
-        function cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
-        function fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
+    function handleAssignFromReport(
+        const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
+        const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
+        const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
+        const fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
     
-        function prefilledData = {
+        const prefilledData = {
             ...initialManualFormData,
             SN: reportRowData[snHeader] || '',
             CUN: reportRowData[cunHeader] || '',
@@ -2359,7 +2359,7 @@ if (existingCasesMap.has(currentSN)) {
         setShowManualEntryModal(true);
     };
 
-   function handleOpenCaseDetails = async (caseItem) => {
+   async function handleOpenCaseDetails(
     setSelectedCase(caseItem);
     setTieneSNAcumulados(false);
     setCantidadSNAcumulados(0);
@@ -2378,38 +2378,38 @@ if (existingCasesMap.has(currentSN)) {
         montoNotaCredito: null,
     }]);
 
-    function duplicatesMap = new Map();
-    function normalizedCaseNuips = new Set([
+    const duplicatesMap = new Map();
+    const normalizedCaseNuips = new Set([
         normalizeNuip(caseItem.Nro_Nuip_Cliente),
         normalizeNuip(caseItem.Nro_Nuip_Reclamante)
     ].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A'));
     // 1. Check against other assigned cases
     cases.forEach(otherCase => {
         if (otherCase.id === caseItem.id) return;
-        function normalizedOtherNuips = new Set([
+        const normalizedOtherNuips = new Set([
             normalizeNuip(otherCase.Nro_Nuip_Cliente),
             normalizeNuip(otherCase.Nro_Nuip_Reclamante)
         ].filter(Boolean));
-        function hasCommonNuip = [...normalizedCaseNuips].some(nuip => normalizedOtherNuips.has(nuip));
+        const hasCommonNuip = [...normalizedCaseNuips].some(nuip => normalizedOtherNuips.has(nuip));
         if (hasCommonNuip) {
             duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' });
         }
     });
     // 2. Check against the cruce report data (NEW LOGIC)
     if (reporteCruceData.length > 0 && reporteCruceData[0]) {
-        function nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
-        function snHeader = Object.keys(reporteCruceData[0]).find(h => h.toLowerCase().trim() === 'sn');
+        const nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
+        const snHeader = Object.keys(reporteCruceData[0]).find(h => h.toLowerCase().trim() === 'sn');
         if (nuipColumns.length > 0 && snHeader) {
             reporteCruceData.forEach((reportRow, index) => {
-                function reportSN = String(reportRow[snHeader] || '').trim();
+                const reportSN = String(reportRow[snHeader] || '').trim();
                 if (!reportSN) return;
-                function reportRowNuips = new Set(
+                const reportRowNuips = new Set(
                     nuipColumns.map(col => normalizeNuip(reportRow[col])).filter(Boolean)
                 );
-                function isMatchFound = [...normalizedCaseNuips].some(caseNuip => reportRowNuips.has(caseNuip));
+                const isMatchFound = [...normalizedCaseNuips].some(caseNuip => reportRowNuips.has(caseNuip));
                 if (isMatchFound) {
-                    function isAlreadyAssigned = cases.some(c => c.SN === reportSN);
-                    function duplicateId = `report-${reportSN}-${index}`;
+                    const isAlreadyAssigned = cases.some(c => c.SN === reportSN);
+                    const duplicateId = `report-${reportSN}-${index}`;
                     if (!duplicatesMap.has(reportSN)) {
                         duplicatesMap.set(reportSN, {
                             ...reportRow,
@@ -2426,7 +2426,7 @@ if (existingCasesMap.has(currentSN)) {
     setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
 };
 
-function handleCloseCaseDetails = () => {
+function handleCloseCaseDetails(
     setSelectedCase(null);
     setDuplicateCasesDetails([]);
     setTieneSNAcumulados(false);
@@ -2446,15 +2446,15 @@ function handleCloseCaseDetails = () => {
     }]);
 };
 
-function handleModalFieldChange = async (fieldName, value) => {
+async function handleModalFieldChange(
     if (!selectedCase) return;
-    function firestoreUpdateData = { [fieldName]: value };
+    const firestoreUpdateData = { [fieldName]: value };
 
     // --- INICIO DEL CÓDIGO A AGREGAR ---
     if (fieldName === 'Fecha Radicado') {
         // Crea un objeto temporal para el cálculo, usando el nuevo valor de la fecha
-        function tempCaseForCalc = { ...selectedCase, 'Fecha Radicado': value };
-        function newAge = calculateCaseAge(tempCaseForCalc, nonBusinessDays);
+        const tempCaseForCalc = { ...selectedCase, 'Fecha Radicado': value };
+        const newAge = calculateCaseAge(tempCaseForCalc, nonBusinessDays);
 
         // Añade el nuevo día calculado al objeto que se guardará en la base de datos
         firestoreUpdateData.Dia = newAge;
@@ -2464,11 +2464,11 @@ function handleModalFieldChange = async (fieldName, value) => {
     }
 
     if (fieldName === 'isNabis') {
-        function newContractType = value ? 'Contrato Marco' : 'Condiciones Uniformes';
+        const newContractType = value ? 'Contrato Marco' : 'Condiciones Uniformes';
         firestoreUpdateData.Tipo_Contrato = newContractType;
         setSelectedCase(prev => ({ ...prev, isNabis: value, Tipo_Contrato: newContractType }));
     } else {
-        function isChecked = typeof value === 'boolean' ? value : (value === 'true');
+        const isChecked = typeof value === 'boolean' ? value : (value === 'true');
         if (fieldName === 'Nombre_Cliente') value = value.toUpperCase();
         else if (fieldName === 'Nro_Nuip_Cliente' && (String(value).startsWith('8') || String(value).startsWith('9')) && String(value).length > 9) value = String(value).substring(0, 9);
         
@@ -2513,9 +2513,9 @@ function handleModalFieldChange = async (fieldName, value) => {
     updateCaseInFirestore(selectedCase.id, firestoreUpdateData);
 };
 
-    function handleContractTypeChange = (newContractType) => {
+    function handleContractTypeChange(
         if (!selectedCase) return;
-        function updateData = { Tipo_Contrato: newContractType };
+        const updateData = { Tipo_Contrato: newContractType };
         if (newContractType !== 'Contrato Marco') {
             updateData.isNabis = false;
         }
@@ -2523,9 +2523,9 @@ function handleModalFieldChange = async (fieldName, value) => {
         updateCaseInFirestore(selectedCase.id, updateData);
     };
 
-function proceedWithResolve = async () => {
+async function proceedWithResolve(
     if (!selectedCase) return;
-    function batch = writeBatch(db);
+    const batch = writeBatch(db);
     let local = { ...selectedCase, Estado_Gestion: 'Resuelto' };
     
     // Validaciones existentes (no cambian)
@@ -2546,26 +2546,26 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
         return;
     }
 }
-    function today = getColombianDateISO(); // <--- Se declara una sola vez aquí
-    function newObservations = [...(selectedCase.Observaciones_Historial || [])];
+    const today = getColombianDateISO(); // <--- Se declara una sola vez aquí
+    const newObservations = [...(selectedCase.Observaciones_Historial || [])];
     
     if (selectedCase.SNAcumulados_Historial && selectedCase.SNAcumulados_Historial.length > 0) {
-        function accumulatedSNs = selectedCase.SNAcumulados_Historial.map(item => item.sn.trim()).filter(Boolean);
+        const accumulatedSNs = selectedCase.SNAcumulados_Historial.map(item => item.sn.trim()).filter(Boolean);
         if (accumulatedSNs.length > 0) {
             
-            function snListString = accumulatedSNs.join(', ');
-            function mainAnnotationText = `Caso resuelto. Se cerraron también los siguientes SN Acumulados: ${snListString}`;
+            const snListString = accumulatedSNs.join(', ');
+            const mainAnnotationText = `Caso resuelto. Se cerraron también los siguientes SN Acumulados: ${snListString}`;
             newObservations.push({ text: mainAnnotationText, timestamp: new Date().toISOString() });
 
-            function q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where('SN', 'in', accumulatedSNs));
-            function querySnapshot = await getDocs(q);
+            const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where('SN', 'in', accumulatedSNs));
+            const querySnapshot = await getDocs(q);
 
-            function accumulatedAnnotationText = `Este caso fue resuelto como parte del cierre del caso principal SN: ${selectedCase.SN}`;
-            function accumulatedAnnotation = { text: accumulatedAnnotationText, timestamp: new Date().toISOString() };
+            const accumulatedAnnotationText = `Este caso fue resuelto como parte del cierre del caso principal SN: ${selectedCase.SN}`;
+            const accumulatedAnnotation = { text: accumulatedAnnotationText, timestamp: new Date().toISOString() };
             
             querySnapshot.forEach(doc => {
-                function accumulatedCaseData = doc.data();
-                function newAccumulatedHistory = [...(accumulatedCaseData.Observaciones_Historial || []), accumulatedAnnotation];
+                const accumulatedCaseData = doc.data();
+                const newAccumulatedHistory = [...(accumulatedCaseData.Observaciones_Historial || []), accumulatedAnnotation];
                 
                 batch.update(doc.ref, {
                     Estado_Gestion: 'Resuelto',
@@ -2576,10 +2576,10 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
         }
     }
     
-    function mainCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-    function tiempoGestionDia15 = timePerCaseDay15;
+    const mainCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
+    const tiempoGestionDia15 = timePerCaseDay15;
     
-    function data = {
+    const data = {
         Estado_Gestion: 'Resuelto',
         'Fecha Cierre': today,
         Tiempo_Resolucion_Minutos: selectedCase.Fecha_Inicio_Gestion ? getDurationInMinutes(selectedCase.Fecha_Inicio_Gestion, new Date().toISOString()) : 'N/A',
@@ -2597,7 +2597,7 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
     await batch.commit();
 };
 
-function handleDecretarCaso = async () => {
+async function handleDecretarCaso(
     if (!selectedCase) return;
     if (!selectedCase.Despacho_Respuesta_Checked) {
         displayModalMessage("Error: Para decretar el caso, primero debe marcar la casilla 'Despacho Respuesta'.");
@@ -2616,11 +2616,11 @@ function handleDecretarCaso = async () => {
         {
             onConfirm: async () => {
                 try {
-                    function batch = writeBatch(db);
-                    function today = getColombianDateISO();
-                    function timestamp = new Date().toISOString();
-                    function provisionalSN = `DECRETO-${Date.now()}`;
-                    function newCaseData = { ...selectedCase };
+                    const batch = writeBatch(db);
+                    const today = getColombianDateISO();
+                    const timestamp = new Date().toISOString();
+                    const provisionalSN = `DECRETO-${Date.now()}`;
+                    const newCaseData = { ...selectedCase };
                     delete newCaseData.id;
                     delete newCaseData.SN_Original;
                     Object.assign(newCaseData, {
@@ -2644,10 +2644,10 @@ function handleDecretarCaso = async () => {
                         reqGenerado: '',
                         descripcionEscalamiento: ''
                     });
-                    function newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
+                    const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
                     batch.set(newCaseRef, newCaseData);
-                    function originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                    function originalCaseUpdate = {
+                    const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
+                    const originalCaseUpdate = {
                         Estado_Gestion: 'Resuelto',
                         'Fecha Cierre': today,
                         Observaciones_Historial: [
@@ -2669,7 +2669,7 @@ function handleDecretarCaso = async () => {
         }
     );
 };
-function handleTrasladoSIC = async () => {
+async function handleTrasladoSIC(
     if (!selectedCase) return;
     if (!selectedCase.Despacho_Respuesta_Checked) {
         displayModalMessage("Error: Para trasladar el caso a SIC, primero debe marcar la casilla 'Despacho Respuesta'.");
@@ -2684,11 +2684,11 @@ function handleTrasladoSIC = async () => {
         {
             onConfirm: async () => {
                 try {
-                    function batch = writeBatch(db);
-                    function today = getColombianDateISO();
-                    function timestamp = new Date().toISOString();
-                    function provisionalSN = `TRASLADO-${Date.now()}`;
-                    function newCaseData = { ...selectedCase };
+                    const batch = writeBatch(db);
+                    const today = getColombianDateISO();
+                    const timestamp = new Date().toISOString();
+                    const provisionalSN = `TRASLADO-${Date.now()}`;
+                    const newCaseData = { ...selectedCase };
                     delete newCaseData.id;
                     delete newCaseData.SN_Original;
                     Object.assign(newCaseData, {
@@ -2712,10 +2712,10 @@ function handleTrasladoSIC = async () => {
                         reqGenerado: '',
                         descripcionEscalamiento: ''
                     });
-                    function newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
+                    const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
                     batch.set(newCaseRef, newCaseData);
-                    function originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                    function originalCaseUpdate = {
+                    const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
+                    const originalCaseUpdate = {
                         Estado_Gestion: 'Resuelto',
                         'Fecha Cierre': today,
                         Observaciones_Historial: [
@@ -2737,14 +2737,14 @@ function handleTrasladoSIC = async () => {
         }
     );
 };
-    function handleSaveEscalamientoHistory = async () => {
+    async function handleSaveEscalamientoHistory(
         if (!selectedCase) return;
         if (!selectedCase.areaEscalada || !selectedCase.motivoEscalado) {
             displayModalMessage('Debe seleccionar el área y el motivo de la escalación para guardar.');
             return;
         }
 
-        function escalamientoData = {
+        const escalamientoData = {
             timestamp: new Date().toISOString(),
             areaEscalada: selectedCase.areaEscalada,
             motivoEscalado: selectedCase.motivoEscalado,
@@ -2753,7 +2753,7 @@ function handleTrasladoSIC = async () => {
             descripcionEscalamiento: selectedCase.descripcionEscalamiento || ''
         };
 
-        function newHistory = [...(selectedCase.Escalamiento_Historial || []), escalamientoData];
+        const newHistory = [...(selectedCase.Escalamiento_Historial || []), escalamientoData];
         try {
             await updateCaseInFirestore(selectedCase.id, { Escalamiento_Historial: newHistory });
             setSelectedCase(prev => ({ ...prev, Escalamiento_Historial: newHistory }));
@@ -2764,7 +2764,7 @@ function handleTrasladoSIC = async () => {
     }
 
 
-    function handleChangeCaseStatus = async (newStatus) => {
+    async function handleChangeCaseStatus(
         if (!selectedCase) return;
 
         if (newStatus === 'Decretado') {
@@ -2778,7 +2778,7 @@ function handleTrasladoSIC = async () => {
         }
 
         if (newStatus === 'Resuelto') {
-            function needsAssuranceCheck = !selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste;
+            const needsAssuranceCheck = !selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste;
 
             if (needsAssuranceCheck) {
                 displayConfirmModal(
@@ -2797,8 +2797,8 @@ function handleTrasladoSIC = async () => {
                 await proceedWithResolve();
             }
         } else {
-             function oldStatus = selectedCase.Estado_Gestion;
-             function data = { Estado_Gestion: newStatus };
+             const oldStatus = selectedCase.Estado_Gestion;
+             const data = { Estado_Gestion: newStatus };
              if (oldStatus === 'Escalado' && newStatus !== 'Escalado') Object.assign(data, { areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '' });
              if (newStatus === 'Iniciado') Object.assign(data, { Fecha_Inicio_Gestion: new Date().toISOString(), Tiempo_Resolucion_Minutos: 'N/A' });
              setSelectedCase(prev => ({ ...prev, ...data }));
@@ -2807,9 +2807,9 @@ function handleTrasladoSIC = async () => {
     };
 
 
-    function handleDespachoRespuestaChange = async (e) => {
+    async function handleDespachoRespuestaChange(
         if (!selectedCase) return;
-        function isChecked = e.target.checked;
+        const isChecked = e.target.checked;
         let updateData = { Despacho_Respuesta_Checked: isChecked };
 
         if (isChecked) {
@@ -2841,25 +2841,25 @@ function handleTrasladoSIC = async () => {
         await updateCaseInFirestore(selectedCase.id, updateData);
     };
 
-    function handleRadicadoSICChange = (e) => { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); };
-    function handleFechaVencimientoDecretoChange = (e) => { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
-    function handleAssignUser = async () => { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
-    function generateAIAnalysis = async () => { if (!selectedCase) return; setIsGeneratingAnalysis(true); try { function res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }};
-    function generateAISummaryHandler = async () => { if (!selectedCase) return; setIsGeneratingSummary(true); try { function sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }};
-    function generateAIResponseProjectionHandler = async () => {
+    function handleRadicadoSICChange( setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); };
+    function handleFechaVencimientoDecretoChange( setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
+    async function handleAssignUser( if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
+    async function generateAIAnalysis( if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }};
+    async function generateAISummaryHandler( if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }};
+    async function generateAIResponseProjectionHandler(
         if (!selectedCase) return;
-        function lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
+        const lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
         setIsGeneratingResponseProjection(true);
-        try { function proj = await getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj }); }
+        try { const proj = await getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj }); }
         catch (e) { displayModalMessage(`Error AI Projection: ${e.message}`); }
         finally { setIsGeneratingResponseProjection(false); }
     };
     
-    function generateNextActionsHandler = async () => {
+    async function generateNextActionsHandler(
         if (!selectedCase) return;
         setIsGeneratingNextActions(true);
         try {
-            function actions = await getAINextActions(selectedCase);
+            const actions = await getAINextActions(selectedCase);
             setSelectedCase(prev => ({ ...prev, Sugerencias_Accion_IA: actions }));
             await updateCaseInFirestore(selectedCase.id, { Sugerencias_Accion_IA: actions });
         } catch (e) {
@@ -2869,11 +2869,11 @@ function handleTrasladoSIC = async () => {
         }
     };
 
-    function generateRootCauseHandler = async () => {
+    async function generateRootCauseHandler(
         if (!selectedCase) return;
         setIsGeneratingRootCause(true);
         try {
-            function cause = await getAIRootCause(selectedCase);
+            const cause = await getAIRootCause(selectedCase);
             setSelectedCase(prev => ({ ...prev, Causa_Raiz_IA: cause }));
             await updateCaseInFirestore(selectedCase.id, { Causa_Raiz_IA: cause });
         } catch (e) {
@@ -2883,14 +2883,14 @@ function handleTrasladoSIC = async () => {
         }
     };
 
-    function handleSuggestEscalation = async () => {
+    async function handleSuggestEscalation(
         if (!selectedCase) return;
         setIsSuggestingEscalation(true);
         displayModalMessage('La IA está sugiriendo una escalación...');
         try {
-            function suggestion = await getAIEscalationSuggestion(selectedCase);
+            const suggestion = await getAIEscalationSuggestion(selectedCase);
             if (suggestion.area && suggestion.motivo) {
-                function firestoreUpdateData = {
+                const firestoreUpdateData = {
                     areaEscalada: suggestion.area,
                     motivoEscalado: suggestion.motivo,
                 };
@@ -2908,18 +2908,18 @@ function handleTrasladoSIC = async () => {
     };
 
 
-    function handleObservationsChange = (e) => setSelectedCase(prev => ({ ...prev, Observaciones: e.target.value }));
-    function saveObservation = async () => { if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } function newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; function updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' }); displayModalMessage('Observación guardada.'); };
-    function handleFechaCierreChange = (e) => { setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); };
+    const handleObservationsChange = (e) => setSelectedCase(prev => ({ ...prev, Observaciones: e.target.value }));
+    async function saveObservation( if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' }); displayModalMessage('Observación guardada.'); };
+    function handleFechaCierreChange( setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); };
 
-    function handleManualFormChange = (e) => {
-        function { name, value, type, checked } = e.target;
+    function handleManualFormChange(
+        const { name, value, type, checked } = e.target;
         let fVal = type === 'checkbox' ? checked : value;
         if (name === 'Nro_Nuip_Cliente' && (value.startsWith('8') || value.startsWith('9')) && value.length > 9) fVal = value.substring(0,9);
         else if (name === 'Nombre_Cliente') fVal = value.toUpperCase();
 
         setManualFormData(prev => {
-            function newState = {...prev, [name]: fVal};
+            const newState = {...prev, [name]: fVal};
             if (name === 'Requiere_Aseguramiento_Facturas' && !fVal) {
                 newState.ID_Aseguramiento = ''; newState.Corte_Facturacion = ''; newState.Cuenta = '';
                 newState.Operacion_Aseguramiento = ''; newState.Tipo_Aseguramiento = ''; newState.Mes_Aseguramiento = '';
@@ -2942,12 +2942,12 @@ function handleTrasladoSIC = async () => {
         });
     };
     
-    function handleManualFormDevolucionChange = (e) => {
-        function { name, value } = e.target;
+    function handleManualFormDevolucionChange(
+        const { name, value } = e.target;
          setManualFormData(prev => ({...prev, [name]: value}));
     };
 
-    function handleManualSubmit = async (e) => {
+    async function handleManualSubmit(
         e.preventDefault(); setUploading(true); displayModalMessage('Procesando manual con IA...');
         try {
             if (manualFormData.requiereBaja && !manualFormData.numeroOrdenBaja) {
@@ -2973,12 +2973,12 @@ function handleTrasladoSIC = async () => {
                 if (!manualFormData.motivoEscalado) { displayModalMessage('Si el estado es "Escalado", debe seleccionar un Motivo de Escalado.'); setUploading(false); return; }
             }
 
-            function today = getColombianDateISO();
-            function collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const today = getColombianDateISO();
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
 
-            function currentSN = String(manualFormData.SN || '').trim();
+            const currentSN = String(manualFormData.SN || '').trim();
             if (currentSN) {
-                function existingDocs = await getDocs(query(collRef, where('SN', '==', currentSN)));
+                const existingDocs = await getDocs(query(collRef, where('SN', '==', currentSN)));
                 if (!existingDocs.empty) {
                     displayModalMessage(`Error: El SN "${currentSN}" ya existe. No se agregó el caso manual.`);
                     setUploading(false);
@@ -2986,10 +2986,10 @@ function handleTrasladoSIC = async () => {
                 }
             }
 
-            function aiData = { SN: manualFormData.SN, FechaRadicado: manualFormData.FechaRadicado, Nombre_Cliente: manualFormData.Nombre_Cliente, obs: manualFormData.OBS, type_request: manualFormData.type_request || '' };
+            const aiData = { SN: manualFormData.SN, FechaRadicado: manualFormData.FechaRadicado, Nombre_Cliente: manualFormData.Nombre_Cliente, obs: manualFormData.OBS, type_request: manualFormData.type_request || '' };
             let aiAnalysisCat = { 'Analisis de la IA': 'N/A', 'Categoria del reclamo': 'N/A' }, aiPrio = 'Media', relNum = 'N/A', aiSentiment = { Sentimiento_IA: 'Neutral' };
             try {
-                 function [analysis, priority, sentiment] = await Promise.all([
+                 const [analysis, priority, sentiment] = await Promise.all([
                     getAIAnalysisAndCategory(aiData),
                     getAIPriority(manualFormData.OBS),
                     getAISentiment(manualFormData.OBS)
@@ -3005,7 +3005,7 @@ function handleTrasladoSIC = async () => {
                 estadoGestionInicial = 'Pendiente Ajustes';
             }
 
-            function newCase = {
+            const newCase = {
                 ...manualFormData,
                 user: userId,
                 Estado_Gestion: estadoGestionInicial,
@@ -3038,8 +3038,8 @@ function handleTrasladoSIC = async () => {
         } catch (err) { displayModalMessage(`Error manual: ${err.message}`); }
         finally { setUploading(false); }
     };
-    function handleObservationFileUpload = async (event) => {
-        function file = event.target.files[0];
+    async function handleObservationFileUpload(
+        const file = event.target.files[0];
         if (!file || !selectedCase) return;
 
         setIsTranscribingObservation(true);
@@ -3047,54 +3047,54 @@ function handleTrasladoSIC = async () => {
 
         try {
             let summary = '';
-            function fileType = file.type;
+            const fileType = file.type;
 
             if (fileType.startsWith('text/')) {
-                function textContent = await file.text();
-                function prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente texto adjunto:\n\n"${textContent}"`;
+                const textContent = await file.text();
+                const prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente texto adjunto:\n\n"${textContent}"`;
                 summary = await geminiApiCall(prompt);
             } else if (fileType === 'application/pdf') {
                 if (!window.pdfjsLib) throw new Error("La librería para leer PDF no está cargada.");
-                function pdfData = await file.arrayBuffer();
-                function pdf = await window.pdfjsLib.getDocument(pdfData).promise;
+                const pdfData = await file.arrayBuffer();
+                const pdf = await window.pdfjsLib.getDocument(pdfData).promise;
                 let fullText = '';
                 for (let i = 1; i <= pdf.numPages; i++) {
-                    function page = await pdf.getPage(i);
-                    function textContent = await page.getTextContent();
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
                     fullText += textContent.items.map(item => item.str).join(' ') + '\n';
                 }
-                function prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente documento PDF que ha sido extraído como texto:\n\n"${fullText}"`;
+                const prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente documento PDF que ha sido extraído como texto:\n\n"${fullText}"`;
                 summary = await geminiApiCall(prompt);
             } else if (fileType.startsWith('image/')) {
-                function prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
-                function base64Image = await fileToBase64(file);
-                function imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
-                function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                function modelName = "gemini-1.5-flash-latest";
-                function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                function payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-                function response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
+                const base64Image = await fileToBase64(file);
+                const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
+                const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+                const modelName = "gemini-1.5-flash-latest";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
-                function result = await response.json();
+                const result = await response.json();
                 if (result.candidates && result.candidates[0].content.parts[0].text) {
                     summary = result.candidates[0].content.parts[0].text;
                 } else {
                     throw new Error('La IA no pudo procesar la imagen.');
                 }
             } else if (fileType.startsWith('audio/')) {
-                function prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-                function base64Audio = await fileToBase64(file);
-                function audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
-                function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                function modelName = "gemini-1.5-flash-latest";
-                function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                function payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
-                function response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
+                const base64Audio = await fileToBase64(file);
+                const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
+                const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+                const modelName = "gemini-1.5-flash-latest";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
-                    function errorBody = await response.text();
+                    const errorBody = await response.text();
                     throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`);
                 }
-                function result = await response.json();
+                const result = await response.json();
                 if (result.candidates && result.candidates[0].content.parts[0].text) {
                     summary = result.candidates[0].content.parts[0].text;
                 } else {
@@ -3104,8 +3104,8 @@ function handleTrasladoSIC = async () => {
                 throw new Error(`Tipo de archivo no soportado: ${fileType}`);
             }
 
-            function currentObs = selectedCase.Observaciones || '';
-            function newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
+            const currentObs = selectedCase.Observaciones || '';
+            const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
 
             setSelectedCase(prev => ({ ...prev, Observaciones: newObs }));
             await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs });
@@ -3121,9 +3121,9 @@ function handleTrasladoSIC = async () => {
             }
         }
     };
-function downloadCSV = (csvContent, filename) => {
-    function blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    function link = document.createElement('a');
+function downloadCSV(
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
     if (link.download !== undefined) {
         link.href = URL.createObjectURL(blob);
         link.download = filename;
@@ -3135,9 +3135,9 @@ function downloadCSV = (csvContent, filename) => {
         displayModalMessage('La descarga automática no es soportada en tu navegador.');
     }
 };
-function exportCasesToCSV = (isTodayResolvedOnly = false) => {
-    function today = getColombianDateISO();
-    function casesToExport = isTodayResolvedOnly
+function exportCasesToCSV(
+    const today = getColombianDateISO();
+    const casesToExport = isTodayResolvedOnly
         ? cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === today)
         : cases;
 
@@ -3148,7 +3148,7 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
 
     // --- CAMBIO PRINCIPAL: DEFINIMOS LAS COLUMNAS EXACTAS PARA EL ARCHIVO ORIGINAL ---
     // Esta lista representa los campos que se asume vienen en el CSV de origen.
-    function ORIGINAL_CSV_HEADERS = [
+    const ORIGINAL_CSV_HEADERS = [
         'SN', 'CUN', 'Fecha Radicado', 'Dia', 'Fecha Vencimiento', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 
         'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 
         'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante',
@@ -3157,7 +3157,7 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
     ];
 
     // Para el archivo actualizado, seguimos usando todos los headers posibles.
-    function baseHeaders = [
+    const baseHeaders = [
         'SN','CUN','Fecha Radicado','Fecha Cierre','Dia','Dia_Original_CSV','fecha_asignacion','Nombre_Cliente','Estado','Estado_Gestion',
         'Nivel_1','Nivel_2','Nivel_3','Nivel_4','Nivel_5','Analisis de la IA','Categoria del reclamo','Prioridad', 'Sentimiento_IA',
         'Resumen_Hechos_IA','Proyeccion_Respuesta_IA', 'Sugerencias_Accion_IA', 'Causa_Raiz_IA', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones','Observaciones_Historial', 'SNAcumulados_Historial', 'Escalamiento_Historial',
@@ -3175,13 +3175,13 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
         'cantidadDevolver', 'idEnvioDevoluciones', 'fechaEfectivaDevolucion',
         'areaEscalada', 'motivoEscalado', 'idEscalado', 'reqGenerado', 'descripcionEscalamiento', 'Correo_Escalacion_IA', 'Riesgo_SIC', 'Respuesta_Integral_IA'
     ];
-    function dynamicHeaders = Array.from(new Set(casesToExport.flatMap(c => Object.keys(c))));
-    function actualFinalHeaders = Array.from(new Set(baseHeaders.concat(dynamicHeaders)));
+    const dynamicHeaders = Array.from(new Set(casesToExport.flatMap(c => Object.keys(c))));
+    const actualFinalHeaders = Array.from(new Set(baseHeaders.concat(dynamicHeaders)));
 
     // --- GENERACIÓN DEL ARCHIVO ACTUALIZADO (SIN CAMBIOS) ---
     let csvActual = actualFinalHeaders.map(h => `"${h}"`).join(',') + '\n';
     casesToExport.forEach(c => {
-        function actualRow = actualFinalHeaders.map(h => {
+        const actualRow = actualFinalHeaders.map(h => {
             let v = c[h] ?? '';
             if (h === 'Dia') v = calculateCaseAge(c, nonBusinessDays);
             if (typeof v === 'object') v = JSON.stringify(v);
@@ -3193,7 +3193,7 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
     // --- GENERACIÓN DEL ARCHIVO ORIGINAL (LÓGICA NUEVA) ---
     let csvOriginal = ORIGINAL_CSV_HEADERS.map(h => `"${h}"`).join(',') + '\n';
     casesToExport.forEach(c => {
-        function originalRow = ORIGINAL_CSV_HEADERS.map(h => {
+        const originalRow = ORIGINAL_CSV_HEADERS.map(h => {
             let v = '';
             // Usamos 'Dia_Original_CSV' para la columna 'Dia'
             if (h === 'Dia') {
@@ -3208,7 +3208,7 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
     });
 
     // Descargar ambos archivos
-    function filenameSuffix = isTodayResolvedOnly ? `resueltos_hoy_${today}` : `todos_${today}`;
+    const filenameSuffix = isTodayResolvedOnly ? `resueltos_hoy_${today}` : `todos_${today}`;
     downloadCSV(csvOriginal, `casos_originales_${filenameSuffix}.csv`);
     
     setTimeout(() => {
@@ -3216,15 +3216,15 @@ function exportCasesToCSV = (isTodayResolvedOnly = false) => {
     }, 500);
 };
 
-function filteredAndSearchedCases = useMemo(() => {
+const filteredAndSearchedCases = useMemo(() => {
     // Convierte el string de búsqueda en un array de términos, eliminando espacios y valores vacíos.
-    function searchTerms = searchTerm.toLowerCase().split(',')
+    const searchTerms = searchTerm.toLowerCase().split(',')
         .map(term => term.trim())
         .filter(term => term !== '');
 
     return cases.filter(c => {
         // Si no hay términos de búsqueda, no se aplica el filtro de búsqueda.
-        function searchMatch = searchTerms.length === 0 || 
+        const searchMatch = searchTerms.length === 0 || 
             // Itera sobre cada término de búsqueda.
             searchTerms.some(term => 
                 // Para cada término, verifica si coincide en alguno de los campos definidos.
@@ -3233,16 +3233,16 @@ function filteredAndSearchedCases = useMemo(() => {
                 )
             );
 
-        function contractMatch = contractFilter === 'todos' || c.Tipo_Contrato === contractFilter;
-        function priorityMatch = priorityFilter === 'todos' || c.Prioridad === priorityFilter;
-        function statusMatch = statusFilter === 'todos' || c.Estado_Gestion === statusFilter;
+        const contractMatch = contractFilter === 'todos' || c.Tipo_Contrato === contractFilter;
+        const priorityMatch = priorityFilter === 'todos' || c.Prioridad === priorityFilter;
+        const statusMatch = statusFilter === 'todos' || c.Estado_Gestion === statusFilter;
 
         return searchMatch && contractMatch && priorityMatch && statusMatch;
     });
 }, [cases, searchTerm, contractFilter, priorityFilter, statusFilter]);
     
-function applyActiveFilter = (cs) => {
-    function pendStates = ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC','Decretado', 'Pendiente Ajustes'];
+function applyActiveFilter(
+    const pendStates = ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC','Decretado', 'Pendiente Ajustes'];
     switch(activeFilter){
         case 'all': return cs;
         case 'resolved': return cs.filter(c => c.Estado_Gestion === 'Resuelto');
@@ -3262,17 +3262,17 @@ case 'dia14_pending': return cs.filter(c => pendStates.includes(c.Estado_Gestion
         default: return cs;
     }
 };
-    function casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
-    function sortSN = (a,b) => String(a.SN||'').toLowerCase().localeCompare(String(b.SN||'').toLowerCase());
+    const casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
+    const sortSN = (a,b) => String(a.SN||'').toLowerCase().localeCompare(String(b.SN||'').toLowerCase());
 
-    function sicDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN);
-    function pendAjustesDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN);
-    function pendEscDisp = casesForDisplay.filter(c => ['Pendiente','Escalado','Iniciado','Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN);
-    function resDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN);
-    function finalizadosDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN);
-    function aseguramientosDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN);
+    const sicDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN);
+    const pendAjustesDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN);
+    const pendEscDisp = casesForDisplay.filter(c => ['Pendiente','Escalado','Iniciado','Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN);
+    const resDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN);
+    const finalizadosDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN);
+    const aseguramientosDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN);
 
-function counts = {
+const counts = {
     total: cases.length,
     resolved: cases.filter(c => c.Estado_Gestion === 'Resuelto').length,
     finalizado: cases.filter(c => c.Estado_Gestion === 'Finalizado').length,
@@ -3289,9 +3289,9 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
     resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO()).length,
 };
 
-    function handleSelectCase = (caseId, isMassSelect) => {
+    function handleSelectCase(
         setSelectedCaseIds(prevSelectedIds => {
-            function newSelectedIds = new Set(prevSelectedIds);
+            const newSelectedIds = new Set(prevSelectedIds);
             if (isMassSelect) {
                 return caseId; // caseId is the new Set in this case
             }
@@ -3304,7 +3304,7 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
         });
     };
 
-function handleMassUpdate = async () => {
+async function handleMassUpdate(
     if (!db || !userId || selectedCaseIds.size === 0 || !massUpdateTargetStatus) {
         displayModalMessage('Seleccione casos y un estado destino para la actualización masiva.');
         return;
@@ -3314,8 +3314,8 @@ function handleMassUpdate = async () => {
     displayModalMessage(`Actualizando ${selectedCaseIds.size} casos...`);
 
     try {
-        function docIdsToUpdate = Array.from(selectedCaseIds);
-        function docsToUpdateSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where(documentId(), 'in', docIdsToUpdate)));
+        const docIdsToUpdate = Array.from(selectedCaseIds);
+        const docsToUpdateSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where(documentId(), 'in', docIdsToUpdate)));
 
         if (docsToUpdateSnapshot.empty) {
             displayModalMessage('Ninguno de los casos seleccionados existe en la base de datos.');
@@ -3323,20 +3323,20 @@ function handleMassUpdate = async () => {
             return;
         }
 
-        function batch = writeBatch(db);
-        function today = getColombianDateISO();
-        function nowISO = new Date().toISOString();
+        const batch = writeBatch(db);
+        const today = getColombianDateISO();
+        const nowISO = new Date().toISOString();
 
         docsToUpdateSnapshot.docs.forEach(docSnapshot => {
-            function currentCase = docSnapshot.data();
-            function updateData = { Estado_Gestion: massUpdateTargetStatus };
+            const currentCase = docSnapshot.data();
+            const updateData = { Estado_Gestion: massUpdateTargetStatus };
 
             if (massUpdateObservation.trim()) {
-                function newObservation = {
+                const newObservation = {
                     text: `(Observación Masiva) ${massUpdateObservation.trim()}`,
                     timestamp: nowISO
                 };
-                function existingHistory = currentCase.Observaciones_Historial || [];
+                const existingHistory = currentCase.Observaciones_Historial || [];
                 updateData.Observaciones_Historial = [...existingHistory, newObservation];
             }
 
@@ -3440,22 +3440,22 @@ function handleMassUpdate = async () => {
         </div>
     )}
 </div>
-    function handleReopenCase = async (caseItem) => {
+    async function handleReopenCase(
     if (!db || !userId || caseItem.Estado_Gestion !== 'Resuelto') {
         displayModalMessage('Solo los casos resueltos pueden ser reabiertos.');
         return;
     }
-    function caseId = caseItem.id;
-    function docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
+    const caseId = caseItem.id;
+    const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
     
     try {
-        function docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
             displayModalMessage('Error: El caso que intenta reabrir no existe en la base de datos.');
             return;
         }
 
-        function updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
+        const updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
         await updateDoc(docRef, updateData);
         displayModalMessage('Caso reabierto exitosamente.');
     } catch (error) {
@@ -3463,15 +3463,15 @@ function handleMassUpdate = async () => {
     }
 };
 
-    function handleDeleteCase = (caseId) => {
-    function onConfirm = async () => {
+    function handleDeleteCase(
+    async function onConfirm(
         if (!db || !userId) {
             displayModalMessage('Error: DB no disponible.');
             return;
         }
-        function docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
+        const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
         try {
-            function docSnap = await getDoc(docRef);
+            const docSnap = await getDoc(docRef);
             if (!docSnap.exists()) {
                 displayModalMessage('Error: El caso que intenta eliminar no existe en la base de datos.');
                 handleCloseCaseDetails();
@@ -3488,14 +3488,14 @@ function handleMassUpdate = async () => {
     displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm });
 };
 
-    function handleMassDelete = () => {
+    function handleMassDelete(
         if (selectedCaseIds.size === 0) { displayModalMessage('No hay casos seleccionados para eliminar.'); return; }
-        function onConfirm = async () => {
+        async function onConfirm(
             setIsMassUpdating(true);
             displayModalMessage(`Eliminando ${selectedCaseIds.size} casos...`);
-            function batch = writeBatch(db);
+            const batch = writeBatch(db);
             selectedCaseIds.forEach(caseId => {
-                function caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
+                const caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
                 batch.delete(caseDocRef);
             });
             try {
@@ -3511,17 +3511,17 @@ function handleMassUpdate = async () => {
         displayConfirmModal(`¿Estás seguro de que quieres eliminar ${selectedCaseIds.size} casos permanentemente? Esta acción no se puede deshacer.`, {onConfirm});
     };
 
-    function handleMassReopen = () => {
+    function handleMassReopen(
         if (selectedCaseIds.size === 0) { displayModalMessage('No hay casos seleccionados para reabrir.'); return; }
-        function casesToReopen = cases.filter(c => selectedCaseIds.has(c.id) && c.Estado_Gestion === 'Resuelto');
+        const casesToReopen = cases.filter(c => selectedCaseIds.has(c.id) && c.Estado_Gestion === 'Resuelto');
         if (casesToReopen.length === 0) { displayModalMessage('Ninguno de los casos seleccionados está "Resuelto". Solo los casos resueltos pueden ser reabiertos.'); return; }
-        function onConfirm = async () => {
+        async function onConfirm(
             setIsMassUpdating(true);
             displayModalMessage(`Reabriendo ${casesToReopen.length} casos...`);
-            function batch = writeBatch(db);
-            function updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
+            const batch = writeBatch(db);
+            const updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
             casesToReopen.forEach(caseItem => {
-                function caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
+                const caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
                 batch.update(caseDocRef, updateData);
             });
             try {
@@ -3537,13 +3537,13 @@ function handleMassUpdate = async () => {
         displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, {onConfirm});
     };
 
-    function handleDeleteAllCases = () => {
+    function handleDeleteAllCases(
         if (cases.length === 0) {
             displayModalMessage('No hay casos para eliminar.');
             return;
         }
 
-        function onConfirm = async () => {
+        async function onConfirm(
             if (!db || !userId) {
                 displayModalMessage('Error: La conexión con la base de datos no está disponible.');
                 return;
@@ -3552,11 +3552,11 @@ function handleMassUpdate = async () => {
             setIsMassUpdating(true);
             displayModalMessage(`Eliminando todos los ${cases.length} casos...`);
 
-            function batch = writeBatch(db);
-            function collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const batch = writeBatch(db);
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
 
             try {
-                function allCasesSnapshot = await getDocs(collRef);
+                const allCasesSnapshot = await getDocs(collRef);
                 if (allCasesSnapshot.empty) {
                      displayModalMessage('No se encontraron casos para eliminar en la base de datos.');
                      setIsMassUpdating(false);
@@ -3589,29 +3589,29 @@ function handleMassUpdate = async () => {
         );
     };
 
-    function handleSNAcumuladoInputChange = (index, field, value) => {
-        function newData = [...snAcumuladosData];
+    function handleSNAcumuladoInputChange(
+        const newData = [...snAcumuladosData];
         newData[index][field] = value;
         setSnAcumuladosData(newData);
     };
 
-    function handleSaveSNAcumulados = async () => {
+    async function handleSaveSNAcumulados(
         if (!selectedCase || snAcumuladosData.some(item => !item.sn.trim())) {
             displayModalMessage('Todos los campos de SN acumulados deben estar llenos antes de guardar.');
             return;
         }
 
         // MODIFICACIÓN: Busca el CUN para cada SN acumulado en la lista de casos existentes.
-        function snToCunMap = new Map(cases.map(c => [String(c.SN || '').trim(), c.CUN]));
+        const snToCunMap = new Map(cases.map(c => [String(c.SN || '').trim(), c.CUN]));
 
-        function newHistory = snAcumuladosData.map(item => ({
+        const newHistory = snAcumuladosData.map(item => ({
             sn: item.sn.trim(),
             cun: snToCunMap.get(item.sn.trim()) || 'No encontrado', // Se añade el CUN al historial.
             obs: item.obs,
             timestamp: new Date().toISOString()
         }));
 
-        function updatedHistory = [...(selectedCase.SNAcumulados_Historial || []), ...newHistory];
+        const updatedHistory = [...(selectedCase.SNAcumulados_Historial || []), ...newHistory];
 
         try {
             await updateCaseInFirestore(selectedCase.id, { SNAcumulados_Historial: updatedHistory });
@@ -3626,9 +3626,9 @@ function handleMassUpdate = async () => {
         }
     };
 
-    function handleSaveAseguramientoHistory = async () => {
+    async function handleSaveAseguramientoHistory(
         if (!selectedCase) return;
-        function assuranceData = {
+        const assuranceData = {
             timestamp: new Date().toISOString(),
             observaciones: aseguramientoObs,
             Requiere_Aseguramiento_Facturas: selectedCase.Requiere_Aseguramiento_Facturas || false,
@@ -3649,7 +3649,7 @@ function handleMassUpdate = async () => {
             fechaEfectivaDevolucion: selectedCase.fechaEfectivaDevolucion || ''
         };
 
-        function newHistory = [...(selectedCase.Aseguramiento_Historial || []), assuranceData];
+        const newHistory = [...(selectedCase.Aseguramiento_Historial || []), assuranceData];
         try {
             await updateCaseInFirestore(selectedCase.id, { Aseguramiento_Historial: newHistory });
             setSelectedCase(prev => ({ ...prev, Aseguramiento_Historial: newHistory }));
@@ -3660,24 +3660,24 @@ function handleMassUpdate = async () => {
         }
     }
 
-    function handleScanClick = (caseItem) => {
+    function handleScanClick(
         setCaseToScan(caseItem);
         scanFileInputRef.current.click();
     };
 
-function handleScanFileUpload = async (event) => {
-    function file = event.target.files[0];
+async function handleScanFileUpload(
+    const file = event.target.files[0];
     if (!file || !caseToScan) return;
 
     setIsScanning(true);
     displayModalMessage(`Transcribiendo y analizando documento para SN: ${caseToScan.SN}...`);
 
-    function reader = new FileReader();
+    const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = async () => {
-        function base64ImageData = reader.result.split(',')[1];
-        function prompt = "Transcribe el texto de esta imagen del documento.";
-        function payload = {
+        const base64ImageData = reader.result.split(',')[1];
+        const prompt = "Transcribe el texto de esta imagen del documento.";
+        const payload = {
             contents: [{
                 role: "user",
                 parts: [
@@ -3686,30 +3686,30 @@ function handleScanFileUpload = async (event) => {
                 ]
             }],
         };
-        function apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-        function apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
         try {
-            function response = await fetch(apiUrl, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            function result = await response.json();
+            const result = await response.json();
             if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
-                function transcribedText = result.candidates[0].content.parts[0].text;
+                const transcribedText = result.candidates[0].content.parts[0].text;
 
                 // 1. Usamos la nueva función para extraer direcciones del texto transcrito.
-                function extractedData = extractAddressesFromText(transcribedText);
+                const extractedData = extractAddressesFromText(transcribedText);
 
                 // 2. Preparamos los datos para guardarlos en la base de datos.
-                function updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
-                function newHistoryEntry = {
+                const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
+                const newHistoryEntry = {
                     timestamp: new Date().toISOString(),
                     emails: extractedData.emails,
                     addresses: extractedData.addresses
                 };
-                function updatedHistory = [...(caseToScan.Direcciones_Extraidas || []), newHistoryEntry];
+                const updatedHistory = [...(caseToScan.Direcciones_Extraidas || []), newHistoryEntry];
                 
                 // 3. Actualizamos el caso con las observaciones y las nuevas direcciones.
                 await updateCaseInFirestore(caseToScan.id, {
@@ -3748,11 +3748,11 @@ function handleScanFileUpload = async (event) => {
         }
     }, [cantidadSNAcumulados]);
 
-    function generateEscalationEmailHandler = async () => {
+    async function generateEscalationEmailHandler(
         if (!selectedCase) return;
         setIsGeneratingEscalationEmail(true);
         try {
-            function emailBody = await getAIEscalationEmail(selectedCase);
+            const emailBody = await getAIEscalationEmail(selectedCase);
             setSelectedCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody }));
             await updateCaseInFirestore(selectedCase.id, { Correo_Escalacion_IA: emailBody });
         } catch (e) {
@@ -3762,11 +3762,11 @@ function handleScanFileUpload = async (event) => {
         }
     };
     
-    function generateRiskAnalysisHandler = async () => {
+    async function generateRiskAnalysisHandler(
         if (!selectedCase) return;
         setIsGeneratingRiskAnalysis(true);
         try {
-            function risk = await getAIRiskAnalysis(selectedCase);
+            const risk = await getAIRiskAnalysis(selectedCase);
             setSelectedCase(prev => ({ ...prev, Riesgo_SIC: risk }));
             await updateCaseInFirestore(selectedCase.id, { Riesgo_SIC: risk });
         } catch (e) {
@@ -3775,13 +3775,13 @@ function handleScanFileUpload = async (event) => {
             setIsGeneratingRiskAnalysis(false);
         }
     };
-function generateAIComprehensiveResponseHandler = async () => {
+async function generateAIComprehensiveResponseHandler(
     if (!selectedCase) return;
     setIsGeneratingComprehensiveResponse(true);
     try {
-        function res = await getAIComprehensiveResponse(selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes');
+        const res = await getAIComprehensiveResponse(selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes');
         // NUEVO: Guardar el resultado de la validación.
-        function validation = await getAIValidation({ ...selectedCase, Respuesta_Integral_IA: res });
+        const validation = await getAIValidation({ ...selectedCase, Respuesta_Integral_IA: res });
 
         setSelectedCase(prev => ({
             ...prev,
@@ -3803,22 +3803,22 @@ function generateAIComprehensiveResponseHandler = async () => {
 };
 
 
-    function handleDismissAlarm = async () => {
+    async function handleDismissAlarm(
         if (!selectedAlarmCase || !alarmObservation.trim()) {
             displayModalMessage('Por favor, escriba una observación para gestionar la alarma.');
             return;
         }
 
-        function todayISO = getColombianDateISO();
-        function alarmKey = `alarm_dismissed_${selectedAlarmCase.id}_${todayISO}`;
+        const todayISO = getColombianDateISO();
+        const alarmKey = `alarm_dismissed_${selectedAlarmCase.id}_${todayISO}`;
         
-        function newObservation = {
+        const newObservation = {
             text: `(Gestión Alarma Diaria) ${alarmObservation.trim()}`,
             timestamp: new Date().toISOString()
         };
         
-        function existingHistory = selectedAlarmCase.Observaciones_Historial || [];
-        function updatedHistory = [...existingHistory, newObservation];
+        const existingHistory = selectedAlarmCase.Observaciones_Historial || [];
+        const updatedHistory = [...existingHistory, newObservation];
 
         try {
             await updateCaseInFirestore(selectedAlarmCase.id, { Observaciones_Historial: updatedHistory });
@@ -3844,7 +3844,7 @@ function generateAIComprehensiveResponseHandler = async () => {
 
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
-    function renderTable = (data, title) => {
+    function renderTable(
         return (
 <PaginatedTable
   cases={data}
@@ -4211,9 +4211,9 @@ function generateAIComprehensiveResponseHandler = async () => {
                                 // NOTE: The following definitions inside the map are inefficient.
                                 // It's a temporary fix to implement the user's request with minimal code changes.
                                 // Ideally, these should be defined once outside the map function.
-                                function nonEditableFields = ['CUN', 'fecha_asignacion', 'user', 'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Resumen_Hechos_IA', 'date_add'];
-                                function dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
-                                function textAreaFields = ['obs', 'Analisis de la IA'];
+                                const nonEditableFields = ['CUN', 'fecha_asignacion', 'user', 'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Resumen_Hechos_IA', 'date_add'];
+                                const dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
+                                const textAreaFields = ['obs', 'Analisis de la IA'];
 
                                 let isEditable = !nonEditableFields.includes(header);
                                 if (header === 'SN' && selectedCase.Estado_Gestion !== 'Decretado') {
@@ -4249,8 +4249,8 @@ function generateAIComprehensiveResponseHandler = async () => {
                                     );
                                 }
                                 
-                                function isDate = dateFields.includes(header);
-                                function isTextArea = textAreaFields.includes(header);
+                                const isDate = dateFields.includes(header);
+                                const isTextArea = textAreaFields.includes(header);
 
 
                                 return (
@@ -4785,7 +4785,7 @@ function generateAIComprehensiveResponseHandler = async () => {
 </button>
 <button
     onClick={() => {
-        function textContext = generateAITextContext(selectedCase);
+        const textContext = generateAITextContext(selectedCase);
         copyToClipboard(textContext, 'Contexto para Gemini', displayModalMessage);
     }}
     className="mt-3 ml-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
