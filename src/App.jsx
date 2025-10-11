@@ -728,10 +728,13 @@ useEffect(() => {
             }
 
         // Revisa las alarmas 5 segundos después de que los casos se carguen.
-        const timer = setTimeout(checkAlarms, 5000);
-        return () => clearTimeout(timer);
+useEffect(() => {
+    const timer = setTimeout(() => {
+        // lógica
+    }, 1000);
 
-    }, [cases]);
+    return () => clearTimeout(timer);
+}, [cases]);
 
 async function handleFileUpload(event) {
     const file = event.target.files[0];
