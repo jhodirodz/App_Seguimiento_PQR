@@ -52,7 +52,7 @@ async function updateCaseInFirestore(caseId, newData) {
             } catch (e) {
                 console.error('Error fetching user role:', e);
                 setUserRole('user');
-            }
+            
         fetchRole();
     }, [db, userId]);
 
