@@ -501,7 +501,7 @@ useEffect(() => {
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js';
     script.onload = () => {
         // Configura el worker source una vez que la librería se ha cargado
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
         console.log("pdf.js loaded and worker configured.");
     };
     document.body.appendChild(script);
@@ -512,7 +512,8 @@ useEffect(() => {
         if (scriptTag) {
             document.body.removeChild(scriptTag);
         }
-}, []);
+    };
+}, []); // ✅ Ahora está completamente cerrado
     // --- EFFECT: Initialize Firebase and set up auth listener ---
     // This runs once, sets up persistence, and then listens for auth changes.
     // The listener itself handles the sign-in logic if no user is found.
