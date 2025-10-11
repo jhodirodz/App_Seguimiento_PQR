@@ -178,31 +178,22 @@ const fileToBase64 = (file) => {
 };
 
 // Nueva función de llamada a la API de Gemini, más genérica.
-async const geminiApiCall =(
-    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+const geminiApiCall = async (modelName, prompt) => {
+    const apiKey = (typeof __gemini_api_key !== "undefined")
+        ? __gemini_api_key
+        : (import.meta.env.VITE_GEMINI_API_KEY || "");
 
-    let ch = [{ role: "user", parts: [{ text: prompt }] }];
-    const payload = { contents: ch };
-    if (isJson) {
-        payload.generationConfig = { responseMimeType: "application/json" };
-    }
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     try {
         const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
         });
-        const result = await response.json();
 
-        if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
-            const responseText = result.candidates[0].content.parts[0].text;
-            return isJson ? JSON.parse(responseText) : responseText;
-        } else {
-            const errorMessage = result.error ? result.error.message : 'Respuesta de API inesperada.';
-            throw new Error(errorMessage);
-        }
+        const data = await response.json();
+        return data;
     } catch (error) {
         console.error("Error en geminiApiCall:", error);
         throw error;
