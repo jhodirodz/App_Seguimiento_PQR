@@ -13,7 +13,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyB6EI7jjcnbZeoPRdZ2giWznHKrQJeJKZY",
   authDomain: "miseguimientocasosapp.firebaseapp.com",
   projectId: "miseguimientocasosapp",
-  storageBucket: "miseguimientocasosapp.firebasestorage.app",
+  storageBucket: "miseguimientocasosapp.appspot.com", // ✅ corregido aquí
   messagingSenderId: "53181891397",
   appId: "1:53181891397:web:fe7a07fbcfbc840cc9742c",
   measurementId: "G-RVLXXJ455K"
