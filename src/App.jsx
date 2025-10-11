@@ -38,23 +38,25 @@ async function updateCaseInFirestore(caseId, newData) {
 
     // When userId changes, fetch role from Firestore
     useEffect(() => {
-        async function fetchRole() {
-            if (!db || !userId) return;
-            try {
-                const uDoc = doc(db, `artifacts/${appId}/users`, userId);
-                const snap = await getDoc(uDoc);
-                if (snap && snap.exists()) {
-                    const d = snap.data();
-                    setUserRole(d.role || 'user');
-                } else {
-                    setUserRole('user');
-                }
-            } catch (e) {
-                console.error('Error fetching user role:', e);
+    async function fetchRole() {
+        if (!db || !userId) return;
+        try {
+            const uDoc = doc(db, `artifacts/${appId}/users`, userId);
+            const snap = await getDoc(uDoc);
+            if (snap && snap.exists()) {
+                const d = snap.data();
+                setUserRole(d.role || 'user');
+            } else {
                 setUserRole('user');
-            
-        fetchRole();
-    }, [db, userId]);
+            }
+        } catch (e) {
+            console.error('Error fetching user role:', e);
+            setUserRole('user');
+        }
+    }
+
+    fetchRole();
+}, [db, userId]);
 
     async function signInWithGoogleHandler() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
