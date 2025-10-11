@@ -11,7 +11,7 @@ import { saveAs } from 'file-saver';
 // =================================================================================================
 
 // Global variables provided by the Canvas environment. These should not be changed.
-function appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 
 // MODIFICADO: Lee desde variables de entorno si la variable global no está disponible
