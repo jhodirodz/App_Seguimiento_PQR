@@ -2093,79 +2093,6 @@ async function handleMassUpdate() {
         setIsMassUpdating(false);
     }
 
-<div className="mt-4 mb-6 p-4 border border-teal-200 rounded-md bg-teal-50">
-    <h4 className="text-lg font-semibold text-teal-800">Cálculo de Nota de Crédito</h4>
-    <p className="text-sm text-gray-600 mb-4">
-        Calcula el valor a reliquidar por días no utilizados en el ciclo de facturación.
-    </p>
-
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label htmlFor="valorMensual" className="block text-sm font-medium text-gray-700 mb-1">Valor Mensual de Factura ($):</label>
-            <input
-                type="number"
-                id="valorMensual"
-                name="valorMensual"
-                value={reliquidacionData.valorMensual}
-                onChange={handleReliquidacionChange}
-                className="block w-full input-form"
-            />
-        </div>
-        <div>
-            <label htmlFor="fechaInicioCiclo" className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio del Ciclo:</label>
-            <input
-                type="date"
-                id="fechaInicioCiclo"
-                name="fechaInicioCiclo"
-                value={reliquidacionData.fechaInicioCiclo}
-                onChange={handleReliquidacionChange}
-                className="block w-full input-form"
-            />
-        </div>
-        <div>
-            <label htmlFor="fechaFinCiclo" className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin del Ciclo:</label>
-            <input
-                type="date"
-                id="fechaFinCiclo"
-                name="fechaFinCiclo"
-                value={reliquidacionData.fechaFinCiclo}
-                onChange={handleReliquidacionChange}
-                className="block w-full input-form"
-            />
-        </div>
-        <div>
-            <label htmlFor="fechaBaja" className="block text-sm font-medium text-gray-700 mb-1">Fecha de Baja/Portación:</label>
-            <input
-                type="date"
-                id="fechaBaja"
-                name="fechaBaja"
-                value={reliquidacionData.fechaBaja}
-                onChange={handleReliquidacionChange}
-                className="block w-full input-form"
-            />
-        </div>
-    </div>
-
-    <div className="mt-4">
-        <button
-            type="button"
-            onClick={calcularNotaCredito}
-            className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
-        >
-            Calcular Nota de Crédito
-        </button>
-    </div>
-
-    {reliquidacionData.montoNotaCredito !== null && (
-        <div className="mt-4 p-3 bg-teal-100 rounded-md border border-teal-300">
-            <p className="font-semibold text-teal-800">Resultado del Cálculo:</p>
-            <p className="text-sm">El monto de la nota de crédito a aplicar es de **${reliquidacionData.montoNotaCredito} COP**.</p>
-            <p className="text-xs text-gray-600 mt-2">
-                Se ha añadido una entrada con este cálculo al historial de observaciones del caso.
-            </p>
-        </div>
-    )}
-</div>
     async function handleReopenCase(caseItem) {
     if (!db || !userId || caseItem.Estado_Gestion !== 'Resuelto') {
         displayModalMessage('Solo los casos resueltos pueden ser reabiertos.');
@@ -3766,6 +3693,4 @@ async function generateAIComprehensiveResponseHandler() {
         </div>
     );
 }
-
-}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 export default App;
