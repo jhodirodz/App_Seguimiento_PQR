@@ -165,7 +165,7 @@ const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
 // Helper and Utility Functions
 // =================================================================================================
 // Función para convertir un archivo a formato Base64. Necesaria para procesar imágenes y audio.
-const fileToBase64 =(
+const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
