@@ -166,56 +166,72 @@ const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
 // =================================================================================================
 // Función para convertir un archivo a formato Base64. Necesaria para procesar imágenes y audio.
 const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            const base64String = reader.result.split(',')[1];
-            resolve(base64String);
-        };
-        reader.onerror = (error) => reject(error);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result.split(",")[1];
+      resolve(base64String);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+// Llamada a la API de Gemini
+const geminiApiCall = async (modelName, prompt) => {
+  const apiKey =
+    typeof __gemini_api_key !== "undefined"
+      ? __gemini_api_key
+      : import.meta.env.VITE_GEMINI_API_KEY || "";
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
     });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error en geminiApiCall:", error);
+    throw error;
+  }
 };
 
-// Nueva función de llamada a la API de Gemini, más genérica.
-const geminiApiCall = async (modelName, prompt) => {
-    const apiKey = (typeof __gemini_api_key !== "undefined")
-        ? __gemini_api_key
-        : (import.meta.env.VITE_GEMINI_API_KEY || "");
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        });
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error en geminiApiCall:", error);
-        throw error;
-    }
-};
-
-/**
- * Gets the current date in 'YYYY-MM-DD' format for Colombia.
- * @returns {string} The formatted date string.
- */
-const geminiApiCall = async (modelName, prompt) => {
+// Fecha ISO con zona horaria Colombia
 const getColombianDateISO = () => {
-const formatDate = (date) => {
-const calculateDeadline = (days) => {
-const sanitizeText = (text) => {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Bogota',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 };
+
+// Formatea fecha legible
+const formatDate = (date) => {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+// Analiza fechas tipo string y las normaliza
+function parseDate(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return "";
+
+  const date = new Date(dateStr);
+  if (isNaN(date)) return "";
+  return date.toISOString().split("T")[0];
+}
+
 /**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
  * @param {string} dateStr - La cadena de fecha a parsear.
