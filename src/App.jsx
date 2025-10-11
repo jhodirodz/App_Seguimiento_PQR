@@ -165,7 +165,7 @@ const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
 // Helper and Utility Functions
 // =================================================================================================
 // Función para convertir un archivo a formato Base64. Necesaria para procesar imágenes y audio.
-function fileToBase64(
+const fileToBase64 =(
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -178,7 +178,7 @@ function fileToBase64(
 };
 
 // Nueva función de llamada a la API de Gemini, más genérica.
-async function geminiApiCall(
+async const geminiApiCall =(
     const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
@@ -213,7 +213,7 @@ async function geminiApiCall(
  * Gets the current date in 'YYYY-MM-DD' format for Colombia.
  * @returns {string} The formatted date string.
  */
-function getColombianDateISO(
+const getColombianDateISO =(
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Bogota',
         year: 'numeric',
