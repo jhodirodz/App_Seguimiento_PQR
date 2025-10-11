@@ -690,51 +690,7 @@ useEffect(() => {
         return () => clearInterval(intervalId);
     }, [cases, displayModalMessage]);
 useEffect(() => {
-    if (cases.length === 0) return;
-    
-    const timerId = setInterval(checkCancellationAlarms, 60000); // Check every 60 seconds
-    checkCancellationAlarms(); // Initial check on component mount
 
-    return () => clearInterval(timerId); // Cleanup on unmount
-}, [cases, checkCancellationAlarms]);
-
-    useEffect(() => { const timer = setInterval(() => setCurrentDateTime(new Date()), 1000); return () => clearInterval(timer); }, []);
-useEffect(() => {
-        if (cases.length === 0) return;
-
-        function checkAlarms() {
-            const todayISO = getColombianDateISO();
-            const casesToAlert = cases.filter(c => {
-                const caseId = c.id;
-                const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
-
-                // Si la alarma para este caso ya fue cerrada hoy, no la mostramos.
-                if (sessionStorage.getItem(alarmKey)) {
-                    return false;
-                }
-
-                const dia = calculateCaseAge(c, nonBusinessDays);
-                if (isNaN(dia)) return false;
-
-                const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
-                const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
-
-                return isTrasladoSIC || isDecretado;
-            });
-
-            if (casesToAlert.length > 0) {
-                setAlarmCases(casesToAlert);
-                setShowAlarmModal(true);
-            }
-
-        // Revisa las alarmas 5 segundos después de que los casos se carguen.
-useEffect(() => {
-    const timer = setTimeout(() => {
-        // lógica
-    }, 1000);
-
-    return () => clearTimeout(timer);
-}, [cases]);
 
 async function handleFileUpload(event) {
     const file = event.target.files[0];
