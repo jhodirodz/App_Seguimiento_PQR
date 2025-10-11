@@ -2359,7 +2359,7 @@ if (existingCasesMap.has(currentSN)) {
         setShowManualEntryModal(true);
     };
 
-   async function handleOpenCaseDetails(caseItem) {
+   const handleOpenCaseDetails = async (caseItem) {
     setSelectedCase(caseItem);
     setTieneSNAcumulados(false);
     setCantidadSNAcumulados(0);
@@ -2426,7 +2426,7 @@ if (existingCasesMap.has(currentSN)) {
     setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
 };
 
-function handleCloseCaseDetails() {
+const handleCloseCaseDetails = () {
     setSelectedCase(null);
     setDuplicateCasesDetails([]);
     setTieneSNAcumulados(false);
@@ -3289,7 +3289,7 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
     resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO()).length,
 };
 
-    function handleSelectCase(caseId, isMassSelect) {
+    const handleSelectCase = (caseId, isMassSelect) {
         setSelectedCaseIds(prevSelectedIds => {
             const newSelectedIds = new Set(prevSelectedIds);
             if (isMassSelect) {
