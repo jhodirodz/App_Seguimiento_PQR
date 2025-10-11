@@ -315,7 +315,7 @@ function calculateBusinessDays(startDateStr, endDateStr, nonBusinessDays = []) {
  * Calcula la antigüedad del caso en días hábiles.
  * La antigüedad es simplemente el resultado de calculateBusinessDays, sin ajustes adicionales.
  */
-function calculateCaseAge(
+function calculateCaseAge(caseItem) {
     // Si el caso ya está resuelto o finalizado, devuelve el último valor registrado en 'Dia'.
     if (caseItem.Estado_Gestion === 'Resuelto' || caseItem.Estado_Gestion === 'Finalizado') {
         return caseItem.Dia; // O el campo que almacena el conteo final
