@@ -6,7 +6,7 @@ async function updateCaseInFirestore(caseId, newData) {
     const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
     
     try {
-        await setDoc(docRef, newData, { merge: true });
+        await setDoc(docRef, newData, { merge: true } , []);
         console.log(`Documento con ID ${caseId} actualizado o creado.`);
     } catch (e) {
         console.error("Error al escribir el documento:", e);
@@ -75,7 +75,7 @@ async function updateCaseInFirestore(caseId, newData) {
                     displayName: fbUser.displayName || null,
                     role: 'user',
                     createdAt: new Date().toISOString()
-                });
+                } , []);
                 setUserRole('user');
             } else {
                 const d = snap.data();
@@ -101,7 +101,7 @@ async function updateCaseInFirestore(caseId, newData) {
                 displayName: null,
                 role: 'user',
                 createdAt: new Date().toISOString()
-            });
+            } , []);
             setUserId(fbUser.uid);
             setUserRole('user');
             displayModalMessage('Registro exitoso. Bienvenido.');
@@ -158,7 +158,7 @@ async function updateCaseInFirestore(caseId, newData) {
                 role,
                 createdAt: new Date().toISOString(),
                 createdBy: userId
-            });
+            } , []);
             displayModalMessage('Usuario creado (cliente). En producción use Cloud Function con Admin SDK.');
             return { ok: true, newUser };
         } catch (e) {
@@ -178,7 +178,7 @@ async function updateCaseInFirestore(caseId, newData) {
     
     // UI/Modal states
     const [showModal, setShowModal] = useState(false);
-    const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => {}, confirmText: 'Confirmar', cancelText: 'Cancelar' });
+    const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => {}, confirmText: 'Confirmar', cancelText: 'Cancelar' } , []);
     const [selectedCase, setSelectedCase] = useState(null);
     const [showManualEntryModal, setShowManualEntryModal] = useState(false);
     const [activeModule, setActiveModule] = useState('casos');
@@ -258,7 +258,7 @@ const asignadosPorDiaData = useMemo(() => {
             const fecha = caseItem.fecha_asignacion || 'Sin Fecha';
             acc[fecha] = (acc[fecha] || 0) + 1;
             return acc;
-        }, {});
+        }, {} , []);
         return Object.keys(counts).map(fecha => ({
             fecha,
             cantidad: counts[fecha]
@@ -276,7 +276,7 @@ const asignadosPorDiaData = useMemo(() => {
                 acc[key] = (acc[key] || 0) + 1;
             }
             return acc;
-        }, {});
+        }, {} , []);
    return Object.keys(counts).map(dia => ({
         dia,
         cantidad: counts[dia]
@@ -367,7 +367,7 @@ const checkCancellationAlarms = useCallback(() => {
         const todayWithoutTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
         return todayWithoutTime.getTime() === alertDate.getTime();
-    });
+    } , []);
 
     if (casesToAlert.length > 0) {
         setCancelAlarmCases(casesToAlert);
@@ -381,7 +381,7 @@ function handleReliquidacionChange(index, e) {
         const newForms = [...prev];
         newForms[index][name] = value;
         return newForms;
-    });
+    } , []);
 };
 
 function handleAddForm() {
@@ -438,7 +438,7 @@ async function calcularNotaCredito() {
         const monto = valorDiario * diasAReliquidar;
 
         return { ...form, montoNotaCredito: monto.toFixed(2) };
-    });
+    } , []);
 
     setReliquidacionData(newForms);
 
@@ -456,7 +456,7 @@ async function calcularNotaCredito() {
     const updatedHistory = [...(selectedCase.Observaciones_Historial || []), newHistoryEntry];
     
     // Llamar a la función para actualizar el documento en Firestore
-    await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHistory });
+    await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHistory } , []);
     
     // Opcional: Actualizar el estado local para reflejar el cambio inmediatamente
     // Esta línea asegura que el modal muestre el historial actualizado sin tener que cerrar y abrir
@@ -478,7 +478,7 @@ async function calcularNotaCredito() {
 
     // Memoized modal display functions to prevent re-renders
     const displayModalMessage = useCallback((message) => {
-        setModalContent({ message, isConfirm: false, onConfirm: () => {} });
+        setModalContent({ message, isConfirm: false, onConfirm: () => {} } , []);
         setShowModal(true);
     }, []);
 
@@ -488,7 +488,7 @@ async function calcularNotaCredito() {
             onConfirm: onConfirm || (() => {}),
             onCancel: onCancel || (() => setShowModal(false)),
             confirmText, cancelText
-        });
+        } , []);
         setShowModal(true);
     }, []);
 // A good place for the useEffect hook would be here, after all state declarations.
@@ -566,7 +566,7 @@ useEffect(() => {
                     }
                 }
             }
-        });
+        } , []);
 
         // Cleanup the listener when the component unmounts.
         return () => authStateUnsubscribe();
@@ -598,7 +598,7 @@ useEffect(() => {
             console.error("Fetch cases error (onSnapshot):", e);
             displayModalMessage(`Error cargando los casos: ${e.message}`);
             setRefreshing(false);
-        });
+        } , []);
 
         return () => unsub(); // Cleanup listener on unmount
     }, [db, userId, appId, displayModalMessage]);
@@ -620,19 +620,19 @@ useEffect(() => {
                                            c.gestionAseguramientoCompletada;
 
         return simpleResolved || complexResolvedAndCompleted;
-    });
+    } , []);
 
     if (casesToFinalize.length > 0) {
         const batch = writeBatch(db);
         casesToFinalize.forEach(caseItem => {
             const caseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
-            batch.update(caseRef, { Estado_Gestion: 'Finalizado' });
-        });
+            batch.update(caseRef, { Estado_Gestion: 'Finalizado' } , []);
+        } , []);
 
         batch.commit().catch(error => {
             console.error("Error finalizing cases automatically:", error);
             displayModalMessage(`Error al finalizar casos automáticamente: ${error.message}`);
-        });
+        } , []);
     }
 }, [cases, db, userId, appId, displayModalMessage]);
 
@@ -684,7 +684,7 @@ useEffect(() => {
                         }
                     }
                 }
-            });
+            } , []);
         };
         const intervalId = setInterval(checkIniciadoCases, 30000);
         return () => clearInterval(intervalId);
@@ -720,7 +720,7 @@ useEffect(() => {
                 const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
 
                 return isTrasladoSIC || isDecretado;
-            });
+            } , []);
 
             if (casesToAlert.length > 0) {
                 setAlarmCases(casesToAlert);
@@ -859,9 +859,9 @@ if (existingCasesMap.has(currentSN)) {
                         requiereAjuste: false, numeroTT: '', estadoTT: '', requiereDevolucionDinero: false,
                         cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '',
                         areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
-                    });
+                    } , []);
                     addedCount++;
-                    existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row });
+                    existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row } , []);
                 }
             }
             if (cancelUpload.current) {
@@ -930,7 +930,7 @@ if (existingCasesMap.has(currentSN)) {
                         }
                         casesByReclamanteNuip.get(reclamanteNuip).push(caseData);
                    }
-                });
+                } , []);
 
                 const processedNuips = new Set();
                 for (const row of csvDataRows) {
@@ -966,7 +966,7 @@ if (existingCasesMap.has(currentSN)) {
                             }
                             batch.update(docRef, updateData);
                             updatedCasesCount++;
-                        });
+                        } , []);
                     }
 
                     if (!foundMatch) {
@@ -1032,21 +1032,21 @@ if (existingCasesMap.has(currentSN)) {
                             if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
                             casesByNuip.get(nuip).push(caseItem.SN);
                         }
-                    });
-                });
+                    } , []);
+                } , []);
                 
                 const matches = new Map();
                 reportNuips.forEach(nuip => {
                     if (casesByNuip.has(nuip)) {
                         matches.set(nuip, casesByNuip.get(nuip));
                     }
-                });
+                } , []);
 
                 if (matches.size > 0) {
                     let message = `Reporte cargado. Se encontraron coincidencias para ${matches.size} documentos en sus casos asignados:\n\n`;
                     matches.forEach((snList, nuip) => {
                         message += `- Documento ${nuip}:\n  Casos SN: ${[...new Set(snList)].join(', ')}\n`;
-                    });
+                    } , []);
                     displayModalMessage(message);
                 } else {
                     displayModalMessage('Reporte cargado. No se encontraron coincidencias inmediatas en sus casos asignados.');
@@ -1119,9 +1119,9 @@ if (existingCasesMap.has(currentSN)) {
         ].filter(Boolean));
         const hasCommonNuip = [...normalizedCaseNuips].some(nuip => normalizedOtherNuips.has(nuip));
         if (hasCommonNuip) {
-            duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' });
+            duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' } , []);
         }
-    });
+    } , []);
     // 2. Check against the cruce report data (NEW LOGIC)
     if (reporteCruceData.length > 0 && reporteCruceData[0]) {
         const nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
@@ -1144,10 +1144,10 @@ if (existingCasesMap.has(currentSN)) {
                             type: 'Reporte Cruce',
                             isAssigned: isAlreadyAssigned,
                             data: reportRow
-                        });
+                        } , []);
                     }
                 }
-            });
+            } , []);
         }
     }
     setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
@@ -1204,15 +1204,15 @@ async function handleModalFieldChange(fieldName, value) {
                 firestoreUpdateData.Despacho_Respuesta_Checked = false;
             }
             if (!isChecked) {
-                if (fieldName === 'Requiere_Aseguramiento_Facturas') Object.assign(firestoreUpdateData, { ID_Aseguramiento: '', Corte_Facturacion: '', Cuenta: '', Operacion_Aseguramiento: '', Tipo_Aseguramiento: '', Mes_Aseguramiento: '', gestionAseguramientoCompletada: false });
+                if (fieldName === 'Requiere_Aseguramiento_Facturas') Object.assign(firestoreUpdateData, { ID_Aseguramiento: '', Corte_Facturacion: '', Cuenta: '', Operacion_Aseguramiento: '', Tipo_Aseguramiento: '', Mes_Aseguramiento: '', gestionAseguramientoCompletada: false } , []);
                 else if (fieldName === 'requiereBaja') firestoreUpdateData.numeroOrdenBaja = '';
                 else if (fieldName === 'requiereAjuste') {
-                    Object.assign(firestoreUpdateData, { numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' });
+                    Object.assign(firestoreUpdateData, { numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' } , []);
                     if (selectedCase.Estado_Gestion === 'Pendiente Ajustes') firestoreUpdateData.Estado_Gestion = 'Pendiente';
                 }
             }
         } else if (fieldName === 'requiereDevolucionDinero' && !isChecked) {
-            Object.assign(firestoreUpdateData, { cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' });
+            Object.assign(firestoreUpdateData, { cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' } , []);
         }
 
         // --- LÓGICA AGREGADA Y CORREGIDA ---
@@ -1282,7 +1282,7 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
             
             const snListString = accumulatedSNs.join(', ');
             const mainAnnotationText = `Caso resuelto. Se cerraron también los siguientes SN Acumulados: ${snListString}`;
-            newObservations.push({ text: mainAnnotationText, timestamp: new Date().toISOString() });
+            newObservations.push({ text: mainAnnotationText, timestamp: new Date().toISOString() } , []);
 
             const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where('SN', 'in', accumulatedSNs));
             const querySnapshot = await getDocs(q);
@@ -1298,8 +1298,8 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
                     Estado_Gestion: 'Resuelto',
                     'Fecha Cierre': today,
                     Observaciones_Historial: newAccumulatedHistory
-                });
-            });
+                } , []);
+            } , []);
         }
     }
     
@@ -1370,7 +1370,7 @@ async function handleDecretarCaso() {
                         idEscalado: '',
                         reqGenerado: '',
                         descripcionEscalamiento: ''
-                    });
+                    } , []);
                     const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
                     batch.set(newCaseRef, newCaseData);
                     const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
@@ -1393,8 +1393,7 @@ async function handleDecretarCaso() {
             },
             confirmText: 'Sí, decretar',
             cancelText: 'No, cancelar'
-        }
-    );
+        } , []);
 };
 async function handleTrasladoSIC() {
     if (!selectedCase) return;
@@ -1438,7 +1437,7 @@ async function handleTrasladoSIC() {
                         idEscalado: '',
                         reqGenerado: '',
                         descripcionEscalamiento: ''
-                    });
+                    } , []);
                     const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
                     batch.set(newCaseRef, newCaseData);
                     const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
@@ -1461,8 +1460,7 @@ async function handleTrasladoSIC() {
             },
             confirmText: 'Sí, trasladar a SIC',
             cancelText: 'No, cancelar'
-        }
-    );
+        } , []);
 };
     async function handleSaveEscalamientoHistory() {
         if (!selectedCase) return;
@@ -1482,7 +1480,7 @@ async function handleTrasladoSIC() {
 
         const newHistory = [...(selectedCase.Escalamiento_Historial || []), escalamientoData];
         try {
-            await updateCaseInFirestore(selectedCase.id, { Escalamiento_Historial: newHistory });
+            await updateCaseInFirestore(selectedCase.id, { Escalamiento_Historial: newHistory } , []);
             setSelectedCase(prev => ({ ...prev, Escalamiento_Historial: newHistory }));
             displayModalMessage('Historial de escalación guardado.');
         } catch(e) {
@@ -1518,16 +1516,15 @@ async function handleTrasladoSIC() {
                         },
                         confirmText: 'No, no requiere',
                         cancelText: 'Sí, requiere gestión'
-                    }
-                );
+                    } , []);
             } else {
                 await proceedWithResolve();
             }
         } else {
              const oldStatus = selectedCase.Estado_Gestion;
              const data = { Estado_Gestion: newStatus };
-             if (oldStatus === 'Escalado' && newStatus !== 'Escalado') Object.assign(data, { areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '' });
-             if (newStatus === 'Iniciado') Object.assign(data, { Fecha_Inicio_Gestion: new Date().toISOString(), Tiempo_Resolucion_Minutos: 'N/A' });
+             if (oldStatus === 'Escalado' && newStatus !== 'Escalado') Object.assign(data, { areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '' } , []);
+             if (newStatus === 'Iniciado') Object.assign(data, { Fecha_Inicio_Gestion: new Date().toISOString(), Tiempo_Resolucion_Minutos: 'N/A' } , []);
              setSelectedCase(prev => ({ ...prev, ...data }));
              await updateCaseInFirestore(selectedCase.id, data);
         }
@@ -1567,16 +1564,16 @@ async function handleTrasladoSIC() {
         await updateCaseInFirestore(selectedCase.id, updateData);
     };
 
-    function handleRadicadoSICChange(e) { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); };
-    function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
-    async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
+    function handleRadicadoSICChange(e) { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value } , []); };
+    function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value } , []); };
+    async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId } , []); displayModalMessage(`Caso asignado a: ${userId}`); };
     async function generateAIAnalysis() { if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }
-    async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }
+    async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum } , []); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }
     async function generateAIResponseProjectionHandler() {
         if (!selectedCase) return;
         const lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
         setIsGeneratingResponseProjection(true);
-        try { const proj = await getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj }); }
+        try { const proj = await getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj } , []); }
         catch (e) { displayModalMessage(`Error AI Projection: ${e.message}`); }
         finally { setIsGeneratingResponseProjection(false); }
     
@@ -1586,7 +1583,7 @@ async function handleTrasladoSIC() {
         try {
             const actions = await getAINextActions(selectedCase);
             setSelectedCase(prev => ({ ...prev, Sugerencias_Accion_IA: actions }));
-            await updateCaseInFirestore(selectedCase.id, { Sugerencias_Accion_IA: actions });
+            await updateCaseInFirestore(selectedCase.id, { Sugerencias_Accion_IA: actions } , []);
         } catch (e) {
             displayModalMessage(`Error generando próximas acciones: ${e.message}`);
         } finally {
@@ -1599,7 +1596,7 @@ async function handleTrasladoSIC() {
         try {
             const cause = await getAIRootCause(selectedCase);
             setSelectedCase(prev => ({ ...prev, Causa_Raiz_IA: cause }));
-            await updateCaseInFirestore(selectedCase.id, { Causa_Raiz_IA: cause });
+            await updateCaseInFirestore(selectedCase.id, { Causa_Raiz_IA: cause } , []);
         } catch (e) {
             displayModalMessage(`Error generando causa raíz: ${e.message}`);
         } finally {
@@ -1631,8 +1628,8 @@ async function handleTrasladoSIC() {
 
 
     const handleObservationsChange = (e) => setSelectedCase(prev => ({ ...prev, Observaciones: e.target.value }));
-    async function saveObservation() { if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' }); displayModalMessage('Observación guardada.'); };
-    function handleFechaCierreChange(e) { setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); };
+    async function saveObservation() { if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' } , []); displayModalMessage('Observación guardada.'); };
+    function handleFechaCierreChange(e) { setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value } , []); };
 
     function handleManualFormChange(e) {
         const { name, value, type, checked } = e.target;
@@ -1661,7 +1658,7 @@ async function handleTrasladoSIC() {
                 newState.Numero_Contrato_Marco = '';
             }
             return newState;
-        });
+        } , []);
     };
     
     function handleManualFormDevolucionChange(e) {
@@ -1794,7 +1791,7 @@ async function handleTrasladoSIC() {
                 const modelName = "gemini-1.5-flash-latest";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } , []);
                 if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
                 const result = await response.json();
                 if (result.candidates && result.candidates[0].content.parts[0].text) {
@@ -1810,7 +1807,7 @@ async function handleTrasladoSIC() {
                 const modelName = "gemini-1.5-flash-latest";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } , []);
                 if (!response.ok) {
                     const errorBody = await response.text();
                     throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`);
@@ -1829,7 +1826,7 @@ async function handleTrasladoSIC() {
             const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
 
             setSelectedCase(prev => ({ ...prev, Observaciones: newObs }));
-            await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs });
+            await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs } , []);
             
             displayModalMessage('✅ Adjunto analizado y añadido a las observaciones.');
         } catch (error) {
@@ -1842,7 +1839,7 @@ async function handleTrasladoSIC() {
             }
         }
 function downloadCSV(csvContent, filename) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' } , []);
     const link = document.createElement('a');
     if (link.download !== undefined) {
         link.href = URL.createObjectURL(blob);
@@ -1907,7 +1904,7 @@ function exportCasesToCSV(isTodayResolvedOnly = false) {
             return `"${String(v).replace(/"/g, '""')}"`;
         }).join(',');
         csvActual += actualRow + '\n';
-    });
+    } , []);
 
     // --- GENERACIÓN DEL ARCHIVO ORIGINAL (LÓGICA NUEVA) ---
     let csvOriginal = ORIGINAL_CSV_HEADERS.map(h => `"${h}"`).join(',') + '\n';
@@ -1924,7 +1921,7 @@ function exportCasesToCSV(isTodayResolvedOnly = false) {
             return `"${String(v).replace(/"/g, '""')}"`;
         }).join(',');
         csvOriginal += originalRow + '\n';
-    });
+    } , []);
 
     // Descargar ambos archivos
     const filenameSuffix = isTodayResolvedOnly ? `resueltos_hoy_${today}` : `todos_${today}`;
@@ -1957,7 +1954,7 @@ const filteredAndSearchedCases = useMemo(() => {
         const statusMatch = statusFilter === 'todos' || c.Estado_Gestion === statusFilter;
 
         return searchMatch && contractMatch && priorityMatch && statusMatch;
-    });
+    } , []);
 }, [cases, searchTerm, contractFilter, priorityFilter, statusFilter]);
     
 function applyActiveFilter(cs) {
@@ -2019,7 +2016,7 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
                 newSelectedIds.add(caseId);
             }
             return newSelectedIds;
-        });
+        } , []);
     };
 
 async function handleMassUpdate() {
@@ -2071,7 +2068,7 @@ async function handleMassUpdate() {
             }
 
             batch.update(docSnapshot.ref, updateData);
-        });
+        } , []);
 
         await batch.commit();
         displayModalMessage(`${docsToUpdateSnapshot.size} de ${selectedCaseIds.size} casos actualizados exitosamente a "${massUpdateTargetStatus}".`);
@@ -2200,7 +2197,7 @@ async function handleMassUpdate() {
         } catch (error) {
             displayModalMessage(`Error al eliminar el caso: ${error.message}`);
         }
-    displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm });
+    displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm } , []);
 };
 
     function handleMassDelete() {
@@ -2212,7 +2209,7 @@ async function handleMassUpdate() {
             selectedCaseIds.forEach(caseId => {
                 const caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
                 batch.delete(caseDocRef);
-            });
+            } , []);
             try {
                 await batch.commit();
                 displayModalMessage(`${selectedCaseIds.size} casos eliminados exitosamente.`);
@@ -2222,7 +2219,7 @@ async function handleMassUpdate() {
             } finally {
                 setIsMassUpdating(false);
             }
-        displayConfirmModal(`¿Estás seguro de que quieres eliminar ${selectedCaseIds.size} casos permanentemente? Esta acción no se puede deshacer.`, {onConfirm});
+        displayConfirmModal(`¿Estás seguro de que quieres eliminar ${selectedCaseIds.size} casos permanentemente? Esta acción no se puede deshacer.`, {onConfirm} , []);
     };
 
     function handleMassReopen() {
@@ -2237,7 +2234,7 @@ async function handleMassUpdate() {
             casesToReopen.forEach(caseItem => {
                 const caseDocRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
                 batch.update(caseDocRef, updateData);
-            });
+            } , []);
             try {
                 await batch.commit();
                 displayModalMessage(`${casesToReopen.length} casos reabiertos exitosamente.`);
@@ -2247,7 +2244,7 @@ async function handleMassUpdate() {
             } finally {
                 setIsMassUpdating(false);
             }
-        displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, {onConfirm});
+        displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, {onConfirm} , []);
     };
 
     function handleDeleteAllCases() {
@@ -2279,7 +2276,7 @@ async function handleMassUpdate() {
 
                 allCasesSnapshot.forEach(doc => {
                     batch.delete(doc.ref);
-                });
+                } , []);
 
                 await batch.commit();
                 displayModalMessage(`Se eliminaron todos los ${allCasesSnapshot.size} casos exitosamente.`);
@@ -2297,8 +2294,7 @@ async function handleMassUpdate() {
                 onConfirm,
                 confirmText: 'Sí, Eliminar Todo',
                 cancelText: 'No, Cancelar'
-            }
-        );
+            } , []);
     };
 
     function handleSNAcumuladoInputChange(index, field, value) {
@@ -2326,7 +2322,7 @@ async function handleMassUpdate() {
         const updatedHistory = [...(selectedCase.SNAcumulados_Historial || []), ...newHistory];
 
         try {
-            await updateCaseInFirestore(selectedCase.id, { SNAcumulados_Historial: updatedHistory });
+            await updateCaseInFirestore(selectedCase.id, { SNAcumulados_Historial: updatedHistory } , []);
             setSelectedCase(prev => ({ ...prev, SNAcumulados_Historial: updatedHistory }));
             displayModalMessage('SN Acumulados guardados exitosamente.');
             // Reset fields after saving
@@ -2362,7 +2358,7 @@ async function handleMassUpdate() {
 
         const newHistory = [...(selectedCase.Aseguramiento_Historial || []), assuranceData];
         try {
-            await updateCaseInFirestore(selectedCase.id, { Aseguramiento_Historial: newHistory });
+            await updateCaseInFirestore(selectedCase.id, { Aseguramiento_Historial: newHistory } , []);
             setSelectedCase(prev => ({ ...prev, Aseguramiento_Historial: newHistory }));
             displayModalMessage('Historial de aseguramiento guardado.');
             setAseguramientoObs('');
@@ -2405,7 +2401,7 @@ async function handleScanFileUpload(event) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            });
+            } , []);
             const result = await response.json();
             if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
                 const transcribedText = result.candidates[0].content.parts[0].text;
@@ -2427,7 +2423,7 @@ async function handleScanFileUpload(event) {
                     obs: updatedObs,
                     Documento_Adjunto: 'Transcrito',
                     Direcciones_Extraidas: updatedHistory // Guardamos el historial de direcciones
-                });
+                } , []);
 
                 displayModalMessage('Transcripción y extracción de direcciones completada.');
             } else {
@@ -2464,7 +2460,7 @@ async function handleScanFileUpload(event) {
         try {
             const emailBody = await getAIEscalationEmail(selectedCase);
             setSelectedCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody }));
-            await updateCaseInFirestore(selectedCase.id, { Correo_Escalacion_IA: emailBody });
+            await updateCaseInFirestore(selectedCase.id, { Correo_Escalacion_IA: emailBody } , []);
         } catch (e) {
             displayModalMessage(`Error generando correo de escalación: ${e.message}`);
         } finally {
@@ -2477,7 +2473,7 @@ async function handleScanFileUpload(event) {
         try {
             const risk = await getAIRiskAnalysis(selectedCase);
             setSelectedCase(prev => ({ ...prev, Riesgo_SIC: risk }));
-            await updateCaseInFirestore(selectedCase.id, { Riesgo_SIC: risk });
+            await updateCaseInFirestore(selectedCase.id, { Riesgo_SIC: risk } , []);
         } catch (e) {
             displayModalMessage(`Error generando análisis de riesgo: ${e.message}`);
         } finally {
@@ -2489,7 +2485,7 @@ async function generateAIComprehensiveResponseHandler() {
     try {
         const res = await getAIComprehensiveResponse(selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes');
         // NUEVO: Guardar el resultado de la validación.
-        const validation = await getAIValidation({ ...selectedCase, Respuesta_Integral_IA: res });
+        const validation = await getAIValidation({ ...selectedCase, Respuesta_Integral_IA: res } , []);
 
         setSelectedCase(prev => ({
             ...prev,
@@ -2499,7 +2495,7 @@ async function generateAIComprehensiveResponseHandler() {
         await updateCaseInFirestore(selectedCase.id, {
             Respuesta_Integral_IA: res,
             Validacion_IA: validation
-        });
+        } , []);
         displayModalMessage('Respuesta integral generada y validada exitosamente.'); // Mensaje actualizado.
     }
     catch (e) {
@@ -2528,7 +2524,7 @@ async function generateAIComprehensiveResponseHandler() {
         const updatedHistory = [...existingHistory, newObservation];
 
         try {
-            await updateCaseInFirestore(selectedAlarmCase.id, { Observaciones_Historial: updatedHistory });
+            await updateCaseInFirestore(selectedAlarmCase.id, { Observaciones_Historial: updatedHistory } , []);
             
             // Marcar la alarma como gestionada para hoy
             sessionStorage.setItem(alarmKey, 'true');
@@ -3580,7 +3576,7 @@ async function generateAIComprehensiveResponseHandler() {
                     <button onClick={() => {
                         cancelAlarmCases.forEach(c => {
                             sessionStorage.setItem(`cancelAlarmShown_${c.id}_${getColombianDateISO()}`, 'true');
-                        });
+                        } , []);
                         setShowCancelAlarmModal(false);
                     }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                         Cerrar Alertas
