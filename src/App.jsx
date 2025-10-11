@@ -204,7 +204,6 @@ const geminiApiCall = async (modelName, prompt) => {
  * Gets the current date in 'YYYY-MM-DD' format for Colombia.
  * @returns {string} The formatted date string.
  */
-const fileToBase64 = (file) => {
 const geminiApiCall = async (modelName, prompt) => {
 const getColombianDateISO = () => {
 const formatDate = (date) => {
