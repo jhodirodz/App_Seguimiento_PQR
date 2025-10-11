@@ -258,57 +258,58 @@ function parseDate(dateStr) {
  * Esta función ajusta el día de inicio si es un fin de semana o festivo, y
  * también ajusta si el inicio es en un día hábil para que el primer día de conteo sea el siguiente.
  */
-function calculateBusinessDays(
-    try {
-        const startParts = startDateStr.split('-').map(Number);
-        const endParts = endDateStr.split('-').map(Number);
-        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-        const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+function calculateBusinessDays(startDateStr, endDateStr, nonBusinessDays = []) {
+  try {
+    const startParts = startDateStr.split('-').map(Number);
+    const endParts = endDateStr.split('-').map(Number);
+    const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+    const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
 
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
-        if (startDate > endDate) return 0;
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
+    if (startDate > endDate) return 0;
 
-        let currentDate = new Date(startDate);
-        const nonBusinessDaysSet = new Set(nonBusinessDays);
+    let currentDate = new Date(startDate);
+    const nonBusinessDaysSet = new Set(nonBusinessDays);
 
-        // Lógica para encontrar el primer día hábil después de la radicación
-        // Se mueve al día siguiente
-        currentDate.setDate(currentDate.getDate() + 1);
+    // 🔹 Mover al día siguiente del inicio
+    currentDate.setDate(currentDate.getDate() + 1);
 
-        // Bucle para encontrar el siguiente día hábil si el día posterior a la radicación cae en fin de semana o festivo
-        while (true) {
-            const dayOfWeek = currentDate.getDay();
-            const dateStr = currentDate.toISOString().slice(0, 10);
-            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+    // 🔹 Buscar el primer día hábil posterior a la fecha de inicio
+    while (true) {
+      const dayOfWeek = currentDate.getDay();
+      const dateStr = currentDate.toISOString().slice(0, 10);
+      const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
 
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
-                break;
-            }
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+        break;
+      }
 
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        let count = 0;
-        let safetyCounter = 0;
-
-        while (currentDate <= endDate && safetyCounter < 10000) {
-            const dayOfWeek = currentDate.getDay();
-            const dateStr = currentDate.toISOString().slice(0, 10);
-            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
-
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
-                count++;
-            }
-
-            currentDate.setDate(currentDate.getDate() + 1);
-            safetyCounter++;
-        }
-        return count;
-    } catch (e) {
-        console.error("Error en calculateBusinessDays:", e);
-        return "N/A";
+      currentDate.setDate(currentDate.getDate() + 1);
     }
-};
+
+    let count = 0;
+    let safetyCounter = 0;
+
+    // 🔹 Contar días hábiles hasta la fecha final
+    while (currentDate <= endDate && safetyCounter < 10000) {
+      const dayOfWeek = currentDate.getDay();
+      const dateStr = currentDate.toISOString().slice(0, 10);
+      const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+        count++;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+      safetyCounter++;
+    }
+
+    return count;
+  } catch (e) {
+    console.error("Error en calculateBusinessDays:", e);
+    return "N/A";
+  }
+}
 
 /**
  * Calcula la antigüedad del caso en días hábiles.
