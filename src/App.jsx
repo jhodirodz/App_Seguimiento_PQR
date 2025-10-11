@@ -1810,9 +1810,12 @@ const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (i
                 }
             } else if (fileType.startsWith('audio/')) {
                 const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-                const base64Audio = await fileToBase64(file);
-                const audioPart = { inline_data: { mime_type: file.type, data: base64Audio }
-                const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+const base64Audio = await fileToBase64(file);
+const audioPart = {
+    inline_data: { mime_type: file.type, data: base64Audio }
+};
+const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+
                 const modelName = "gemini-1.5-flash-latest";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
