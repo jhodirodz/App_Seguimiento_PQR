@@ -237,22 +237,22 @@ function parseDate(dateStr) {
  * @param {string} dateStr - La cadena de fecha a parsear.
  * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
  */
-function parseDate(
-    if (!dateStr || typeof dateStr !== 'string') return '';
+function parseDate(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return "";
 
-    // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
-    let parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (parts) {
-        // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
-        const month = parts[1].padStart(2, '0');
-        const day = parts[2].padStart(2, '0');
-        const year = parts[3];
-        return `${year}-${month}-${day}`;
-    }
+  // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
+  const parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (parts) {
+    // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
+    const month = parts[1].padStart(2, "0");
+    const day = parts[2].padStart(2, "0");
+    const year = parts[3];
+    return `${year}-${month}-${day}`;
+  }
 
-    // Si no coincide, devuelve el valor original para no romper otras lógicas
-    return dateStr;
-};
+  // Si no coincide, devuelve el valor original para no romper otras lógicas
+  return dateStr;
+}
 /**
  * Calcula los días hábiles entre dos fechas.
  * Esta función ajusta el día de inicio si es un fin de semana o festivo, y
