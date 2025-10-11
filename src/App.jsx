@@ -877,7 +877,7 @@ async function getAIRiskAnalysis(
 async function getAIComprehensiveResponse(
     // Formatea el historial completo de observaciones
     const internalHistoryInfo = (caseData.Observaciones_Historial || [])
-        .map(obs =>
+{        .map(obs =>
            ` - Observación de gestión: "${obs.text}"`
         ).join('\n\n');
 
@@ -1060,7 +1060,7 @@ Formato de respuesta JSON:
 function generateAITextContext(
     // Formatea el historial completo de observaciones
     const internalHistoryInfo = (caseData.Observaciones_Historial || [])
-        .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
+{        .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
         .join('\n\n');
 
     // Lógica para SN acumulados
