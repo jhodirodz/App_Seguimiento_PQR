@@ -165,157 +165,145 @@ const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
 // Helper and Utility Functions
 // =================================================================================================
 // Función para convertir un archivo a formato Base64. Necesaria para procesar imágenes y audio.
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64String = reader.result.split(",")[1];
-      resolve(base64String);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-// Llamada a la API de Gemini
-const geminiApiCall = async (modelName, prompt) => {
-  const apiKey =
-    typeof __gemini_api_key !== "undefined"
-      ? __gemini_api_key
-      : import.meta.env.VITE_GEMINI_API_KEY || "";
-
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = (error) => reject(error);
     });
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error en geminiApiCall:", error);
-    throw error;
-  }
 };
 
-// Fecha ISO con zona horaria Colombia
-const getColombianDateISO = () => {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+// Nueva función de llamada a la API de Gemini, más genérica.
+async function geminiApiCall(prompt, modelName = "gemini-2.0-flash", isJson = false) {
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch };
+    if (isJson) {
+        payload.generationConfig = { responseMimeType: "application/json" };
+    }
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
+            const responseText = result.candidates[0].content.parts[0].text;
+            return isJson ? JSON.parse(responseText) : responseText;
+        } else {
+            const errorMessage = result.error ? result.error.message : 'Respuesta de API inesperada.';
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        console.error("Error en geminiApiCall:", error);
+        throw error;
+    }
 };
 
-// Formatea fecha legible
-const formatDate = (date) => {
-  if (!date) return "";
-  return new Date(date).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+/**
+ * Gets the current date in 'YYYY-MM-DD' format for Colombia.
+ * @returns {string} The formatted date string.
+ */
+function getColombianDateISO() {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date());
 };
-
-// Analiza fechas tipo string y las normaliza
-function parseDate(dateStr) {
-  if (!dateStr || typeof dateStr !== "string") return "";
-
-  const date = new Date(dateStr);
-  if (isNaN(date)) return "";
-  return date.toISOString().split("T")[0];
-}
-
 /**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
  * @param {string} dateStr - La cadena de fecha a parsear.
  * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
  */
 function parseDate(dateStr) {
-  if (!dateStr || typeof dateStr !== "string") return "";
+    if (!dateStr || typeof dateStr !== 'string') return '';
 
-  // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
-  const parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (parts) {
-    // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
-    const month = parts[1].padStart(2, "0");
-    const day = parts[2].padStart(2, "0");
-    const year = parts[3];
-    return `${year}-${month}-${day}`;
-  }
+    // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
+    let parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (parts) {
+        // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
+        const month = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        const year = parts[3];
+        return `${year}-${month}-${day}`;
+    }
 
-  // Si no coincide, devuelve el valor original para no romper otras lógicas
-  return dateStr;
-}
+    // Si no coincide, devuelve el valor original para no romper otras lógicas
+    return dateStr;
+};
 /**
  * Calcula los días hábiles entre dos fechas.
  * Esta función ajusta el día de inicio si es un fin de semana o festivo, y
  * también ajusta si el inicio es en un día hábil para que el primer día de conteo sea el siguiente.
  */
-function calculateBusinessDays(startDateStr, endDateStr, nonBusinessDays = []) {
-  try {
-    const startParts = startDateStr.split('-').map(Number);
-    const endParts = endDateStr.split('-').map(Number);
-    const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-    const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+function calculateBusinessDays(startDateStr, endDateStr, nonBusinessDays) {
+    try {
+        const startParts = startDateStr.split('-').map(Number);
+        const endParts = endDateStr.split('-').map(Number);
+        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
-    if (startDate > endDate) return 0;
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
+        if (startDate > endDate) return 0;
 
-    let currentDate = new Date(startDate);
-    const nonBusinessDaysSet = new Set(nonBusinessDays);
+        let currentDate = new Date(startDate);
+        const nonBusinessDaysSet = new Set(nonBusinessDays);
 
-    // 🔹 Mover al día siguiente del inicio
-    currentDate.setDate(currentDate.getDate() + 1);
+        // Lógica para encontrar el primer día hábil después de la radicación
+        // Se mueve al día siguiente
+        currentDate.setDate(currentDate.getDate() + 1);
 
-    // 🔹 Buscar el primer día hábil posterior a la fecha de inicio
-    while (true) {
-      const dayOfWeek = currentDate.getDay();
-      const dateStr = currentDate.toISOString().slice(0, 10);
-      const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+        // Bucle para encontrar el siguiente día hábil si el día posterior a la radicación cae en fin de semana o festivo
+        while (true) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
 
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
-        break;
-      }
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                break;
+            }
 
-      currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        let count = 0;
+        let safetyCounter = 0;
+
+        while (currentDate <= endDate && safetyCounter < 10000) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                count++;
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            safetyCounter++;
+        }
+        return count;
+    } catch (e) {
+        console.error("Error en calculateBusinessDays:", e);
+        return "N/A";
     }
-
-    let count = 0;
-    let safetyCounter = 0;
-
-    // 🔹 Contar días hábiles hasta la fecha final
-    while (currentDate <= endDate && safetyCounter < 10000) {
-      const dayOfWeek = currentDate.getDay();
-      const dateStr = currentDate.toISOString().slice(0, 10);
-      const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
-
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
-        count++;
-      }
-
-      currentDate.setDate(currentDate.getDate() + 1);
-      safetyCounter++;
-    }
-
-    return count;
-  } catch (e) {
-    console.error("Error en calculateBusinessDays:", e);
-    return "N/A";
-  }
-}
+};
 
 /**
  * Calcula la antigüedad del caso en días hábiles.
  * La antigüedad es simplemente el resultado de calculateBusinessDays, sin ajustes adicionales.
  */
-function calculateCaseAge(caseItem) {
+function calculateCaseAge(caseItem, nonBusinessDays) {
     // Si el caso ya está resuelto o finalizado, devuelve el último valor registrado en 'Dia'.
     if (caseItem.Estado_Gestion === 'Resuelto' || caseItem.Estado_Gestion === 'Finalizado') {
         return caseItem.Dia; // O el campo que almacena el conteo final
@@ -342,7 +330,7 @@ function calculateCaseAge(caseItem) {
  * @param {string} text - The CSV content as a string.
  * @returns {{headers: string[], data: object[]}} Parsed headers and data rows.
  */
-function parseCSV(
+function parseCSV(text) {
     const headerLineEnd = text.indexOf('\n');
     if (headerLineEnd === -1) return { headers: [], data: [] };
     let headerLine = text.substring(0, headerLineEnd).trim();
@@ -439,7 +427,7 @@ const COLOMBIAN_HOLIDAYS = [
  * @param {string} endDateISO - The end date in ISO format.
  * @returns {number|string} Duration in minutes or 'N/A'.
  */
-function getDurationInMinutes(
+function getDurationInMinutes(startDateISO, endDateISO) {
     if (!startDateISO || !endDateISO) return 'N/A';
     const start = new Date(startDateISO); const end = new Date(endDateISO);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
@@ -461,7 +449,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {number} delay - Initial delay in ms.
  * @returns {Promise<Response>}
  */
-async function retryFetch(
+async function retryFetch(url, options, retries = 5, delay = 2000) {
     for (let i = 0; i < retries; i++) {
         try {
             const response = await fetch(url, options);
@@ -480,7 +468,7 @@ async function retryFetch(
 // AI (Gemini) Integration Functions
 // =================================================================================================
 
-async function getAIAnalysisAndCategory(
+async function getAIAnalysisAndCategory(caseData) {
     // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
 const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
     .map((item, index) => 
@@ -527,7 +515,7 @@ Formato de respuesta JSON:
     } catch (e) { console.error("Error AI analysis:", e); throw new Error(`Error IA (análisis): ${e.message}`); }
 };
 
-async function getAIPriority(
+async function getAIPriority(obsText) {
     const prompt = `Asigna "Prioridad" ("Alta", "Media", "Baja") a obs: ${obsText || 'N/A'}. Default "Media". JSON: {"prioridad": "..."}`;
     let ch = [{ role: "user", parts: [{ text: prompt }] }];
     const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "prioridad": { "type": "STRING" } }, "propertyOrdering": ["prioridad"] }}};
@@ -540,7 +528,7 @@ async function getAIPriority(
     } catch (e) { console.error("Error AI priority:", e); throw new Error(`Error IA (prioridad): ${e.message}`); }
 };
 
-async function getAISentiment(
+async function getAISentiment(obsText) {
     const prompt = `Analiza el sentimiento del siguiente texto y clasifícalo como "Positivo", "Negativo" o "Neutral".
     Texto: "${obsText || 'N/A'}"
     Responde solo con JSON: {"sentimiento_ia": "..."}`;
@@ -561,7 +549,7 @@ async function getAISentiment(
     }
 };
 
-async function getAISummary(
+async function getAISummary(caseData) {
     // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
 const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
     .map((item, index) => 
@@ -600,7 +588,7 @@ Formato de respuesta JSON: {"resumen_cliente": "..."}`;
     throw new Error(`Error IA (resumen): ${e.message}`); }
 };
 
-async function getAIResponseProjection(
+async function getAIResponseProjection(lastObservationText, caseData, contractType) {
     let contractSpecificInstructions = '';
     if (contractType === 'Contrato Marco') {
         contractSpecificInstructions = `
@@ -674,7 +662,7 @@ Formato de respuesta JSON: {"proyeccion_respuesta_ia": "..."}`;
         throw new Error(`Error IA (proyección): ${e.message}`); }
 };
 
-async function getAIEscalationSuggestion(
+async function getAIEscalationSuggestion(caseData) {
     const prompt = `Basado en los detalles de este caso, sugiere un "Área Escalada" y un "Motivo/Acción Escalado".
 Áreas Disponibles: ${AREAS_ESCALAMIENTO.join(', ')}.
 Razones por Área: ${JSON.stringify(MOTIVOS_ESCALAMIENTO_POR_AREA)}.
@@ -701,7 +689,7 @@ Responde SOLO con JSON: {"area": "...", "motivo": "..."}`;
     }
 };
 
-async function getAINextActions(
+async function getAINextActions(caseData) {
     const prompt = `Basado en el siguiente caso y su historial, sugiere 3 a 5 acciones concretas y priorizadas para que el agente resuelva el caso.
     Historial:
     ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
@@ -738,7 +726,7 @@ async function getAINextActions(
     }
 };
 
-async function getAIRootCause(
+async function getAIRootCause(caseData) {
     const prompt = `Analiza el historial completo de este caso RESUELTO y proporciona un análisis conciso de la causa raíz más probable del problema original.
     Historial:
     ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
@@ -775,7 +763,7 @@ async function getAIRootCause(
     }
 };
 
-async function getAIEscalationEmail(
+async function getAIEscalationEmail(caseData) {
     const prompt = `
     Redacta un correo electrónico de escalación interna formal y profesional.
     
@@ -831,7 +819,7 @@ async function getAIEscalationEmail(
     }
 };
 
-async function getAIRiskAnalysis(
+async function getAIRiskAnalysis(caseData) {
     const prompt = `
     Evalúa el riesgo de que este caso sea escalado a la Superintendencia de Industria y Comercio (SIC).
     Considera los siguientes factores:
@@ -874,10 +862,10 @@ async function getAIRiskAnalysis(
     }
 };
 
-async function getAIComprehensiveResponse(
+async function getAIComprehensiveResponse(caseData, contractType) {
     // Formatea el historial completo de observaciones
     const internalHistoryInfo = (caseData.Observaciones_Historial || [])
-{        .map(obs =>
+        .map(obs =>
            ` - Observación de gestión: "${obs.text}"`
         ).join('\n\n');
 
@@ -998,7 +986,7 @@ Párrafo de saldos pendientes (si aplica):
         throw new Error(`Error IA (respuesta integral): ${e.message}`);
     }
 };
-async function getAIValidation(
+async function getAIValidation(caseData) {
     // Se prepara un prompt detallado para la IA, pidiéndole que actúe como el cliente.
     const prompt = `Eres un cliente que presentó un reclamo. Basado en tus pretensiones originales, lee la 'respuesta de la empresa' y determina si todas tus pretensiones fueron atendidas de manera completa. La favorabilidad de la respuesta no es relevante, solo si se abordó cada punto.
 
@@ -1057,10 +1045,10 @@ Formato de respuesta JSON:
         throw new Error(`Error IA (validación): ${e.message}`);
     }
 };
-function generateAITextContext(
+function generateAITextContext(caseData) {
     // Formatea el historial completo de observaciones
     const internalHistoryInfo = (caseData.Observaciones_Historial || [])
-{        .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
+        .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
         .join('\n\n');
 
     // Lógica para SN acumulados
@@ -1108,7 +1096,7 @@ function generateAITextContext(
     return textContext;
 };
 
-function extractRelatedComplaintNumber(
+function extractRelatedComplaintNumber(obsText) {
     if (!obsText || typeof obsText !== 'string') return 'N/A';
     const match = obsText.toLowerCase().match(/\b(\d{16}|\d{20})\b/i);
     return match ? (match[1] || 'N/A') : 'N/A';
@@ -1119,12 +1107,12 @@ function extractRelatedComplaintNumber(
  * @param {string} nuip - The NUIP string.
  * @returns {string} The normalized NUIP.
  */
-function normalizeNuip(
+function normalizeNuip(nuip) {
     if (!nuip || typeof nuip !== 'string') return '';
     return nuip.split('-')[0].trim();
 };
 
-function copyToClipboard(
+function copyToClipboard(text, fieldName, showMessageCallback) {
     if (!text) {
         showMessageCallback(`No hay contenido en "${fieldName}" para copiar.`);
         return;
@@ -1147,7 +1135,7 @@ function copyToClipboard(
  * @param {string} text - El texto a analizar.
  * @returns {{emails: string[], addresses: string[]}} Un objeto con las direcciones encontradas.
  */
-function extractAddressesFromText(
+function extractAddressesFromText(text) {
     if (!text || typeof text !== 'string') {
         return { emails: [], addresses: [] };
     }
@@ -1171,7 +1159,7 @@ function extractAddressesFromText(
 // React Components
 // =================================================================================================
 
-function PaginatedTable(
+function PaginatedTable({ cases, title, mainTableHeaders, statusColors, priorityColors, selectedCaseIds, handleSelectCase, handleOpenCaseDetails, onScanClick, nonBusinessDays, calculateCaseAge }) {
     const [currentPage, setCurrentPage] = useState(1);
     const casesPerPage = 10;
 
@@ -1179,7 +1167,7 @@ function PaginatedTable(
     const indexOfFirstCase = indexOfLastCase - casesPerPage;
     const currentCases = cases.slice(indexOfFirstCase, indexOfLastCase);
     const totalPages = Math.ceil(cases.length / casesPerPage);
-    function paginate(
+    function paginate(pageNumber) {
         if (pageNumber < 1 || pageNumber > totalPages) return;
         setCurrentPage(pageNumber);
     };
@@ -1276,7 +1264,7 @@ function PaginatedTable(
 function App() {
 // Asegúrate de importar setDoc también si no lo has hecho
 
-async function updateCaseInFirestore(
+async function updateCaseInFirestore(caseId, newData) {
     if (!db || !userId) return;
     const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
     
@@ -1314,7 +1302,7 @@ async function updateCaseInFirestore(
 
     // When userId changes, fetch role from Firestore
     useEffect(() => {
-        async function fetchRole(
+        async function fetchRole() {
             if (!db || !userId) return;
             try {
                 const uDoc = doc(db, `artifacts/${appId}/users`, userId);
@@ -1333,7 +1321,7 @@ async function updateCaseInFirestore(
         fetchRole();
     }, [db, userId]);
 
-    async function signInWithGoogleHandler(
+    async function signInWithGoogleHandler() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
@@ -1365,7 +1353,7 @@ async function updateCaseInFirestore(
         }
     };
 
-    async function registerWithEmail(
+    async function registerWithEmail() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
@@ -1389,7 +1377,7 @@ async function updateCaseInFirestore(
         }
     };
 
-    async function loginWithEmail(
+    async function loginWithEmail() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
@@ -1405,7 +1393,7 @@ async function updateCaseInFirestore(
         }
     };
 
-    async function logout(
+    async function logout() {
         if (!auth) return;
         try {
             await firebaseSignOut(auth);
@@ -1419,7 +1407,7 @@ async function updateCaseInFirestore(
     };
 
     // Admin helper: create user (client-side fallback — NOT recommended for production)
-    async function createUserAsAdmin(
+    async function createUserAsAdmin(email, password, role = 'user') {
         if (!auth || !userId) { displayModalMessage('No hay sesión activa.'); return { ok: false }; }
         // Check current user's role
         try {
@@ -1565,7 +1553,7 @@ const asignadosPorDiaData = useMemo(() => {
 
 const [showCancelAlarmModal, setShowCancelAlarmModal] = useState(false);
 const [cancelAlarmCases, setCancelAlarmCases] = useState([]);
-function calculateTimePerCaseForDay15(
+function calculateTimePerCaseForDay15(allCases) {
     const timeAvailableInMinutes = 9 * 60; // 9 horas
 
     // Se usa la función de cálculo en tiempo real
@@ -1655,7 +1643,7 @@ const checkCancellationAlarms = useCallback(() => {
     }
 }, [cases, nonBusinessDays, getColombianDateISO]);
 // Función para el manejo de cambios en los campos de entrada
-function handleReliquidacionChange(
+function handleReliquidacionChange(index, e) {
     const { name, value } = e.target;
     setReliquidacionData(prev => {
         const newForms = [...prev];
@@ -1664,7 +1652,7 @@ function handleReliquidacionChange(
     });
 };
 
-function handleAddForm(
+function handleAddForm() {
     const newId = reliquidacionData.length > 0 ? Math.max(...reliquidacionData.map(f => f.id)) + 1 : 1;
     setReliquidacionData(prev => [...prev, {
         id: newId,
@@ -1677,12 +1665,12 @@ function handleAddForm(
     }]);
 };
 
-function handleRemoveForm(
+function handleRemoveForm(idToRemove) {
     setReliquidacionData(prev => prev.filter(form => form.id !== idToRemove));
 };
 
 // Función de cálculo principal
-async function calcularNotaCredito(
+async function calcularNotaCredito() {
     // Validar que hay un caso seleccionado
     if (!selectedCase) {
         displayModalMessage("Error: No hay un caso seleccionado para actualizar.");
@@ -1916,7 +1904,7 @@ useEffect(() => {
     }
 }, [cases, db, userId, appId, displayModalMessage]);
 
-    async function forceRefreshCases(
+    async function forceRefreshCases() {
         if (!db || !userId) {
             displayModalMessage("Base de datos no disponible o usuario no autenticado.");
             return;
@@ -1952,7 +1940,7 @@ useEffect(() => {
     }, [cases, displayModalMessage]);
 
     useEffect(() => {
-        function checkIniciadoCases(
+        function checkIniciadoCases() {
             const now = new Date().toISOString();
             cases.forEach(caseItem => {
                 if (caseItem.Estado_Gestion === 'Iniciado' && caseItem.Fecha_Inicio_Gestion) {
@@ -1983,7 +1971,7 @@ useEffect(() => {
 useEffect(() => {
         if (cases.length === 0) return;
 
-        function checkAlarms(
+        function checkAlarms() {
             const todayISO = getColombianDateISO();
             const casesToAlert = cases.filter(c => {
                 const caseId = c.id;
@@ -2015,7 +2003,7 @@ useEffect(() => {
 
     }, [cases]);
 
-async function handleFileUpload(
+async function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     setUploading(true);
@@ -2166,7 +2154,7 @@ if (existingCasesMap.has(currentSN)) {
     reader.readAsText(file, 'ISO-8859-1');
 };
 
-    async function handleContractMarcoUpload(
+    async function handleContractMarcoUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
         setUploading(true);
@@ -2277,7 +2265,7 @@ if (existingCasesMap.has(currentSN)) {
         reader.readAsText(file);
     };
 
-    async function handleReporteCruceUpload(
+    async function handleReporteCruceUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -2352,7 +2340,7 @@ if (existingCasesMap.has(currentSN)) {
         reader.readAsText(file, 'ISO-8859-1');
     };
 
-    function handleAssignFromReport(
+    function handleAssignFromReport(reportRowData) {
         const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
         const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
         const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
@@ -2371,7 +2359,7 @@ if (existingCasesMap.has(currentSN)) {
         setShowManualEntryModal(true);
     };
 
-   async function handleOpenCaseDetails(
+   async function handleOpenCaseDetails(caseItem) {
     setSelectedCase(caseItem);
     setTieneSNAcumulados(false);
     setCantidadSNAcumulados(0);
@@ -2438,7 +2426,7 @@ if (existingCasesMap.has(currentSN)) {
     setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
 };
 
-function handleCloseCaseDetails(
+function handleCloseCaseDetails() {
     setSelectedCase(null);
     setDuplicateCasesDetails([]);
     setTieneSNAcumulados(false);
@@ -2458,7 +2446,7 @@ function handleCloseCaseDetails(
     }]);
 };
 
-async function handleModalFieldChange(
+async function handleModalFieldChange(fieldName, value) {
     if (!selectedCase) return;
     const firestoreUpdateData = { [fieldName]: value };
 
@@ -2525,7 +2513,7 @@ async function handleModalFieldChange(
     updateCaseInFirestore(selectedCase.id, firestoreUpdateData);
 };
 
-    function handleContractTypeChange(
+    function handleContractTypeChange(newContractType) {
         if (!selectedCase) return;
         const updateData = { Tipo_Contrato: newContractType };
         if (newContractType !== 'Contrato Marco') {
@@ -2535,7 +2523,7 @@ async function handleModalFieldChange(
         updateCaseInFirestore(selectedCase.id, updateData);
     };
 
-async function proceedWithResolve(
+async function proceedWithResolve() {
     if (!selectedCase) return;
     const batch = writeBatch(db);
     let local = { ...selectedCase, Estado_Gestion: 'Resuelto' };
@@ -2609,7 +2597,7 @@ if (selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja ||
     await batch.commit();
 };
 
-async function handleDecretarCaso(
+async function handleDecretarCaso() {
     if (!selectedCase) return;
     if (!selectedCase.Despacho_Respuesta_Checked) {
         displayModalMessage("Error: Para decretar el caso, primero debe marcar la casilla 'Despacho Respuesta'.");
@@ -2681,7 +2669,7 @@ async function handleDecretarCaso(
         }
     );
 };
-async function handleTrasladoSIC(
+async function handleTrasladoSIC() {
     if (!selectedCase) return;
     if (!selectedCase.Despacho_Respuesta_Checked) {
         displayModalMessage("Error: Para trasladar el caso a SIC, primero debe marcar la casilla 'Despacho Respuesta'.");
@@ -2749,7 +2737,7 @@ async function handleTrasladoSIC(
         }
     );
 };
-    async function handleSaveEscalamientoHistory(
+    async function handleSaveEscalamientoHistory() {
         if (!selectedCase) return;
         if (!selectedCase.areaEscalada || !selectedCase.motivoEscalado) {
             displayModalMessage('Debe seleccionar el área y el motivo de la escalación para guardar.');
@@ -2776,7 +2764,7 @@ async function handleTrasladoSIC(
     }
 
 
-    async function handleChangeCaseStatus(
+    async function handleChangeCaseStatus(newStatus) {
         if (!selectedCase) return;
 
         if (newStatus === 'Decretado') {
@@ -2819,7 +2807,7 @@ async function handleTrasladoSIC(
     };
 
 
-    async function handleDespachoRespuestaChange(
+    async function handleDespachoRespuestaChange(e) {
         if (!selectedCase) return;
         const isChecked = e.target.checked;
         let updateData = { Despacho_Respuesta_Checked: isChecked };
@@ -2853,12 +2841,12 @@ async function handleTrasladoSIC(
         await updateCaseInFirestore(selectedCase.id, updateData);
     };
 
-    function handleRadicadoSICChange( setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); };
-    function handleFechaVencimientoDecretoChange( setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
-    async function handleAssignUser( if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
-    async function generateAIAnalysis( if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }};
-    async function generateAISummaryHandler( if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }};
-    async function generateAIResponseProjectionHandler(
+    function handleRadicadoSICChange(e) { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); };
+    function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
+    async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
+    async function generateAIAnalysis() { if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }};
+    async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }};
+    async function generateAIResponseProjectionHandler() {
         if (!selectedCase) return;
         const lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
         setIsGeneratingResponseProjection(true);
@@ -2867,7 +2855,7 @@ async function handleTrasladoSIC(
         finally { setIsGeneratingResponseProjection(false); }
     };
     
-    async function generateNextActionsHandler(
+    async function generateNextActionsHandler() {
         if (!selectedCase) return;
         setIsGeneratingNextActions(true);
         try {
@@ -2881,7 +2869,7 @@ async function handleTrasladoSIC(
         }
     };
 
-    async function generateRootCauseHandler(
+    async function generateRootCauseHandler() {
         if (!selectedCase) return;
         setIsGeneratingRootCause(true);
         try {
@@ -2895,7 +2883,7 @@ async function handleTrasladoSIC(
         }
     };
 
-    async function handleSuggestEscalation(
+    async function handleSuggestEscalation() {
         if (!selectedCase) return;
         setIsSuggestingEscalation(true);
         displayModalMessage('La IA está sugiriendo una escalación...');
@@ -2921,10 +2909,10 @@ async function handleTrasladoSIC(
 
 
     const handleObservationsChange = (e) => setSelectedCase(prev => ({ ...prev, Observaciones: e.target.value }));
-    async function saveObservation( if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' }); displayModalMessage('Observación guardada.'); };
-    function handleFechaCierreChange( setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); };
+    async function saveObservation() { if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; } const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() }; const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist]; setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' })); await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' }); displayModalMessage('Observación guardada.'); };
+    function handleFechaCierreChange(e) { setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); };
 
-    function handleManualFormChange(
+    function handleManualFormChange(e) {
         const { name, value, type, checked } = e.target;
         let fVal = type === 'checkbox' ? checked : value;
         if (name === 'Nro_Nuip_Cliente' && (value.startsWith('8') || value.startsWith('9')) && value.length > 9) fVal = value.substring(0,9);
@@ -2954,12 +2942,12 @@ async function handleTrasladoSIC(
         });
     };
     
-    function handleManualFormDevolucionChange(
+    function handleManualFormDevolucionChange(e) {
         const { name, value } = e.target;
          setManualFormData(prev => ({...prev, [name]: value}));
     };
 
-    async function handleManualSubmit(
+    async function handleManualSubmit(e) {
         e.preventDefault(); setUploading(true); displayModalMessage('Procesando manual con IA...');
         try {
             if (manualFormData.requiereBaja && !manualFormData.numeroOrdenBaja) {
@@ -3050,7 +3038,7 @@ async function handleTrasladoSIC(
         } catch (err) { displayModalMessage(`Error manual: ${err.message}`); }
         finally { setUploading(false); }
     };
-    async function handleObservationFileUpload(
+    async function handleObservationFileUpload(event) {
         const file = event.target.files[0];
         if (!file || !selectedCase) return;
 
@@ -3133,7 +3121,7 @@ async function handleTrasladoSIC(
             }
         }
     };
-function downloadCSV(
+function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     if (link.download !== undefined) {
@@ -3147,7 +3135,7 @@ function downloadCSV(
         displayModalMessage('La descarga automática no es soportada en tu navegador.');
     }
 };
-function exportCasesToCSV(
+function exportCasesToCSV(isTodayResolvedOnly = false) {
     const today = getColombianDateISO();
     const casesToExport = isTodayResolvedOnly
         ? cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === today)
@@ -3253,7 +3241,7 @@ const filteredAndSearchedCases = useMemo(() => {
     });
 }, [cases, searchTerm, contractFilter, priorityFilter, statusFilter]);
     
-function applyActiveFilter(
+function applyActiveFilter(cs) {
     const pendStates = ['Pendiente','Escalado','Iniciado','Lectura','Traslado SIC','Decretado', 'Pendiente Ajustes'];
     switch(activeFilter){
         case 'all': return cs;
@@ -3301,7 +3289,7 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
     resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO()).length,
 };
 
-    function handleSelectCase(
+    function handleSelectCase(caseId, isMassSelect) {
         setSelectedCaseIds(prevSelectedIds => {
             const newSelectedIds = new Set(prevSelectedIds);
             if (isMassSelect) {
@@ -3316,7 +3304,7 @@ diaGt15: cases.filter(c => ['Pendiente','Escalado','Iniciado','Lectura','Decreta
         });
     };
 
-async function handleMassUpdate(
+async function handleMassUpdate() {
     if (!db || !userId || selectedCaseIds.size === 0 || !massUpdateTargetStatus) {
         displayModalMessage('Seleccione casos y un estado destino para la actualización masiva.');
         return;
@@ -3452,7 +3440,7 @@ async function handleMassUpdate(
         </div>
     )}
 </div>
-    async function handleReopenCase(
+    async function handleReopenCase(caseItem) {
     if (!db || !userId || caseItem.Estado_Gestion !== 'Resuelto') {
         displayModalMessage('Solo los casos resueltos pueden ser reabiertos.');
         return;
@@ -3475,8 +3463,8 @@ async function handleMassUpdate(
     }
 };
 
-    function handleDeleteCase(
-    async function onConfirm(
+    function handleDeleteCase(caseId) {
+    async function onConfirm() {
         if (!db || !userId) {
             displayModalMessage('Error: DB no disponible.');
             return;
@@ -3500,9 +3488,9 @@ async function handleMassUpdate(
     displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm });
 };
 
-    function handleMassDelete(
+    function handleMassDelete() {
         if (selectedCaseIds.size === 0) { displayModalMessage('No hay casos seleccionados para eliminar.'); return; }
-        async function onConfirm(
+        async function onConfirm() {
             setIsMassUpdating(true);
             displayModalMessage(`Eliminando ${selectedCaseIds.size} casos...`);
             const batch = writeBatch(db);
@@ -3523,11 +3511,11 @@ async function handleMassUpdate(
         displayConfirmModal(`¿Estás seguro de que quieres eliminar ${selectedCaseIds.size} casos permanentemente? Esta acción no se puede deshacer.`, {onConfirm});
     };
 
-    function handleMassReopen(
+    function handleMassReopen() {
         if (selectedCaseIds.size === 0) { displayModalMessage('No hay casos seleccionados para reabrir.'); return; }
         const casesToReopen = cases.filter(c => selectedCaseIds.has(c.id) && c.Estado_Gestion === 'Resuelto');
         if (casesToReopen.length === 0) { displayModalMessage('Ninguno de los casos seleccionados está "Resuelto". Solo los casos resueltos pueden ser reabiertos.'); return; }
-        async function onConfirm(
+        async function onConfirm() {
             setIsMassUpdating(true);
             displayModalMessage(`Reabriendo ${casesToReopen.length} casos...`);
             const batch = writeBatch(db);
@@ -3549,13 +3537,13 @@ async function handleMassUpdate(
         displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, {onConfirm});
     };
 
-    function handleDeleteAllCases(
+    function handleDeleteAllCases() {
         if (cases.length === 0) {
             displayModalMessage('No hay casos para eliminar.');
             return;
         }
 
-        async function onConfirm(
+        async function onConfirm() {
             if (!db || !userId) {
                 displayModalMessage('Error: La conexión con la base de datos no está disponible.');
                 return;
@@ -3601,13 +3589,13 @@ async function handleMassUpdate(
         );
     };
 
-    function handleSNAcumuladoInputChange(
+    function handleSNAcumuladoInputChange(index, field, value) {
         const newData = [...snAcumuladosData];
         newData[index][field] = value;
         setSnAcumuladosData(newData);
     };
 
-    async function handleSaveSNAcumulados(
+    async function handleSaveSNAcumulados() {
         if (!selectedCase || snAcumuladosData.some(item => !item.sn.trim())) {
             displayModalMessage('Todos los campos de SN acumulados deben estar llenos antes de guardar.');
             return;
@@ -3638,7 +3626,7 @@ async function handleMassUpdate(
         }
     };
 
-    async function handleSaveAseguramientoHistory(
+    async function handleSaveAseguramientoHistory() {
         if (!selectedCase) return;
         const assuranceData = {
             timestamp: new Date().toISOString(),
@@ -3672,12 +3660,12 @@ async function handleMassUpdate(
         }
     }
 
-    function handleScanClick(
+    function handleScanClick(caseItem) {
         setCaseToScan(caseItem);
         scanFileInputRef.current.click();
     };
 
-async function handleScanFileUpload(
+async function handleScanFileUpload(event) {
     const file = event.target.files[0];
     if (!file || !caseToScan) return;
 
@@ -3760,7 +3748,7 @@ async function handleScanFileUpload(
         }
     }, [cantidadSNAcumulados]);
 
-    async function generateEscalationEmailHandler(
+    async function generateEscalationEmailHandler() {
         if (!selectedCase) return;
         setIsGeneratingEscalationEmail(true);
         try {
@@ -3774,7 +3762,7 @@ async function handleScanFileUpload(
         }
     };
     
-    async function generateRiskAnalysisHandler(
+    async function generateRiskAnalysisHandler() {
         if (!selectedCase) return;
         setIsGeneratingRiskAnalysis(true);
         try {
@@ -3787,7 +3775,7 @@ async function handleScanFileUpload(
             setIsGeneratingRiskAnalysis(false);
         }
     };
-async function generateAIComprehensiveResponseHandler(
+async function generateAIComprehensiveResponseHandler() {
     if (!selectedCase) return;
     setIsGeneratingComprehensiveResponse(true);
     try {
@@ -3815,7 +3803,7 @@ async function generateAIComprehensiveResponseHandler(
 };
 
 
-    async function handleDismissAlarm(
+    async function handleDismissAlarm() {
         if (!selectedAlarmCase || !alarmObservation.trim()) {
             displayModalMessage('Por favor, escriba una observación para gestionar la alarma.');
             return;
@@ -3856,7 +3844,7 @@ async function generateAIComprehensiveResponseHandler(
 
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
-    function renderTable(
+    function renderTable(data, title) {
         return (
 <PaginatedTable
   cases={data}
