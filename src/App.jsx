@@ -5,7 +5,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, onSnap
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Importa las utilidades y componentes auxiliares
-import { parseCSV, getColombianDateISO, calculateBusinessDays, calculateCaseAge, getDurationInMinutes, normalizeNuip, extractRelatedComplaintNumber, copyToClipboard, generateAITextContext } from './utils';
+import * as utils from './utils.js';
 import { getAIAnalysisAndCategory, getAIPriority, getAISentiment, getAISummary, getAIResponseProjection, getAINextActions, getAIRootCause, getAIEscalationSuggestion, getAIComprehensiveResponse, getAIRiskAnalysis, getAIValidation } from './aiServices';
 import { ALL_PRIORITY_OPTIONS, ALL_STATUS_OPTIONS, MAIN_TABLE_HEADERS, AREAS_ESCALAMIENTO, MOTIVOS_ESCALAMIENTO_POR_AREA, ESTADOS_TT, TIPOS_OPERACION_ASEGURAMIENTO, MESES_ASEGURAMIENTO, TIPOS_ASEGURAMIENTO, COLOMBIAN_HOLIDAYS } from './constants';
 import PaginatedTable from './components/PaginatedTable';
