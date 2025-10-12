@@ -88,8 +88,8 @@ async function updateCaseInFirestore(caseId, newData) {
         } finally {
             setAuthLoading(false);
         }
-
-    async function registerWithEmail() {
+}
+async function registerWithEmail() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
@@ -111,8 +111,8 @@ async function updateCaseInFirestore(caseId, newData) {
         } finally {
             setAuthLoading(false);
         }
-
-    async function loginWithEmail() {
+}
+async function loginWithEmail() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
         try {
@@ -126,8 +126,8 @@ async function updateCaseInFirestore(caseId, newData) {
         } finally {
             setAuthLoading(false);
         }
-
-    async function logout() {
+}
+async function logout() {
         if (!auth) return;
         try {
             await firebaseSignOut(auth);
@@ -1530,16 +1530,18 @@ async function handleTrasladoSIC() {
     function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); };
     async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); };
     async function generateAIAnalysis() { if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); }
-    async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }
-    async function generateAIResponseProjectionHandler() {
+}
+async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); }
+}
+async function generateAIResponseProjectionHandler() {
         if (!selectedCase) return;
         const lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
         setIsGeneratingResponseProjection(true);
         try { const proj = await getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj }); }
         catch (e) { displayModalMessage(`Error AI Projection: ${e.message}`); }
         finally { setIsGeneratingResponseProjection(false); }
-    
-    async function generateNextActionsHandler() {
+}
+async function generateNextActionsHandler() {
         if (!selectedCase) return;
         setIsGeneratingNextActions(true);
         try {
@@ -1551,8 +1553,8 @@ async function handleTrasladoSIC() {
         } finally {
             setIsGeneratingNextActions(false);
         }
-
-    async function generateRootCauseHandler() {
+}
+async function generateRootCauseHandler() {
         if (!selectedCase) return;
         setIsGeneratingRootCause(true);
         try {
@@ -1564,8 +1566,8 @@ async function handleTrasladoSIC() {
         } finally {
             setIsGeneratingRootCause(false);
         }
-
-    async function handleSuggestEscalation() {
+}
+async function handleSuggestEscalation() {
         if (!selectedCase) return;
         setIsSuggestingEscalation(true);
         displayModalMessage('La IA está sugiriendo una escalación...');
@@ -1718,7 +1720,8 @@ async function handleTrasladoSIC() {
             setManualFormData(initialManualFormData);
         } catch (err) { displayModalMessage(`Error manual: ${err.message}`); }
         finally { setUploading(false); }
-    async function handleObservationFileUpload(event) {
+}
+async function handleObservationFileUpload(event) {
         const file = event.target.files[0];
         if (!file || !selectedCase) return;
 
@@ -2048,8 +2051,8 @@ async function handleMassUpdate() {
     } finally {
         setIsMassUpdating(false);
     }
-
-    async function handleReopenCase(caseItem) {
+}
+async function handleReopenCase(caseItem) {
     if (!db || !userId || caseItem.Estado_Gestion !== 'Resuelto') {
         displayModalMessage('Solo los casos resueltos pueden ser reabiertos.');
         return;
@@ -2362,8 +2365,8 @@ async function handleScanFileUpload(event) {
         } finally {
             setIsGeneratingEscalationEmail(false);
         }
-    
-    async function generateRiskAnalysisHandler() {
+}
+async function generateRiskAnalysisHandler() {
         if (!selectedCase) return;
         setIsGeneratingRiskAnalysis(true);
         try {
@@ -2375,6 +2378,7 @@ async function handleScanFileUpload(event) {
         } finally {
             setIsGeneratingRiskAnalysis(false);
         }
+}
 async function generateAIComprehensiveResponseHandler() {
     if (!selectedCase) return;
     setIsGeneratingComprehensiveResponse(true);
@@ -2400,9 +2404,8 @@ async function generateAIComprehensiveResponseHandler() {
     finally {
         setIsGeneratingComprehensiveResponse(false);
     }
-
-
-    async function handleDismissAlarm() {
+}
+async function handleDismissAlarm() {
         if (!selectedAlarmCase || !alarmObservation.trim()) {
             displayModalMessage('Por favor, escriba una observación para gestionar la alarma.');
             return;
