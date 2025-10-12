@@ -1871,8 +1871,150 @@ function App() {
                 </div>
             )}
             {showCancelAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Cancelación!</h3><button onClick={() => setShowCancelAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos de **cancelación de servicio o cambio a prepago** requieren tu atención. Se activó la alarma por estar a 3 días hábiles de la fecha de corte.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div><div className="flex justify-end mt-4"><button onClick={() => { cancelAlarmCases.forEach(c => { sessionStorage.setItem(`cancelAlarmShown_${c.id}_${utils.getColombianDateISO()}`, 'true'); }); setShowCancelAlarmModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Cerrar Alertas</button></div></div></div>)}
-            {showManualEntryModal && (<div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4"><div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]"><h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3><form onSubmit={handleManualSubmit}><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">{['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} onChange={handleManualFormChange} required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}<div className="md:col-span-2"><label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label><textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} onChange={handleManualFormChange} className="block w-full input-form" /></div><div className="md:col-span-2"><label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label><select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} onChange={handleManualFormChange} className="block w-full input-form"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div><div className="md:col-span-2"><label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label><select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} onChange={handleManualFormChange} className="block w-full input-form"><option value="Pendiente">Pendiente</option><option value="Iniciado">Iniciado</option><option value="Lectura">Lectura</option><option value="Escalado">Escalado</option><option value="Pendiente Ajustes">Pendiente Ajustes</option></select></div></div>{manualFormData.Estado_Gestion === 'Escalado' && (<div className="mt-4 mb-6 p-3 border border-red-200 rounded-md bg-red-50"><h4 className="text-md font-semibold text-red-700 mb-2">Detalles de Escalación (Manual)</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label htmlFor="manualAreaEscalada" className="block text-xs mb-1">Área Escalada:</label><select id="manualAreaEscalada" name="areaEscalada" value={manualFormData.areaEscalada} onChange={handleManualFormChange} className="block w-full input-form text-sm"><option value="">Seleccione Área...</option>{constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}</select></div><div><label htmlFor="manualMotivoEscalado" className="block text-xs mb-1">Motivo/Acción:</label><select id="manualMotivoEscalado" name="motivoEscalado" value={manualFormData.motivoEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!manualFormData.areaEscalada}><option value="">Seleccione Motivo...</option>{(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[manualFormData.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}</select></div><div><label htmlFor="manualIdEscalado" className="block text-xs mb-1">ID Escalado:</label><input type="text" id="manualIdEscalado" name="idEscalado" value={manualFormData.idEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="ID" /></div><div><label htmlFor="manualReqGenerado" className="block text-xs mb-1">REQ Generado:</label><input type="text" id="manualReqGenerado" name="reqGenerado" value={manualFormData.reqGenerado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="REQ" /></div></div></div>)}<div className="mt-4 mb-6 p-3 border border-blue-200 rounded-md bg-blue-50"><h4 className="text-md font-semibold text-blue-700 mb-2">Aseguramiento y Gestiones Adicionales (Manual)</h4><div className="mb-2"><label className="inline-flex items-center"><input type="checkbox" name="Requiere_Aseguramiento_Facturas" checked={manualFormData.Requiere_Aseguramiento_Facturas} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Aseguramiento Facturas?</span></label></div>{manualFormData.Requiere_Aseguramiento_Facturas && (<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-blue-300"><div><label htmlFor="manualID_Aseguramiento" className="block text-xs mb-1">ID Aseguramiento:</label><input type="text" id="manualID_Aseguramiento" name="ID_Aseguramiento" value={manualFormData.ID_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div><div><label htmlFor="manualCorte_Facturacion" className="block text-xs mb-1">Corte Facturación:</label><input type="text" id="manualCorte_Facturacion" name="Corte_Facturacion" value={manualFormData.Corte_Facturacion} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento} /></div><div><label htmlFor="manualCuenta" className="block text-xs mb-1">Cuenta:</label><input type="text" id="manualCuenta" name="Cuenta" value={manualFormData.Cuenta} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento} /></div><div><label htmlFor="manualOperacion_Aseguramiento" className="block text-xs mb-1">Operación:</label><select name="Operacion_Aseguramiento" value={manualFormData.Operacion_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_OPERACION_ASEGURAMIENTO.map(op => <option key={op} value={op}>{op}</option>)}</select></div><div className="md:col-span-2"><label htmlFor="manualTipo_Aseguramiento" className="block text-xs mb-1">Tipo:</label><select name="Tipo_Aseguramiento" value={manualFormData.Tipo_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_ASEGURAMIENTO.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</select></div><div><label htmlFor="manualMes_Aseguramiento" className="block text-xs mb-1">Mes:</label><select name="Mes_Aseguramiento" value={manualFormData.Mes_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.MESES_ASEGURAMIENTO.map(mes => <option key={mes} value={mes}>{mes.charAt(0).toUpperCase() + mes.slice(1)}</option>)}</select></div></div>)}{<div className="mb-2 mt-3"><label className="inline-flex items-center"><input type="checkbox" name="requiereBaja" checked={manualFormData.requiereBaja} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Requiere Baja?</span></label></div>}{manualFormData.requiereBaja && (<div className="pl-4 mb-3 border-l-2 border-red-300"><label htmlFor="manualNumeroOrdenBaja" className="block text-xs mb-1">Nro. Orden Baja:</label><input type="text" id="manualNumeroOrdenBaja" name="numeroOrdenBaja" value={manualFormData.numeroOrdenBaja} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div>)}{<div className="mb-2 mt-3"><label className="inline-flex items-center"><input type="checkbox" name="requiereAjuste" checked={manualFormData.requiereAjuste} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Requiere Ajuste?</span></label></div>}{manualFormData.requiereAjuste && (<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-green-300"><div><label htmlFor="manualNumeroTT" className="block text-xs mb-1">Nro. TT:</label><input type="text" id="manualNumeroTT" name="numeroTT" value={manualFormData.numeroTT} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div><div><label htmlFor="manualEstadoTT" className="block text-xs mb-1">Estado TT:</label><select id="manualEstadoTT" name="estadoTT" value={manualFormData.estadoTT} onChange={handleManualFormChange} className="block w-full input-form text-sm"><option value="">Seleccione...</option>{constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}</select></div><div className="md:col-span-2"><label className="inline-flex items-center mt-1"><input type="checkbox" name="requiereDevolucionDinero" checked={manualFormData.requiereDevolucionDinero} onChange={handleManualFormChange} className="form-checkbox" disabled={!manualFormData.requiereAjuste} /><span className="ml-2 text-xs">¿Devolución Dinero?</span></label></div>{manualFormData.requiereDevolucionDinero && (<div className="contents"><div><label htmlFor="manualCantidadDevolver" className="block text-xs mb-1">Cantidad a Devolver:</label><input type="number" step="0.01" id="manualCantidadDevolver" name="cantidadDevolver" value={manualFormData.cantidadDevolver} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" placeholder="0.00" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div><div><label htmlFor="manualIdEnvioDevoluciones" className="block text-xs mb-1">ID Envío Devoluciones:</label><input type="text" id="manualIdEnvioDevoluciones" name="idEnvioDevoluciones" value={manualFormData.idEnvioDevoluciones} onChange={handleManualFormDevolucionChange} placeholder="ID" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div><div><label htmlFor="manualFechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label><input type="date" id="manualFechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={manualFormData.fechaEfectivaDevolucion || ''} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div></div>)}</div>)}</div><div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div></form></div></div>)}
-            {showAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Casos Críticos!</h3><button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos requieren tu atención inmediata. Para cerrar la alerta, debes dejar una observación de la gestión realizada.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{alarmCases.map(c => (<div key={c.id} className={`p-3 rounded-md border ${selectedAlarmCase?.id === c.id ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'}`}><div><p className="font-bold text-gray-800">SN: {c.SN} (Día {c.Dia})</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p></div><button onClick={() => setSelectedAlarmCase(c)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md hover:bg-yellow-600">Gestionar</button></div>))}</div>{selectedAlarmCase && (<div className="mt-6 pt-4 border-t"><h4 className="text-lg font-semibold mb-2">Gestionar SN: {selectedAlarmCase.SN}</h4><textarea rows="3" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={alarmObservation} onChange={(e) => setAlarmObservation(e.target.value)} placeholder="Escribe aquí la observación de la gestión realizada para cerrar esta alerta..." /><div className="flex justify-end gap-3 mt-3"><button onClick={() => setSelectedAlarmCase(null)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button onClick={handleDismissAlarm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar y Cerrar Alarma</button></div></div>)}</div></div></div>)}
+{showManualEntryModal && (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
+            <form onSubmit={handleManualSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (
+                        <div key={f}>
+                            <label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label>
+                            <input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} onChange={handleManualFormChange} required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" />
+                        </div>
+                    ))}
+                    <div className="md:col-span-2">
+                        <label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label>
+                        <textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} onChange={handleManualFormChange} className="block w-full input-form" />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label>
+                        <select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} onChange={handleManualFormChange} className="block w-full input-form">
+                            <option value="Condiciones Uniformes">Condiciones Uniformes</option>
+                            <option value="Contrato Marco">Contrato Marco</option>
+                        </select>
+                    </div>
+                    <div className="md:col-span-2">
+                        <label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label>
+                        <select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} onChange={handleManualFormChange} className="block w-full input-form">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Iniciado">Iniciado</option>
+                            <option value="Lectura">Lectura</option>
+                            <option value="Escalado">Escalado</option>
+                            <option value="Pendiente Ajustes">Pendiente Ajustes</option>
+                        </select>
+                    </div>
+                </div>
+
+                {manualFormData.Estado_Gestion === 'Escalado' && (
+                    <div className="mt-4 mb-6 p-3 border border-red-200 rounded-md bg-red-50">
+                        <h4 className="text-md font-semibold text-red-700 mb-2">Detalles de Escalación (Manual)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="manualAreaEscalada" className="block text-xs mb-1">Área Escalada:</label>
+                                <select id="manualAreaEscalada" name="areaEscalada" value={manualFormData.areaEscalada} onChange={handleManualFormChange} className="block w-full input-form text-sm">
+                                    <option value="">Seleccione Área...</option>
+                                    {constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="manualMotivoEscalado" className="block text-xs mb-1">Motivo/Acción:</label>
+                                <select id="manualMotivoEscalado" name="motivoEscalado" value={manualFormData.motivoEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!manualFormData.areaEscalada}>
+                                    <option value="">Seleccione Motivo...</option>
+                                    {(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[manualFormData.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="manualIdEscalado" className="block text-xs mb-1">ID Escalado:</label>
+                                <input type="text" id="manualIdEscalado" name="idEscalado" value={manualFormData.idEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="ID" />
+                            </div>
+                            <div>
+                                <label htmlFor="manualReqGenerado" className="block text-xs mb-1">REQ Generado:</label>
+                                <input type="text" id="manualReqGenerado" name="reqGenerado" value={manualFormData.reqGenerado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="REQ" />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="mt-4 mb-6 p-3 border border-blue-200 rounded-md bg-blue-50">
+                    <h4 className="text-md font-semibold text-blue-700 mb-2">Aseguramiento y Gestiones Adicionales (Manual)</h4>
+                    <div className="mb-2">
+                        <label className="inline-flex items-center">
+                            <input type="checkbox" name="Requiere_Aseguramiento_Facturas" checked={manualFormData.Requiere_Aseguramiento_Facturas} onChange={handleManualFormChange} className="form-checkbox" />
+                            <span className="ml-2 text-sm">¿Aseguramiento Facturas?</span>
+                        </label>
+                    </div>
+                    {manualFormData.Requiere_Aseguramiento_Facturas && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-blue-300">
+                            {/* Campos de Aseguramiento */}
+                        </div>
+                    )}
+                    <div className="mb-2 mt-3">
+                        <label className="inline-flex items-center">
+                            <input type="checkbox" name="requiereBaja" checked={manualFormData.requiereBaja} onChange={handleManualFormChange} className="form-checkbox" />
+                            <span className="ml-2 text-sm">¿Requiere Baja?</span>
+                        </label>
+                    </div>
+                    {manualFormData.requiereBaja && (
+                        <div className="pl-4 mb-3 border-l-2 border-red-300">
+                            {/* Campo de Orden de Baja */}
+                        </div>
+                    )}
+                    <div className="mb-2 mt-3">
+                        <label className="inline-flex items-center">
+                            <input type="checkbox" name="requiereAjuste" checked={manualFormData.requiereAjuste} onChange={handleManualFormChange} className="form-checkbox" />
+                            <span className="ml-2 text-sm">¿Requiere Ajuste?</span>
+                        </label>
+                    </div>
+                    // ✅ REEMPLAZA EL BLOQUE DE CÓDIGO DE "requiereAjuste" CON ESTO
+
+{manualFormData.requiereAjuste && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-green-300">
+        <div>
+            <label htmlFor="manualNumeroTT" className="block text-xs mb-1">Nro. TT:</label>
+            <input type="text" id="manualNumeroTT" name="numeroTT" value={manualFormData.numeroTT} onChange={handleManualFormChange} className="block w-full input-form text-sm" />
+        </div>
+        <div>
+            <label htmlFor="manualEstadoTT" className="block text-xs mb-1">Estado TT:</label>
+            <select id="manualEstadoTT" name="estadoTT" value={manualFormData.estadoTT} onChange={handleManualFormChange} className="block w-full input-form text-sm">
+                <option value="">Seleccione...</option>
+                {constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}
+            </select>
+        </div>
+        <div className="md:col-span-2">
+            <label className="inline-flex items-center mt-1">
+                <input type="checkbox" name="requiereDevolucionDinero" checked={manualFormData.requiereDevolucionDinero} onChange={handleManualFormChange} className="form-checkbox" disabled={!manualFormData.requiereAjuste} />
+                <span className="ml-2 text-xs">¿Devolución Dinero?</span>
+            </label>
+        </div>
+        {manualFormData.requiereDevolucionDinero && (
+            <div className="contents">
+                <div>
+                    <label htmlFor="manualCantidadDevolver" className="block text-xs mb-1">Cantidad a Devolver:</label>
+                    <input type="number" step="0.01" id="manualCantidadDevolver" name="cantidadDevolver" value={manualFormData.cantidadDevolver} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" placeholder="0.00" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
+                </div>
+                <div>
+                    <label htmlFor="manualIdEnvioDevoluciones" className="block text-xs mb-1">ID Envío Devoluciones:</label>
+                    <input type="text" id="manualIdEnvioDevoluciones" name="idEnvioDevoluciones" value={manualFormData.idEnvioDevoluciones} onChange={handleManualFormDevolucionChange} placeholder="ID" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
+                </div>
+                <div>
+                    <label htmlFor="manualFechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label>
+                    <input type="date" id="manualFechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={manualFormData.fechaEfectivaDevolucion || ''} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
+                </div>
+            </div>
+        )}
+    </div>
+)}
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}            {showAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Casos Críticos!</h3><button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos requieren tu atención inmediata. Para cerrar la alerta, debes dejar una observación de la gestión realizada.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{alarmCases.map(c => (<div key={c.id} className={`p-3 rounded-md border ${selectedAlarmCase?.id === c.id ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'}`}><div><p className="font-bold text-gray-800">SN: {c.SN} (Día {c.Dia})</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p></div><button onClick={() => setSelectedAlarmCase(c)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md hover:bg-yellow-600">Gestionar</button></div>))}</div>{selectedAlarmCase && (<div className="mt-6 pt-4 border-t"><h4 className="text-lg font-semibold mb-2">Gestionar SN: {selectedAlarmCase.SN}</h4><textarea rows="3" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={alarmObservation} onChange={(e) => setAlarmObservation(e.target.value)} placeholder="Escribe aquí la observación de la gestión realizada para cerrar esta alerta..." /><div className="flex justify-end gap-3 mt-3"><button onClick={() => setSelectedAlarmCase(null)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button onClick={handleDismissAlarm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar y Cerrar Alarma</button></div></div>)}</div></div></div>)}
 <style>{`
     .input-form { display: block; width: 100%; border-radius: 0.375rem; border-width: 1px; border-color: #D1D5DB; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: 0.5rem; }
     .input-form:focus { border-color: #3B82F6; --tw-ring-color: #3B82F6; box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); }
@@ -1881,6 +2023,7 @@ function App() {
     .contents { display: contents; }
 `}</style>
         </div>
+    </div> // <-- AGREGA ESTA LÍNEA. Cierra el <div> de la línea 1606.
     );
 }
 
