@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, onSnapshot, writeBatch, getDocs, where, documentId, deleteDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { jsPDF } from 'jspdf';
+import { saveAs } from 'file-saver';
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore"; // ✅ Mantiene las funciones de Firestore que no son 'db' o 'auth'
 
 // Importa las utilidades y componentes auxiliares
 import * as utils from './utils.js';
-import { getAIAnalysisAndCategory, getAIPriority, getAISentiment, getAISummary, getAIResponseProjection, getAINextActions, getAIRootCause, getAIEscalationSuggestion, getAIComprehensiveResponse, getAIRiskAnalysis, getAIValidation } from './aiServices';
-import { ALL_PRIORITY_OPTIONS, ALL_STATUS_OPTIONS, MAIN_TABLE_HEADERS, AREAS_ESCALAMIENTO, MOTIVOS_ESCALAMIENTO_POR_AREA, ESTADOS_TT, TIPOS_OPERACION_ASEGURAMIENTO, MESES_ASEGURAMIENTO, TIPOS_ASEGURAMIENTO, COLOMBIAN_HOLIDAYS } from './constants';
+import * as aiServices from './aiServices';
+import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
+
+// ✅ Importa las instancias de Firebase ya inicializadas
 import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebaseConfig.js';
 
 };
