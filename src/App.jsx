@@ -91,7 +91,7 @@ function App() {
     const scanFileInputRef = useRef(null);
     const contractMarcoFileInputRef = useRef(null);
     const reporteCruceFileInputRef = useRef(null);
-    const nonBusinessDays = new Set(COLOMBIAN_HOLIDAYS);
+    const nonBusinessDays = new Set(constants.COLOMBIAN_HOLIDAYS);
 
     const [tieneSNAcumulados, setTieneSNAcumulados] = useState(false);
     const [cantidadSNAcumulados, setCantidadSNAcumulados] = useState(0);
@@ -388,7 +388,7 @@ function App() {
                 if (!db || !userId) { displayModalMessage('DB no lista o usuario no auth.'); setUploading(false); return; }
                 const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
                 const today = getColombianDateISO();
-                const nonBusinessDaysSet = new Set(COLOMBIAN_HOLIDAYS);
+                const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
                 const existingDocsSnapshot = await getDocs(collRef);
                 const existingCasesMap = new Map(existingDocsSnapshot.docs.map(d => [String(d.data().SN || '').trim(), { id: d.id, ...d.data() }]));
                 let addedCount = 0, updatedCount = 0, skippedCount = 0;
