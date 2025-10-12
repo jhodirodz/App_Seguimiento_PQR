@@ -3660,4 +3660,5 @@ function App() {
                                                                                                                                         }; // si este cierra una función interna, se mantiene
                                                                                                                                     } // ✅ cierre final del componente App
 
-                                                                                                                                    export default App;
+
+export default App; // ✅ corregido: export final
