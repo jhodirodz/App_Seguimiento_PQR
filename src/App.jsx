@@ -1484,12 +1484,12 @@ function App() {
 
     useEffect(() => {
         // Lógica de inicialización de Firebase y autenticación
-        if (!/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */ || Object.keys(/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */).length === 0) {
-            console.error("Firebase configuration is missing.");
-            displayModalMessage("Error: La configuración de Firebase no está disponible.");
-            setLoading(false);
-            return;
-        }
+if (!db || !auth) {
+    console.error("Firebase configuration is missing.");
+    displayModalMessage("Error: La configuración de Firebase no está disponible.");
+    setLoading(false);
+    return;
+}
         const app = initializeApp(/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */);
         const authInstance = getAuth(app);
         const dbInstance = getFirestore(app);
