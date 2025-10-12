@@ -10,10 +10,11 @@ import * as aiServices from './aiServices';
 import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
 
-// Importa las instancias de Firebase ya inicializadas
-// CORRECTO ✅
-import { db, auth } from "./firebaseConfig.js"; 
+// Importa las funciones de autenticación desde el SDK de Firebase
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+// Importa las instancias de Firebase ya inicializadas desde tu configuración
+import { db, auth } from "./firebaseConfig.js";
+
 const appId = "App_Seguimiento_PQR";
 
 function App() {
