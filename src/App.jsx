@@ -11,7 +11,7 @@ import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
 
 // ✅ Importa las instancias de Firebase ya inicializadas
-import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebaseConfig.js';
+import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "./firebaseConfig.js";
 const appId = "App_Seguimiento_PQR";
 
 function App() {
@@ -1484,13 +1484,13 @@ function App() {
 
     useEffect(() => {
         // Lógica de inicialización de Firebase y autenticación
-        if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+        if (!/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */ || Object.keys(/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */).length === 0) {
             console.error("Firebase configuration is missing.");
             displayModalMessage("Error: La configuración de Firebase no está disponible.");
             setLoading(false);
             return;
         }
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp(/* firebaseConfig removed; use exported instances from ./firebaseConfig.js */);
         const authInstance = getAuth(app);
         const dbInstance = getFirestore(app);
         setDb(dbInstance);
