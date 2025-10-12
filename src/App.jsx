@@ -2014,14 +2014,14 @@ function App() {
                         </div>
                     </div>
                 )}            {showAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Casos Críticos!</h3><button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos requieren tu atención inmediata. Para cerrar la alerta, debes dejar una observación de la gestión realizada.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{alarmCases.map(c => (<div key={c.id} className={`p-3 rounded-md border ${selectedAlarmCase?.id === c.id ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'}`}><div><p className="font-bold text-gray-800">SN: {c.SN} (Día {c.Dia})</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p></div><button onClick={() => setSelectedAlarmCase(c)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md hover:bg-yellow-600">Gestionar</button></div>))}</div>{selectedAlarmCase && (<div className="mt-6 pt-4 border-t"><h4 className="text-lg font-semibold mb-2">Gestionar SN: {selectedAlarmCase.SN}</h4><textarea rows="3" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={alarmObservation} onChange={(e) => setAlarmObservation(e.target.value)} placeholder="Escribe aquí la observación de la gestión realizada para cerrar esta alerta..." /><div className="flex justify-end gap-3 mt-3"><button onClick={() => setSelectedAlarmCase(null)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button onClick={handleDismissAlarm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar y Cerrar Alarma</button></div></div>)}</div></div></div>)}
-                <style>{`
-    .input-form { display: block; width: 100%; border-radius: 0.375rem; border-width: 1px; border-color: #D1D5DB; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: 0.5rem; }
-    .input-form:focus { border-color: #3B82F6; --tw-ring-color: #3B82F6; box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); }
-    .input-form:disabled { background-color: #F3F4F6; cursor: not-allowed; }
-    .sm\\:text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-    .contents { display: contents; }
-`}</style>
-            </div>
+<style>{`
+                .input-form { display: block; width: 100%; border-radius: 0.375rem; border-width: 1px; border-color: #D1D5DB; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: 0.5rem; }
+                .input-form:focus { border-color: #3B82F6; --tw-ring-color: #3B82F6; box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); }
+                .input-form:disabled { background-color: #F3F4F6; cursor: not-allowed; }
+                .sm\\:text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+                .contents { display: contents; }
+            `}</style>
+        </div>
     </div>
     );
 }
