@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore"; // ✅ Mantiene las funciones de Firestore que no son 'db' o 'auth'
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, writeBatch, query, where, documentId, addDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 // Importa las utilidades y componentes auxiliares
 import * as utils from './utils.js';
@@ -10,8 +10,8 @@ import * as aiServices from './aiServices';
 import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
 
-// ✅ Importa las instancias de Firebase ya inicializadas
-import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "./firebaseConfig.js";
+// Importa las instancias de Firebase ya inicializadas
+import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "./firebaseConfig.js";
 const appId = "App_Seguimiento_PQR";
 
 function App() {
@@ -59,6 +59,12 @@ function App() {
     const [isMassUpdating, setIsMassUpdating] = useState(false);
     const [massUpdateObservation, setMassUpdateObservation] = useState('');
 
+    // NOTA: Estas variables no estaban definidas. He añadido placeholders.
+    // Debes reemplazarlos con tus objetos de colores reales.
+    const statusColors = { 'Pendiente': 'bg-yellow-200 text-yellow-800', 'Resuelto': 'bg-green-200 text-green-800', 'Escalado': 'bg-red-200 text-red-800' };
+    const priorityColors = { 'Alta': 'text-red-600', 'Media': 'text-yellow-600', 'Baja': 'text-green-600' };
+
+
     const initialManualFormData = {
         SN: '', CUN: '', FechaRadicado: '', FechaVencimiento: '', Nro_Nuip_Cliente: '', Nombre_Cliente: '',
         OBS: '', Dia: '', Tipo_Contrato: 'Condiciones Uniformes', Numero_Contrato_Marco: '', isNabis: false,
@@ -70,13 +76,8 @@ function App() {
         areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', Estado_Gestion: 'Pendiente'
     };
     const [reliquidacionData, setReliquidacionData] = useState([{
-        id: 1, // Identificador único para cada formulario
-        numeroCuenta: '',
-        valorMensual: '',
-        fechaInicioCiclo: '',
-        fechaFinCiclo: '',
-        fechaBaja: '',
-        montoNotaCredito: null,
+        id: 1,
+        numeroCuenta: '', valorMensual: '', fechaInicioCiclo: '', fechaFinCiclo: '', fechaBaja: '', montoNotaCredito: null,
     }]);
     const [manualFormData, setManualFormData] = useState(initialManualFormData);
     const [duplicateCasesDetails, setDuplicateCasesDetails] = useState([]);
@@ -208,7 +209,7 @@ function App() {
     async function logout() {
         if (!auth) return;
         try {
-            await firebaseSignOut(auth);
+            await signOut(auth);
             setUserId(null);
             setUserRole(null);
             displayModalMessage('Sesión cerrada.');
@@ -999,7 +1000,7 @@ function App() {
             if (fileType.startsWith('text/')) {
                 const textContent = await file.text();
                 const prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente texto adjunto:\n\n"${textContent}"`;
-                summary = await geminiApiCall(prompt);
+                summary = await aiServices.geminiApiCall(prompt);
             } else if (fileType === 'application/pdf') {
                 if (!window.pdfjsLib) throw new Error("La librería para leer PDF no está cargada.");
                 const pdfData = await file.arrayBuffer();
@@ -1011,10 +1012,11 @@ function App() {
                     fullText += textContent.items.map(item => item.str).join(' ') + '\n';
                 }
                 const prompt = `Eres un asistente de reclamos. Resume los puntos clave del siguiente documento PDF que ha sido extraído como texto:\n\n"${fullText}"`;
-                summary = await geminiApiCall(prompt);
+                summary = await aiServices.geminiApiCall(prompt);
             } else if (fileType.startsWith('image/')) {
                 const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
-                const base64Image = await fileToBase64(file);
+                // NOTA: La función 'fileToBase64' no está definida en 'utils.js'. Deberás agregarla.
+                const base64Image = await utils.fileToBase64(file);
                 const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
@@ -1027,7 +1029,8 @@ function App() {
                 else { throw new Error('La IA no pudo procesar la imagen.'); }
             } else if (fileType.startsWith('audio/')) {
                 const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-                const base64Audio = await fileToBase64(file);
+                 // NOTA: La función 'fileToBase64' no está definida en 'utils.js'. Deberás agregarla.
+                const base64Audio = await utils.fileToBase64(file);
                 const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
@@ -1348,13 +1351,13 @@ function App() {
                 }],
             };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`;
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const result = await response.json();
                 if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
                     const transcribedText = result.candidates[0].content.parts[0].text;
-                    const extractedData = extractAddressesFromText(transcribedText);
+                    const extractedData = utils.extractAddressesFromText(transcribedText);
                     const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
                     const newHistoryEntry = { timestamp: new Date().toISOString(), emails: extractedData.emails, addresses: extractedData.addresses };
                     const updatedHistory = [...(caseToScan.Direcciones_Extraidas || []), newHistoryEntry];
@@ -1379,7 +1382,7 @@ function App() {
         if (!selectedCase) return;
         setIsGeneratingEscalationEmail(true);
         try {
-            const emailBody = await getAIEscalationEmail(selectedCase);
+            const emailBody = await aiServices.getAIEscalationEmail(selectedCase);
             setSelectedCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody }));
             await updateCaseInFirestore(selectedCase.id, { Correo_Escalacion_IA: emailBody });
         } catch (e) { displayModalMessage(`Error generando correo de escalación: ${e.message}`); }
@@ -1439,7 +1442,7 @@ function App() {
                 selectedCaseIds={selectedCaseIds}
                 handleSelectCase={handleSelectCase}
                 handleOpenCaseDetails={handleOpenCaseDetails}
-                utils.calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
+                calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
                 onScanClick={handleScanClick}
                 nonBusinessDays={nonBusinessDays}
             />
@@ -1447,18 +1450,22 @@ function App() {
     };
 
     const asignadosPorDiaData = useMemo(() => {
-
-        /* DUPLICATE DECLARATION REMOVED for 'counts' (occurrence #2) - original lines replaced to avoid redeclaration errors. */
-
-        return Object.keys(counts).map(fecha => ({ fecha, cantidad: counts[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        const countsByDate = cases.reduce((acc, curr) => {
+            const date = curr.fecha_asignacion || 'Sin Fecha';
+            acc[date] = (acc[date] || 0) + 1;
+            return acc;
+        }, {});
+        return Object.keys(countsByDate).map(fecha => ({ fecha, cantidad: countsByDate[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     }, [cases]);
 
     const distribucionPorDiaData = useMemo(() => {
         const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
-
-        /* DUPLICATE DECLARATION REMOVED for 'counts' (occurrence #3) - original lines replaced to avoid redeclaration errors. */
-
-        return Object.keys(counts).map(dia => ({ dia, cantidad: counts[dia] })).sort((a, b) => a.dia.localeCompare(b.dia));
+        const countsByDay = cases.filter(c => pendStates.includes(c.Estado_Gestion)).reduce((acc, curr) => {
+            const dia = `Día ${curr.Dia || 'N/A'}`;
+            acc[dia] = (acc[dia] || 0) + 1;
+            return acc;
+        }, {});
+        return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] })).sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
     }, [cases]);
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
@@ -1467,12 +1474,11 @@ function App() {
     // --------------------------
 
     useEffect(() => {
-        // Lógica para cargar pdf.js
         if (document.getElementById('pdfjs-script')) return;
         const script = document.createElement('script');
         script.id = 'pdfjs-script';
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js';
-        script.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js'; };
+        script.onload = () => { if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js'; };
         document.body.appendChild(script);
         return () => {
             const scriptTag = document.getElementById('pdfjs-script');
@@ -1480,26 +1486,19 @@ function App() {
         };
     }, []);
 
-    // ✅ REEMPLAZA CON ESTE BLOQUE CORREGIDO
     useEffect(() => {
-        // Lógica para escuchar el estado de autenticación de Firebase
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // El usuario ha iniciado sesión.
                 setUserId(user.uid);
             } else {
-                // El usuario ha cerrado sesión.
                 setUserId(null);
             }
             setLoading(false);
         });
-
-        // Limpia la suscripción al desmontar el componente
         return () => unsubscribe();
-    }, []); // El array de dependencias está vacío ya que 'auth' es una importación constante
+    }, []);
 
     useEffect(() => {
-        // Lógica para obtener el rol del usuario
         async function fetchRole() {
             if (!db || !userId) return;
             try {
@@ -1514,16 +1513,14 @@ function App() {
             } catch (e) { console.error('Error fetching user role:', e); setUserRole('user'); }
         }
         fetchRole();
-    }, [db, userId]);
+    }, [userId]);
 
     useEffect(() => {
-        // Lógica para abrir el modal de autenticación
         if (!loading && !userId) { setShowAuthModal(true); }
         else { setShowAuthModal(false); }
     }, [loading, userId]);
 
     useEffect(() => {
-        // Lógica para escuchar los casos de Firestore
         if (!db || !userId) return;
         const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`));
         const unsub = onSnapshot(q, async snapshot => {
@@ -1535,10 +1532,9 @@ function App() {
             setRefreshing(false);
         }, e => { console.error("Fetch cases error (onSnapshot):", e); displayModalMessage(`Error cargando los casos: ${e.message}`); setRefreshing(false); });
         return () => unsub();
-    }, [db, userId, appId, displayModalMessage]);
+    }, [db, userId, displayModalMessage]);
 
     useEffect(() => {
-        // Lógica para finalizar casos automáticamente
         if (!db || !userId || cases.length === 0) return;
         const casesToFinalize = cases.filter(c => {
             const simpleResolved = c.Estado_Gestion === 'Resuelto' && !c.Requiere_Aseguramiento_Facturas && !c.requiereBaja && !c.requiereAjuste;
@@ -1553,10 +1549,9 @@ function App() {
             });
             batch.commit().catch(error => { console.error("Error finalizing cases automatically:", error); displayModalMessage(`Error al finalizar casos automáticamente: ${error.message}`); });
         }
-    }, [cases, db, userId, appId, displayModalMessage]);
+    }, [cases, db, userId, displayModalMessage]);
 
     useEffect(() => {
-        // Lógica de alarmas para casos "Decretados"
         if (cases.length > 0 && !sessionStorage.getItem('decretadoAlarmShown')) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const twoDaysHence = new Date(today); twoDaysHence.setDate(today.getDate() + 2); twoDaysHence.setHours(23, 59, 59, 999);
@@ -1569,7 +1564,6 @@ function App() {
     }, [cases, displayModalMessage]);
 
     useEffect(() => {
-        // Lógica de alarmas para casos "Iniciados"
         function checkIniciadoCases() {
             const now = new Date().toISOString();
             cases.forEach(caseItem => {
@@ -1590,12 +1584,10 @@ function App() {
     }, [cases, displayModalMessage]);
 
     useEffect(() => {
-        // Lógica de alarma para cancelaciones
         checkCancellationAlarms();
     }, [cases, checkCancellationAlarms]);
 
     useEffect(() => {
-        // Lógica para resetear los campos de SN acumulados
         if (cantidadSNAcumulados > 0) {
             setSnAcumuladosData(Array.from({ length: cantidadSNAcumulados }, () => ({ sn: '', obs: '' })));
         } else {
@@ -1808,7 +1800,7 @@ function App() {
                                 const isDate = dateFields.includes(header);
                                 const isTextArea = textAreaFields.includes(header);
                                 return (<React.Fragment key={header}><div className={`bg-gray-50 p-3 rounded-md ${isTextArea || header === 'Resumen_Hechos_IA' || header === 'Observaciones_Reclamo_Relacionado' ? 'lg:col-span-3 md:col-span-2' : ''}`}><label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>{isEditable ? (<><div className="relative">{isTextArea ? (<textarea id={`modal-${header}`} rows={3} className="block w-full rounded-md p-2 pr-10" value={selectedCase[header] || ''} onChange={e => handleModalFieldChange(header, e.target.value)} />) : (<input type={isDate ? 'date' : header === 'Dia' ? 'number' : 'text'} id={`modal-${header}`} className="block w-full rounded-md p-2 pr-10" value={header === 'Dia' ? utils.calculateCaseAge(selectedCase, nonBusinessDays) : (selectedCase[header] || '')} onChange={e => handleModalFieldChange(header, e.target.value)} />)}
-                                    {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
+                                    {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => utils.copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
                             })}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1845,7 +1837,7 @@ function App() {
                                 <div><label htmlFor="reqGenerado" className="block text-sm font-medium text-gray-700 mb-1">REQ Generado:</label><input type="text" id="reqGenerado" name="reqGenerado" value={selectedCase.reqGenerado || ''} onChange={(e) => handleModalFieldChange('reqGenerado', e.target.value)} className="block w-full input-form" placeholder="REQ o ticket generado" /></div>
                                 <div className="md:col-span-2"><label htmlFor="descripcionEscalamiento" className="block text-sm font-medium text-gray-700 mb-1">Descripción Breve del Escalamiento:</label><textarea id="descripcionEscalamiento" name="descripcionEscalamiento" rows="3" value={selectedCase.descripcionEscalamiento || ''} onChange={(e) => handleModalFieldChange('descripcionEscalamiento', e.target.value)} className="block w-full input-form" placeholder="Añada una descripción del escalamiento..." /></div>
                             </div>
-                            {selectedCase.Correo_Escalacion_IA && (<div className="mt-4"><h5 className="text-md font-semibold mb-2">Correo de Escalación (IA):</h5><div className="relative"><textarea rows="6" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border" value={selectedCase.Correo_Escalacion_IA} readOnly /><button onClick={() => copyToClipboard(selectedCase.Correo_Escalacion_IA, 'Correo de Escalación', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Correo">Copiar</button></div></div>)}
+                            {selectedCase.Correo_Escalacion_IA && (<div className="mt-4"><h5 className="text-md font-semibold mb-2">Correo de Escalación (IA):</h5><div className="relative"><textarea rows="6" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border" value={selectedCase.Correo_Escalacion_IA} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Correo_Escalacion_IA, 'Correo de Escalación', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Correo">Copiar</button></div></div>)}
                             <div className="mt-4 border-t pt-4"><button onClick={handleSaveEscalamientoHistory} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Guardar Escalación</button></div>
                             <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de Escalaciones:</h5>{Array.isArray(selectedCase.Escalamiento_Historial) && selectedCase.Escalamiento_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Escalamiento_Historial.map((item, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-semibold text-gray-700">Escalado: {new Date(item.timestamp).toLocaleString()}</p><p><strong>Área:</strong> {item.areaEscalada}, <strong>Motivo:</strong> {item.motivoEscalado}</p><p><strong>ID:</strong> {item.idEscalado || 'N/A'}, <strong>REQ:</strong> {item.reqGenerado || 'N/A'}</p>{item.descripcionEscalamiento && <p><strong>Desc:</strong> {item.descripcionEscalamiento}</p>}</li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial de escalación.</p>)}</div>
                         </div>)}
@@ -1871,14 +1863,14 @@ function App() {
                             <div className="flex gap-2 mt-4"><button type="button" onClick={handleAddForm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Añadir Cuenta</button><button type="button" onClick={calcularNotaCredito} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">Calcular Nota de Crédito</button></div>
                         </div>
                         <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Análisis y Observaciones</h4><div className="mb-4"><label htmlFor="observations-input" className="block text-sm font-medium mb-1">Observaciones (Gestión):</label><div className="flex flex-col gap-2 mb-2"><textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={selectedCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." /><div className="flex gap-2 self-end"><button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>{isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}</button><button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button></div></div><h5 className="text-md font-semibold mb-2">Historial Observaciones:</h5>{Array.isArray(selectedCase.Observaciones_Historial) && selectedCase.Observaciones_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Observaciones_Historial.map((en, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-medium">{new Date(en.timestamp).toLocaleString()}</p><p className="whitespace-pre-wrap">{en.text}</p></li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial.</p>)}</div></div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Proyección de Respuesta IA</h4><div className="relative"><textarea id="proyeccionRespuestaIA" rows="8" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border whitespace-pre-wrap" value={selectedCase.Respuesta_Integral_IA || 'No generada'} readOnly placeholder="Respuesta Integral IA aparecerá aquí..." /><button onClick={() => copyToClipboard(selectedCase.Respuesta_Integral_IA || '', 'Respuesta Integral IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Respuesta Integral IA">Copiar</button></div><button onClick={generateAIComprehensiveResponseHandler} className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" disabled={isGeneratingComprehensiveResponse}>✨ {isGeneratingComprehensiveResponse ? 'Generando...' : 'Generar Respuesta Integral (IA)'}</button><button onClick={() => { const textContext = generateAITextContext(selectedCase); copyToClipboard(textContext, 'Contexto para Gemini', displayModalMessage); }} className="mt-3 ml-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Copiar Contexto para Gemini</button></div>
+                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Proyección de Respuesta IA</h4><div className="relative"><textarea id="proyeccionRespuestaIA" rows="8" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border whitespace-pre-wrap" value={selectedCase.Respuesta_Integral_IA || 'No generada'} readOnly placeholder="Respuesta Integral IA aparecerá aquí..." /><button onClick={() => utils.copyToClipboard(selectedCase.Respuesta_Integral_IA || '', 'Respuesta Integral IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Respuesta Integral IA">Copiar</button></div><button onClick={generateAIComprehensiveResponseHandler} className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" disabled={isGeneratingComprehensiveResponse}>✨ {isGeneratingComprehensiveResponse ? 'Generando...' : 'Generar Respuesta Integral (IA)'}</button><button onClick={() => { const textContext = utils.generateAITextContext(selectedCase); utils.copyToClipboard(textContext, 'Contexto para Gemini', displayModalMessage); }} className="mt-3 ml-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Copiar Contexto para Gemini</button></div>
                         <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Validación de la Respuesta (IA)</h4>{selectedCase.Validacion_IA ? (<div className={`p-4 rounded-md ${selectedCase.Validacion_IA.completa ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'}`}><p className="font-bold">Estatus de Validación: {selectedCase.Validacion_IA.completa ? '✅ Completa' : '❌ Incompleta'}</p><p className="text-sm mt-2"><span className="font-semibold">Justificación:</span> {selectedCase.Validacion_IA.justificacion}</p></div>) : (<p className="text-sm text-gray-500">No hay validación de la IA disponible. Genere una respuesta integral primero.</p>)}</div>
                         <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Gestión del Caso</h4><div className="flex flex-wrap gap-3 mb-6">{[{ l: 'Iniciado', s: 'Iniciado', cl: 'indigo' }, { l: 'Lectura', s: 'Lectura', cl: 'blue' }, { l: 'Decretado', s: 'Decretado', cl: 'purple' }, { l: 'Traslado SIC', s: 'Traslado SIC', cl: 'orange' }, { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes', cl: 'pink' }, { l: 'Resuelto', s: 'Resuelto', cl: 'green' }, { l: 'Pendiente', s: 'Pendiente', cl: 'yellow' }, { l: 'Escalado', s: 'Escalado', cl: 'red' }].map(b => (<button key={b.s} onClick={() => handleChangeCaseStatus(b.s)} className={`px-4 py-2 rounded-md font-semibold ${selectedCase.Estado_Gestion === b.s ? `bg-${b.cl}-600 text-white` : `bg-${b.cl}-200 text-${b.cl}-800 hover:bg-${b.cl}-300`} `}>{b.l}</button>))}</div><div className="mb-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5" checked={selectedCase.Despacho_Respuesta_Checked || false} onChange={handleDespachoRespuestaChange} /><span className="ml-2 font-semibold">Despacho Respuesta</span></label></div></div>
                         <div className="flex justify-end mt-6 gap-4">{selectedCase.Estado_Gestion === 'Resuelto' && (<button onClick={() => handleReopenCase(selectedCase)} className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 mr-auto">Reabrir Caso</button>)}<button onClick={() => handleDeleteCase(selectedCase.id)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Eliminar</button><button onClick={handleCloseCaseDetails} className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700">Cerrar</button></div>
                     </div>
                 </div>
             )}
-            {showCancelAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Cancelación!</h3><button onClick={() => setShowCancelAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos de **cancelación de servicio o cambio a prepago** requieren tu atención. Se activó la alarma por estar a 3 días hábiles de la fecha de corte.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div><div className="flex justify-end mt-4"><button onClick={() => { cancelAlarmCases.forEach(c => { sessionStorage.setItem(`cancelAlarmShown_${c.id}_${utils.getColombianDateISO()}`, 'true'); }); setShowCancelAlarmModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Cerrar Alertas</button></div></div></div></div>)}
+            {showCancelAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Cancelación!</h3><button onClick={() => setShowCancelAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos de **cancelación de servicio o cambio a prepago** requieren tu atención. Se activó la alarma por estar a 3 días hábiles de la fecha de corte.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div><div className="flex justify-end mt-4"><button onClick={() => { cancelAlarmCases.forEach(c => { sessionStorage.setItem(`cancelAlarmShown_${c.id}_${utils.getColombianDateISO()}`, 'true'); }); setShowCancelAlarmModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Cerrar Alertas</button></div></div></div>)}
             {showManualEntryModal && (<div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4"><div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]"><h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3><form onSubmit={handleManualSubmit}><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">{['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} onChange={handleManualFormChange} required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}<div className="md:col-span-2"><label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label><textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} onChange={handleManualFormChange} className="block w-full input-form" /></div><div className="md:col-span-2"><label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label><select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} onChange={handleManualFormChange} className="block w-full input-form"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div><div className="md:col-span-2"><label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label><select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} onChange={handleManualFormChange} className="block w-full input-form"><option value="Pendiente">Pendiente</option><option value="Iniciado">Iniciado</option><option value="Lectura">Lectura</option><option value="Escalado">Escalado</option><option value="Pendiente Ajustes">Pendiente Ajustes</option></select></div></div>{manualFormData.Estado_Gestion === 'Escalado' && (<div className="mt-4 mb-6 p-3 border border-red-200 rounded-md bg-red-50"><h4 className="text-md font-semibold text-red-700 mb-2">Detalles de Escalación (Manual)</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label htmlFor="manualAreaEscalada" className="block text-xs mb-1">Área Escalada:</label><select id="manualAreaEscalada" name="areaEscalada" value={manualFormData.areaEscalada} onChange={handleManualFormChange} className="block w-full input-form text-sm"><option value="">Seleccione Área...</option>{constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}</select></div><div><label htmlFor="manualMotivoEscalado" className="block text-xs mb-1">Motivo/Acción:</label><select id="manualMotivoEscalado" name="motivoEscalado" value={manualFormData.motivoEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!manualFormData.areaEscalada}><option value="">Seleccione Motivo...</option>{(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[manualFormData.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}</select></div><div><label htmlFor="manualIdEscalado" className="block text-xs mb-1">ID Escalado:</label><input type="text" id="manualIdEscalado" name="idEscalado" value={manualFormData.idEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="ID" /></div><div><label htmlFor="manualReqGenerado" className="block text-xs mb-1">REQ Generado:</label><input type="text" id="manualReqGenerado" name="reqGenerado" value={manualFormData.reqGenerado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="REQ" /></div></div></div>)}<div className="mt-4 mb-6 p-3 border border-blue-200 rounded-md bg-blue-50"><h4 className="text-md font-semibold text-blue-700 mb-2">Aseguramiento y Gestiones Adicionales (Manual)</h4><div className="mb-2"><label className="inline-flex items-center"><input type="checkbox" name="Requiere_Aseguramiento_Facturas" checked={manualFormData.Requiere_Aseguramiento_Facturas} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Aseguramiento Facturas?</span></label></div>{manualFormData.Requiere_Aseguramiento_Facturas && (<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-blue-300"><div><label htmlFor="manualID_Aseguramiento" className="block text-xs mb-1">ID Aseguramiento:</label><input type="text" id="manualID_Aseguramiento" name="ID_Aseguramiento" value={manualFormData.ID_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div><div><label htmlFor="manualCorte_Facturacion" className="block text-xs mb-1">Corte Facturación:</label><input type="text" id="manualCorte_Facturacion" name="Corte_Facturacion" value={manualFormData.Corte_Facturacion} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento} /></div><div><label htmlFor="manualCuenta" className="block text-xs mb-1">Cuenta:</label><input type="text" id="manualCuenta" name="Cuenta" value={manualFormData.Cuenta} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento} /></div><div><label htmlFor="manualOperacion_Aseguramiento" className="block text-xs mb-1">Operación:</label><select name="Operacion_Aseguramiento" value={manualFormData.Operacion_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_OPERACION_ASEGURAMIENTO.map(op => <option key={op} value={op}>{op}</option>)}</select></div><div className="md:col-span-2"><label htmlFor="manualTipo_Aseguramiento" className="block text-xs mb-1">Tipo:</label><select name="Tipo_Aseguramiento" value={manualFormData.Tipo_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_ASEGURAMIENTO.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</select></div><div><label htmlFor="manualMes_Aseguramiento" className="block text-xs mb-1">Mes:</label><select name="Mes_Aseguramiento" value={manualFormData.Mes_Aseguramiento} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!!manualFormData.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.MESES_ASEGURAMIENTO.map(mes => <option key={mes} value={mes}>{mes.charAt(0).toUpperCase() + mes.slice(1)}</option>)}</select></div></div>)}{<div className="mb-2 mt-3"><label className="inline-flex items-center"><input type="checkbox" name="requiereBaja" checked={manualFormData.requiereBaja} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Requiere Baja?</span></label></div>}{manualFormData.requiereBaja && (<div className="pl-4 mb-3 border-l-2 border-red-300"><label htmlFor="manualNumeroOrdenBaja" className="block text-xs mb-1">Nro. Orden Baja:</label><input type="text" id="manualNumeroOrdenBaja" name="numeroOrdenBaja" value={manualFormData.numeroOrdenBaja} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div>)}{<div className="mb-2 mt-3"><label className="inline-flex items-center"><input type="checkbox" name="requiereAjuste" checked={manualFormData.requiereAjuste} onChange={handleManualFormChange} className="form-checkbox" /><span className="ml-2 text-sm">¿Requiere Ajuste?</span></label></div>}{manualFormData.requiereAjuste && (<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-green-300"><div><label htmlFor="manualNumeroTT" className="block text-xs mb-1">Nro. TT:</label><input type="text" id="manualNumeroTT" name="numeroTT" value={manualFormData.numeroTT} onChange={handleManualFormChange} className="block w-full input-form text-sm" /></div><div><label htmlFor="manualEstadoTT" className="block text-xs mb-1">Estado TT:</label><select id="manualEstadoTT" name="estadoTT" value={manualFormData.estadoTT} onChange={handleManualFormChange} className="block w-full input-form text-sm"><option value="">Seleccione...</option>{constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}</select></div><div className="md:col-span-2"><label className="inline-flex items-center mt-1"><input type="checkbox" name="requiereDevolucionDinero" checked={manualFormData.requiereDevolucionDinero} onChange={handleManualFormChange} className="form-checkbox" disabled={!manualFormData.requiereAjuste} /><span className="ml-2 text-xs">¿Devolución Dinero?</span></label></div>{manualFormData.requiereDevolucionDinero && (<div className="contents"><div><label htmlFor="manualCantidadDevolver" className="block text-xs mb-1">Cantidad a Devolver:</label><input type="number" step="0.01" id="manualCantidadDevolver" name="cantidadDevolver" value={manualFormData.cantidadDevolver} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" placeholder="0.00" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div><div><label htmlFor="manualIdEnvioDevoluciones" className="block text-xs mb-1">ID Envío Devoluciones:</label><input type="text" id="manualIdEnvioDevoluciones" name="idEnvioDevoluciones" value={manualFormData.idEnvioDevoluciones} onChange={handleManualFormDevolucionChange} placeholder="ID" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div><div><label htmlFor="manualFechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label><input type="date" id="manualFechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={manualFormData.fechaEfectivaDevolucion || ''} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} /></div></div>)}</div>)}</div><div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div></form></div></div>)}
             {showAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Casos Críticos!</h3><button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos requieren tu atención inmediata. Para cerrar la alerta, debes dejar una observación de la gestión realizada.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{alarmCases.map(c => (<div key={c.id} className={`p-3 rounded-md border ${selectedAlarmCase?.id === c.id ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'}`}><div><p className="font-bold text-gray-800">SN: {c.SN} (Día {c.Dia})</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p></div><button onClick={() => setSelectedAlarmCase(c)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md hover:bg-yellow-600">Gestionar</button></div>))}</div>{selectedAlarmCase && (<div className="mt-6 pt-4 border-t"><h4 className="text-lg font-semibold mb-2">Gestionar SN: {selectedAlarmCase.SN}</h4><textarea rows="3" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={alarmObservation} onChange={(e) => setAlarmObservation(e.target.value)} placeholder="Escribe aquí la observación de la gestión realizada para cerrar esta alerta..." /><div className="flex justify-end gap-3 mt-3"><button onClick={() => setSelectedAlarmCase(null)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button onClick={handleDismissAlarm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar y Cerrar Alarma</button></div></div>)}</div></div></div>)}
             <style>{`
