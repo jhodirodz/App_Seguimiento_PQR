@@ -130,8 +130,43 @@ export const MOTIVOS_ESCALAMIENTO_POR_AREA = {
     ],
 };
 export const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
+// Feriados oficiales de Colombia (2025–2026)
 export const COLOMBIAN_HOLIDAYS = [
-    '2025-01-01', '2025-01-06', '2025-03-24', '2025-03-20', '2025-03-21', '2025-05-01', '2025-05-26',
-    '2025-06-16', '2025-06-23', '2025-07-04', '2025-07-20', '2025-08-07', '2025-08-18', '2025-10-13',
-    '2025-11-03', '2025-11-17', '2025-12-08', '2025-12-25', '2026-01-01', '2026-01-12', '2026-03-23', '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-18', '2026-06-08', '2026-06-15', '2026-06-29', '2026-07-20', '2026-08-07', '2026-08-17', '2026-10-12', '2026-11-02', '2026-11-16', '2026-12-08', '2026-12-25',
+  // === 2025 ===
+  "2025-01-01", // Año Nuevo
+  "2025-01-06", // Reyes Magos
+  "2025-03-24", // San José
+  "2025-04-17", // Jueves Santo
+  "2025-04-18", // Viernes Santo
+  "2025-05-01", // Día del Trabajo
+  "2025-05-26", // Ascensión del Señor
+  "2025-06-16", // Corpus Christi
+  "2025-06-23", // Sagrado Corazón
+  "2025-07-20", // Independencia de Colombia
+  "2025-08-07", // Batalla de Boyacá
+  "2025-08-18", // La Asunción de la Virgen
+  "2025-10-13", // Día de la Raza
+  "2025-11-03", // Todos los Santos
+  "2025-11-17", // Independencia de Cartagena
+  "2025-12-08", // Inmaculada Concepción
+  "2025-12-25", // Navidad
+
+  // === 2026 ===
+  "2026-01-01", // Año Nuevo
+  "2026-01-12", // Reyes Magos (trasladado)
+  "2026-03-23", // San José
+  "2026-04-02", // Jueves Santo
+  "2026-04-03", // Viernes Santo
+  "2026-05-01", // Día del Trabajo
+  "2026-05-18", // Ascensión del Señor
+  "2026-06-08", // Corpus Christi
+  "2026-06-15", // Sagrado Corazón
+  "2026-07-20", // Independencia de Colombia
+  "2026-08-07", // Batalla de Boyacá
+  "2026-08-17", // La Asunción de la Virgen (trasladado)
+  "2026-10-12", // Día de la Raza
+  "2026-11-02", // Todos los Santos (trasladado)
+  "2026-11-16", // Independencia de Cartagena (trasladado)
+  "2026-12-08", // Inmaculada Concepción
+  "2026-12-25"  // Navidad
 ];
