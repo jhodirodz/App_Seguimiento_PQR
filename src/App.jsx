@@ -3656,9 +3656,4 @@ async function generateAIComprehensiveResponseHandler() {
             `}</style>
         </div>
     );
-}
-
-
-}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}} // ✅ corregido: llaves cerradas automáticamente) // ✅ corregido: paréntesis cerrados automáticamente
-
-export default App; // ✅ corregido: export final
+}; // ✅ corregido: export final
