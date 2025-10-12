@@ -33,7 +33,7 @@ function App() {
     const [uploading, setUploading] = useState(false);
     const [cases, setCases] = useState([]);
     const [showModal, setShowModal] = useState(false);
-    const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => {}, confirmText: 'Confirmar', cancelText: 'Cancelar' });
+    const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => { }, confirmText: 'Confirmar', cancelText: 'Cancelar' });
     const [selectedCase, setSelectedCase] = useState(null);
     const [showManualEntryModal, setShowManualEntryModal] = useState(false);
     const [activeModule, setActiveModule] = useState('casos');
@@ -50,7 +50,7 @@ function App() {
     const [isGeneratingComprehensiveResponse, setIsGeneratingComprehensiveResponse] = useState(false);
     const [isGeneratingValidation, setIsGeneratingValidation] = useState(false);
     const [isTranscribingObservation, setIsTranscribingObservation] = useState(false);
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
     const [contractFilter, setContractFilter] = useState('todos');
@@ -111,14 +111,14 @@ function App() {
     // --------------------------
 
     const displayModalMessage = useCallback((message) => {
-        setModalContent({ message, isConfirm: false, onConfirm: () => {} });
+        setModalContent({ message, isConfirm: false, onConfirm: () => { } });
         setShowModal(true);
     }, []);
 
     const displayConfirmModal = useCallback((message, { onConfirm, onCancel, confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) => {
         setModalContent({
             message, isConfirm: true,
-            onConfirm: onConfirm || (() => {}),
+            onConfirm: onConfirm || (() => { }),
             onCancel: onCancel || (() => setShowModal(false)),
             confirmText, cancelText
         });
@@ -219,7 +219,7 @@ function App() {
             displayModalMessage('Error al cerrar sesión: ' + (e.message || e.toString()));
         }
     }
-    
+
     async function createUserAsAdmin(email, password, role = 'user') {
         if (!auth || !userId) { displayModalMessage('No hay sesión activa.'); return { ok: false }; }
         try {
@@ -482,7 +482,7 @@ function App() {
                     if (!nuipToSearch || processedNuips.has(nuipToSearch)) { continue; }
                     processedNuips.add(nuipToSearch);
                     let foundMatch = false;
-                    const potentialMatches = [ ...(casesByClienteNuip.get(nuipToSearch) || []), ...(casesByReclamanteNuip.get(nuipToSearch) || []) ];
+                    const potentialMatches = [...(casesByClienteNuip.get(nuipToSearch) || []), ...(casesByReclamanteNuip.get(nuipToSearch) || [])];
                     const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
                     if (uniqueMatches.length > 0) {
                         foundMatch = true;
@@ -563,7 +563,7 @@ function App() {
         handleCloseCaseDetails();
         setShowManualEntryModal(true);
     }
-    
+
     async function handleOpenCaseDetails(caseItem) {
         setSelectedCase(caseItem);
         setTieneSNAcumulados(false);
@@ -718,79 +718,81 @@ function App() {
         if (!Array.isArray(selectedCase.Escalamiento_Historial) || selectedCase.Escalamiento_Historial.length === 0) { displayModalMessage("Error: Debe guardar un registro de escalación antes de decretar el caso."); return; }
         if (!selectedCase.Radicado_SIC || !selectedCase.Fecha_Vencimiento_Decreto) { displayModalMessage("Error: Debe completar los campos 'Radicado SIC' y 'Fecha Vencimiento Decreto' para poder decretar."); return; }
         displayConfirmModal('¿Está seguro de que desea decretar este caso? Esta acción resolverá el caso actual y creará uno nuevo en estado "Decretado".',
-            { onConfirm: async () => {
-                try {
-                    const batch = writeBatch(db);
-                    const today = getColombianDateISO();
-                    const timestamp = new Date().toISOString();
-                    const provisionalSN = `DECRETO-${Date.now()}`;
-                    const newCaseData = { ...selectedCase };
-                    delete newCaseData.id;
-                    delete newCaseData.SN_Original;
-                    Object.assign(newCaseData, {
-                        SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Decretado', 'Fecha Radicado': today,
-                        'Dia': calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
-                        Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por decreto del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
-                        Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
-                        areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
-                    });
-                    const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
-                    batch.set(newCaseRef, newCaseData);
-                    const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                    const originalCaseUpdate = {
-                        Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
-                        Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por decreto. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
-                    };
-                    batch.update(originalCaseRef, originalCaseUpdate);
-                    await batch.commit();
-                    displayModalMessage('Caso decretado exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
-                    handleCloseCaseDetails();
-                } catch (error) {
-                    console.error("Error al decretar el caso:", error);
-                    displayModalMessage(`Error al decretar el caso: ${error.message}`);
-                }
-            }, confirmText: 'Sí, decretar', cancelText: 'No, cancelar'
-        });
+            {
+                onConfirm: async () => {
+                    try {
+                        const batch = writeBatch(db);
+                        const today = getColombianDateISO();
+                        const timestamp = new Date().toISOString();
+                        const provisionalSN = `DECRETO-${Date.now()}`;
+                        const newCaseData = { ...selectedCase };
+                        delete newCaseData.id;
+                        delete newCaseData.SN_Original;
+                        Object.assign(newCaseData, {
+                            SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Decretado', 'Fecha Radicado': today,
+                            'Dia': calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
+                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por decreto del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
+                            Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
+                            areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
+                        });
+                        const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
+                        batch.set(newCaseRef, newCaseData);
+                        const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
+                        const originalCaseUpdate = {
+                            Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
+                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por decreto. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
+                        };
+                        batch.update(originalCaseRef, originalCaseUpdate);
+                        await batch.commit();
+                        displayModalMessage('Caso decretado exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
+                        handleCloseCaseDetails();
+                    } catch (error) {
+                        console.error("Error al decretar el caso:", error);
+                        displayModalMessage(`Error al decretar el caso: ${error.message}`);
+                    }
+                }, confirmText: 'Sí, decretar', cancelText: 'No, cancelar'
+            });
     }
-    
+
     async function handleTrasladoSIC() {
         if (!selectedCase) return;
         if (!selectedCase.Despacho_Respuesta_Checked) { displayModalMessage("Error: Para trasladar el caso a SIC, primero debe marcar la casilla 'Despacho Respuesta'."); return; }
         if (!selectedCase.Radicado_SIC || !selectedCase.Fecha_Vencimiento_Decreto) { displayModalMessage("Error: Debe completar los campos 'Radicado SIC' y 'Fecha Vencimiento Decreto' para poder trasladar a SIC."); return; }
         displayConfirmModal('¿Está seguro de que desea trasladar este caso a SIC? Esta acción resolverá el caso actual y creará uno nuevo en estado "Traslado SIC".',
-            { onConfirm: async () => {
-                try {
-                    const batch = writeBatch(db);
-                    const today = getColombianDateISO();
-                    const timestamp = new Date().toISOString();
-                    const provisionalSN = `TRASLADO-${Date.now()}`;
-                    const newCaseData = { ...selectedCase };
-                    delete newCaseData.id;
-                    delete newCaseData.SN_Original;
-                    Object.assign(newCaseData, {
-                        SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Traslado SIC', 'Fecha Radicado': today,
-                        'Dia': calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
-                        Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por traslado a SIC del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
-                        Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
-                        areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
-                    });
-                    const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
-                    batch.set(newCaseRef, newCaseData);
-                    const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                    const originalCaseUpdate = {
-                        Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
-                        Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por traslado a SIC. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
-                    };
-                    batch.update(originalCaseRef, originalCaseUpdate);
-                    await batch.commit();
-                    displayModalMessage('Caso trasladado a SIC exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
-                    handleCloseCaseDetails();
-                } catch (error) {
-                    console.error("Error al trasladar el caso a SIC:", error);
-                    displayModalMessage(`Error al trasladar el caso a SIC: ${error.message}`);
-                }
-            }, confirmText: 'Sí, trasladar a SIC', cancelText: 'No, cancelar'
-        });
+            {
+                onConfirm: async () => {
+                    try {
+                        const batch = writeBatch(db);
+                        const today = getColombianDateISO();
+                        const timestamp = new Date().toISOString();
+                        const provisionalSN = `TRASLADO-${Date.now()}`;
+                        const newCaseData = { ...selectedCase };
+                        delete newCaseData.id;
+                        delete newCaseData.SN_Original;
+                        Object.assign(newCaseData, {
+                            SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Traslado SIC', 'Fecha Radicado': today,
+                            'Dia': calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
+                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por traslado a SIC del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
+                            Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
+                            areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
+                        });
+                        const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
+                        batch.set(newCaseRef, newCaseData);
+                        const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
+                        const originalCaseUpdate = {
+                            Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
+                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por traslado a SIC. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
+                        };
+                        batch.update(originalCaseRef, originalCaseUpdate);
+                        await batch.commit();
+                        displayModalMessage('Caso trasladado a SIC exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
+                        handleCloseCaseDetails();
+                    } catch (error) {
+                        console.error("Error al trasladar el caso a SIC:", error);
+                        displayModalMessage(`Error al trasladar el caso a SIC: ${error.message}`);
+                    }
+                }, confirmText: 'Sí, trasladar a SIC', cancelText: 'No, cancelar'
+            });
     }
 
     async function handleSaveEscalamientoHistory() {
@@ -808,7 +810,7 @@ function App() {
             displayModalMessage('Historial de escalación guardado.');
         } catch (e) { displayModalMessage(`Error guardando historial de escalación: ${e.message}`); }
     }
-    
+
     async function handleChangeCaseStatus(newStatus) {
         if (!selectedCase) return;
         if (newStatus === 'Decretado') { handleDecretarCaso(); return; }
@@ -845,7 +847,7 @@ function App() {
         setSelectedCase(prev => ({ ...prev, ...updateData }));
         await updateCaseInFirestore(selectedCase.id, updateData);
     }
-    
+
     function handleRadicadoSICChange(e) { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); }
     function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); }
     async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); }
@@ -859,7 +861,7 @@ function App() {
         catch (e) { displayModalMessage(`Error AI Projection: ${e.message}`); }
         finally { setIsGeneratingResponseProjection(false); }
     }
-    
+
     async function generateNextActionsHandler() {
         if (!selectedCase) return;
         setIsGeneratingNextActions(true);
@@ -870,7 +872,7 @@ function App() {
         } catch (e) { displayModalMessage(`Error generando próximas acciones: ${e.message}`); }
         finally { setIsGeneratingNextActions(false); }
     }
-    
+
     async function generateRootCauseHandler() {
         if (!selectedCase) return;
         setIsGeneratingRootCause(true);
@@ -881,7 +883,7 @@ function App() {
         } catch (e) { displayModalMessage(`Error generando causa raíz: ${e.message}`); }
         finally { setIsGeneratingRootCause(false); }
     }
-    
+
     async function handleSuggestEscalation() {
         if (!selectedCase) return;
         setIsSuggestingEscalation(true);
@@ -933,7 +935,7 @@ function App() {
         const { name, value } = e.target;
         setManualFormData(prev => ({ ...prev, [name]: value }));
     }
-    
+
     async function handleManualSubmit(e) {
         e.preventDefault(); setUploading(true); displayModalMessage('Procesando manual con IA...');
         try {
@@ -1047,7 +1049,7 @@ function App() {
         } catch (error) { console.error("Error processing observation file:", error); displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`); }
         finally { setIsTranscribingObservation(false); if (observationFileInputRef.current) { observationFileInputRef.current.value = ""; } }
     }
-    
+
     function downloadCSV(csvContent, filename) {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -1061,15 +1063,15 @@ function App() {
             displayModalMessage('La descarga automática no es soportada en tu navegador.');
         }
     }
-    
+
     function exportCasesToCSV(isTodayResolvedOnly = false) {
         const today = getColombianDateISO();
         const casesToExport = isTodayResolvedOnly
             ? cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === today)
             : cases;
         if (casesToExport.length === 0) { displayModalMessage(isTodayResolvedOnly ? 'No hay casos resueltos o finalizados hoy.' : 'No hay casos para exportar.'); return; }
-        const ORIGINAL_CSV_HEADERS = [ 'SN', 'CUN', 'Fecha Radicado', 'Dia', 'Fecha Vencimiento', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion' ];
-        const baseHeaders = [ 'SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'Dia', 'Dia_Original_CSV', 'fecha_asignacion', 'Nombre_Cliente', 'Estado', 'Estado_Gestion', 'Nivel_1', 'Nivel_2', 'Nivel_3', 'Nivel_4', 'Nivel_5', 'Analisis de la IA', 'Categoria del reclamo', 'Prioridad', 'Sentimiento_IA', 'Resumen_Hechos_IA', 'Proyeccion_Respuesta_IA', 'Sugerencias_Accion_IA', 'Causa_Raiz_IA', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones', 'Observaciones_Historial', 'SNAcumulados_Historial', 'Escalamiento_Historial', 'Numero_Reclamo_Relacionado', 'Observaciones_Reclamo_Relacionado', 'Aseguramiento_Historial', 'Despacho_Respuesta_Checked', 'Requiere_Aseguramiento_Facturas', 'ID_Aseguramiento', 'Corte_Facturacion', 'Cuenta', 'Operacion_Aseguramiento', 'Tipo_Aseguramiento', 'Mes_Aseguramiento', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Tipo_Nuip_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Tipo_Nuip_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'favorabilidad', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'Despacho_Fisico', 'Despacho_Electronico', 'Contacto_Cliente', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion', 'Ultima Modificacion', 'Fecha Cargue Planilla', 'Usuario Cargue Planilla', 'Fecha Pre-cierre Fullstack', 'Fecha Planilla Masivo', 'Novedad Despacho', 'Clasificacion', 'Documento_Adjunto', 'requiereBaja', 'numeroOrdenBaja', 'requiereAjuste', 'numeroTT', 'estadoTT', 'requiereDevolucionDinero', 'cantidadDevolver', 'idEnvioDevoluciones', 'fechaEfectivaDevolucion', 'areaEscalada', 'motivoEscalado', 'idEscalado', 'reqGenerado', 'descripcionEscalamiento', 'Correo_Escalacion_IA', 'Riesgo_SIC', 'Respuesta_Integral_IA' ];
+        const ORIGINAL_CSV_HEADERS = ['SN', 'CUN', 'Fecha Radicado', 'Dia', 'Fecha Vencimiento', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion'];
+        const baseHeaders = ['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'Dia', 'Dia_Original_CSV', 'fecha_asignacion', 'Nombre_Cliente', 'Estado', 'Estado_Gestion', 'Nivel_1', 'Nivel_2', 'Nivel_3', 'Nivel_4', 'Nivel_5', 'Analisis de la IA', 'Categoria del reclamo', 'Prioridad', 'Sentimiento_IA', 'Resumen_Hechos_IA', 'Proyeccion_Respuesta_IA', 'Sugerencias_Accion_IA', 'Causa_Raiz_IA', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones', 'Observaciones_Historial', 'SNAcumulados_Historial', 'Escalamiento_Historial', 'Numero_Reclamo_Relacionado', 'Observaciones_Reclamo_Relacionado', 'Aseguramiento_Historial', 'Despacho_Respuesta_Checked', 'Requiere_Aseguramiento_Facturas', 'ID_Aseguramiento', 'Corte_Facturacion', 'Cuenta', 'Operacion_Aseguramiento', 'Tipo_Aseguramiento', 'Mes_Aseguramiento', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Tipo_Nuip_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Tipo_Nuip_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'favorabilidad', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'Despacho_Fisico', 'Despacho_Electronico', 'Contacto_Cliente', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion', 'Ultima Modificacion', 'Fecha Cargue Planilla', 'Usuario Cargue Planilla', 'Fecha Pre-cierre Fullstack', 'Fecha Planilla Masivo', 'Novedad Despacho', 'Clasificacion', 'Documento_Adjunto', 'requiereBaja', 'numeroOrdenBaja', 'requiereAjuste', 'numeroTT', 'estadoTT', 'requiereDevolucionDinero', 'cantidadDevolver', 'idEnvioDevoluciones', 'fechaEfectivaDevolucion', 'areaEscalada', 'motivoEscalado', 'idEscalado', 'reqGenerado', 'descripcionEscalamiento', 'Correo_Escalacion_IA', 'Riesgo_SIC', 'Respuesta_Integral_IA'];
         const dynamicHeaders = Array.from(new Set(casesToExport.flatMap(c => Object.keys(c))));
         const actualFinalHeaders = Array.from(new Set(baseHeaders.concat(dynamicHeaders)));
         let csvActual = actualFinalHeaders.map(h => `"${h}"`).join(',') + '\n';
@@ -1095,7 +1097,7 @@ function App() {
         downloadCSV(csvOriginal, `casos_originales_${filenameSuffix}.csv`);
         setTimeout(() => { downloadCSV(csvActual, `casos_actuales_${filenameSuffix}.csv`); }, 500);
     }
-    
+
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
         return cases.filter(c => {
@@ -1144,7 +1146,7 @@ function App() {
         diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) > 15).length,
         resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO()).length,
     };
-    
+
     function handleSelectCase(caseId, isMassSelect) {
         setSelectedCaseIds(prevSelectedIds => {
             const newSelectedIds = new Set(prevSelectedIds);
@@ -1203,7 +1205,7 @@ function App() {
             displayModalMessage('Caso reabierto exitosamente.');
         } catch (error) { displayModalMessage(`Error al reabrir el caso: ${error.message}`); }
     }
-    
+
     function handleDeleteCase(caseId) {
         async function onConfirm() {
             if (!db || !userId) { displayModalMessage('Error: DB no disponible.'); return; }
@@ -1284,7 +1286,7 @@ function App() {
         }
         displayConfirmModal(`¿Está absolutamente seguro de que desea eliminar TODOS los ${cases.length} casos de la base de datos? Esta acción es irreversible.`, { onConfirm, confirmText: 'Sí, Eliminar Todo', cancelText: 'No, Cancelar' });
     }
-    
+
     function handleSNAcumuladoInputChange(index, field, value) {
         const newData = [...snAcumuladosData];
         newData[index][field] = value;
@@ -1325,7 +1327,7 @@ function App() {
             setAseguramientoObs('');
         } catch (e) { displayModalMessage(`Error guardando historial: ${e.message}`); }
     }
-    
+
     function handleScanClick(caseItem) {
         setCaseToScan(caseItem);
         scanFileInputRef.current.click();
@@ -1396,7 +1398,7 @@ function App() {
         } catch (e) { displayModalMessage(`Error generando análisis de riesgo: ${e.message}`); }
         finally { setIsGeneratingRiskAnalysis(false); }
     }
-    
+
     async function generateAIComprehensiveResponseHandler() {
         if (!selectedCase) return;
         setIsGeneratingComprehensiveResponse(true);
@@ -1409,7 +1411,7 @@ function App() {
         } catch (e) { displayModalMessage(`Error AI Comprehensive Response: ${e.message}`); }
         finally { setIsGeneratingComprehensiveResponse(false); }
     }
-    
+
     async function handleDismissAlarm() {
         if (!selectedAlarmCase || !alarmObservation.trim()) { displayModalMessage('Por favor, escriba una observación para gestionar la alarma.'); return; }
         const todayISO = getColombianDateISO();
@@ -1447,77 +1449,21 @@ function App() {
     };
 
     const asignadosPorDiaData = useMemo(() => {
-        const counts = cases.reduce((acc, caseItem) => {
-            const fecha = caseItem.fecha_asignacion || 'Sin Fecha';
-            acc[fecha] = (acc[fecha] || 0) + 1;
-            return acc;
-        }, {});
+
+        /* DUPLICATE DECLARATION REMOVED for 'counts' (occurrence #2) - original lines replaced to avoid redeclaration errors. */
+
         return Object.keys(counts).map(fecha => ({ fecha, cantidad: counts[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     }, [cases]);
 
     const distribucionPorDiaData = useMemo(() => {
         const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
-        const counts = cases.filter(c => pendStates.includes(c.Estado_Gestion)).reduce((acc, caseItem) => {
-            const dia = calculateCaseAge(caseItem, nonBusinessDays);
-            if (dia !== 'N/A' && !isNaN(dia)) {
-                const key = `${String(dia).padStart(2, '0')} Días`;
-                acc[key] = (acc[key] || 0) + 1;
-            }
-            return acc;
-        }, {});
+
+        /* DUPLICATE DECLARATION REMOVED for 'counts' (occurrence #3) - original lines replaced to avoid redeclaration errors. */
+
         return Object.keys(counts).map(dia => ({ dia, cantidad: counts[dia] })).sort((a, b) => a.dia.localeCompare(b.dia));
     }, [cases]);
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
-
-    const filteredAndSearchedCases = useMemo(() => {
-        const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
-        return cases.filter(c => {
-            const searchMatch = searchTerms.length === 0 || searchTerms.some(term => ['SN', 'CUN', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Categoria del reclamo', 'Prioridad'].some(f => String(c[f] || '').toLowerCase().includes(term)));
-            const contractMatch = contractFilter === 'todos' || c.Tipo_Contrato === contractFilter;
-            const priorityMatch = priorityFilter === 'todos' || c.Prioridad === priorityFilter;
-            const statusMatch = statusFilter === 'todos' || c.Estado_Gestion === statusFilter;
-            return searchMatch && contractMatch && priorityMatch && statusMatch;
-        });
-    }, [cases, searchTerm, contractFilter, priorityFilter, statusFilter]);
-
-    const applyActiveFilter = (cs) => {
-        const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
-        switch (activeFilter) {
-            case 'all': return cs;
-            case 'resolved': return cs.filter(c => c.Estado_Gestion === 'Resuelto');
-            case 'finalizado': return cs.filter(c => c.Estado_Gestion === 'Finalizado');
-            case 'pending_escalated_initiated': return cs.filter(c => pendStates.includes(c.Estado_Gestion));
-            case 'decretado': return cs.filter(c => c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC');
-            case 'pendiente_ajustes': return cs.filter(c => c.Estado_Gestion === 'Pendiente Ajustes');
-            case 'dia14_pending': return cs.filter(c => pendStates.includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) === 14);
-            case 'dia15_pending': return cs.filter(c => pendStates.includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) === 15);
-            case 'dia_gt15_pending': return cs.filter(c => pendStates.includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) > 15);
-            case 'resolved_today': return cs.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO());
-            default: return cs;
-        }
-    };
-    const casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
-    const sortSN = (a, b) => String(a.SN || '').toLowerCase().localeCompare(String(b.SN || '').toLowerCase());
-    const sicDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN);
-    const pendAjustesDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN);
-    const pendEscDisp = casesForDisplay.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN);
-    const resDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN);
-    const finalizadosDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN);
-    const aseguramientosDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN);
-
-    const counts = {
-        total: cases.length,
-        resolved: cases.filter(c => c.Estado_Gestion === 'Resuelto').length,
-        finalizado: cases.filter(c => c.Estado_Gestion === 'Finalizado').length,
-        pending: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion)).length,
-        pendienteAjustes: cases.filter(c => c.Estado_Gestion === 'Pendiente Ajustes').length,
-        dia14: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) === 14).length,
-        dia15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) === 15).length,
-        diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && calculateCaseAge(c, nonBusinessDays) > 15).length,
-        resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === getColombianDateISO()).length,
-    };
-
     // --------------------------
     // Hooks de Efecto
     // --------------------------
@@ -1724,7 +1670,7 @@ function App() {
             <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
             <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
             <input type="file" ref={observationFileInputRef} onChange={handleObservationFileUpload} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} />
-            
+
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
                 <div className="flex justify-center gap-4 mb-6">
@@ -1805,7 +1751,7 @@ function App() {
                         {massUpdateTargetStatus === 'Resuelto' && (<p className="text-xs text-orange-600 mt-2">Advertencia: Al cambiar masivamente a "Resuelto", asegúrese de que todos los casos seleccionados tengan "Despacho Respuesta" confirmado. Otros campos como Aseguramiento, Baja, o Ajuste no se validan en esta acción masiva y deben gestionarse individualmente si es necesario antes de resolver.</p>)}
                     </div>
                 )}
-                
+
                 {activeModule === 'casos' && (
                     <>
                         <div className="my-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1881,7 +1827,7 @@ function App() {
                                 const isDate = dateFields.includes(header);
                                 const isTextArea = textAreaFields.includes(header);
                                 return (<React.Fragment key={header}><div className={`bg-gray-50 p-3 rounded-md ${isTextArea || header === 'Resumen_Hechos_IA' || header === 'Observaciones_Reclamo_Relacionado' ? 'lg:col-span-3 md:col-span-2' : ''}`}><label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>{isEditable ? (<><div className="relative">{isTextArea ? (<textarea id={`modal-${header}`} rows={3} className="block w-full rounded-md p-2 pr-10" value={selectedCase[header] || ''} onChange={e => handleModalFieldChange(header, e.target.value)} />) : (<input type={isDate ? 'date' : header === 'Dia' ? 'number' : 'text'} id={`modal-${header}`} className="block w-full rounded-md p-2 pr-10" value={header === 'Dia' ? calculateCaseAge(selectedCase, nonBusinessDays) : (selectedCase[header] || '')} onChange={e => handleModalFieldChange(header, e.target.value)} />)}
-                                {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
+                                    {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
                             })}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
