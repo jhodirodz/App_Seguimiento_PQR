@@ -11,7 +11,9 @@ import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
 
 // Importa las instancias de Firebase ya inicializadas
-import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "./firebaseConfig.js";
+// CORRECTO ✅
+import { db, auth } from "./firebaseConfig.js"; 
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 const appId = "App_Seguimiento_PQR";
 
 function App() {
