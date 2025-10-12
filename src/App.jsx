@@ -12,6 +12,7 @@ import PaginatedTable from './components/PaginatedTable';
 
 // ✅ Importa las instancias de Firebase ya inicializadas
 import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebaseConfig.js';
+const appId = "App_Seguimiento_PQR";
 
 function App() {
     // --------------------------
