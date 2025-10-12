@@ -3,8 +3,25 @@
 import { COLOMBIAN_HOLIDAYS } from './constants';
 
 /**
- * Gets the current date in 'YYYY-MM-DD' format for Colombia.
- * @returns {string} The formatted date string.
+ * Convierte un archivo a formato Base64.
+ * @param {File} file - El objeto de archivo a convertir.
+ * @returns {Promise<string>} Una promesa que se resuelve con la cadena Base64 del archivo.
+ */
+export const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
+
+/**
+ * Obtiene la fecha actual en formato 'YYYY-MM-DD' para Colombia.
+ * @returns {string} La cadena de fecha formateada.
  */
 export const getColombianDateISO = () => {
     return new Intl.DateTimeFormat('en-CA', {
@@ -278,15 +295,12 @@ export const extractAddressesFromText = (text) => {
         return { emails: [], addresses: [] };
     }
 
-    // Expresión regular para encontrar correos electrónicos.
     const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
     const emails = text.match(emailRegex) || [];
 
-    // Expresión regular para encontrar direcciones físicas colombianas (simplificada).
     const addressRegex = /(?:calle|cll|carrera|cra|k|avenida|av|transversal|trans|diagonal|diag|dg)\.?\s*[\d\sA-Za-zñÑáéíóúÁÉÍÓÚ#\-\.]+/gi;
     const addresses = text.match(addressRegex) || [];
 
-    // Devuelve los resultados únicos para evitar duplicados.
     return {
         emails: [...new Set(emails)],
         addresses: [...new Set(addresses)]
