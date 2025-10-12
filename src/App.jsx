@@ -13,8 +13,6 @@ import PaginatedTable from './components/PaginatedTable';
 // ✅ Importa las instancias de Firebase ya inicializadas
 import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebaseConfig.js';
 
-};
-
 function App() {
     // --------------------------
     // Declaraciones de estado y referencias
