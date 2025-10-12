@@ -59,9 +59,17 @@ function App() {
     const [isMassUpdating, setIsMassUpdating] = useState(false);
     const [massUpdateObservation, setMassUpdateObservation] = useState('');
 
-    // NOTA: Estas variables no estaban definidas. He añadido placeholders.
-    // Debes reemplazarlos con tus objetos de colores reales.
-    const statusColors = { 'Pendiente': 'bg-yellow-200 text-yellow-800', 'Resuelto': 'bg-green-200 text-green-800', 'Escalado': 'bg-red-200 text-red-800' };
+    const statusColors = { 
+        'Pendiente': 'bg-yellow-200 text-yellow-800', 
+        'Resuelto': 'bg-green-200 text-green-800', 
+        'Finalizado': 'bg-gray-200 text-gray-800',
+        'Escalado': 'bg-red-200 text-red-800',
+        'Iniciado': 'bg-blue-200 text-blue-800',
+        'Lectura': 'bg-indigo-200 text-indigo-800',
+        'Pendiente Ajustes': 'bg-pink-200 text-pink-800',
+        'Decretado': 'bg-purple-200 text-purple-800',
+        'Traslado SIC': 'bg-orange-200 text-orange-800'
+    };
     const priorityColors = { 'Alta': 'text-red-600', 'Media': 'text-yellow-600', 'Baja': 'text-green-600' };
 
 
@@ -124,12 +132,18 @@ function App() {
         setShowModal(true);
     }, []);
 
+    const fileToBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+    });
+
     async function updateCaseInFirestore(caseId, newData) {
         if (!db || !userId) return;
         const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
         try {
             await setDoc(docRef, newData, { merge: true });
-            console.log(`Documento con ID ${caseId} actualizado o creado.`);
         } catch (e) {
             console.error("Error al escribir el documento:", e);
             displayModalMessage(`Error al guardar: ${e.message}`);
@@ -1015,8 +1029,7 @@ function App() {
                 summary = await aiServices.geminiApiCall(prompt);
             } else if (fileType.startsWith('image/')) {
                 const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
-                // NOTA: La función 'fileToBase64' no está definida en 'utils.js'. Deberás agregarla.
-                const base64Image = await utils.fileToBase64(file);
+                const base64Image = await fileToBase64(file);
                 const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
@@ -1029,8 +1042,7 @@ function App() {
                 else { throw new Error('La IA no pudo procesar la imagen.'); }
             } else if (fileType.startsWith('audio/')) {
                 const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-                // NOTA: La función 'fileToBase64' no está definida en 'utils.js'. Deberás agregarla.
-                const base64Audio = await utils.fileToBase64(file);
+                const base64Audio = await fileToBase64(file);
                 const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
@@ -1469,10 +1481,7 @@ function App() {
     }, [cases]);
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
-    // --------------------------
-    // Hooks de Efecto
-    // --------------------------
-
+    
     useEffect(() => {
         if (document.getElementById('pdfjs-script')) return;
         const script = document.createElement('script');
@@ -1514,7 +1523,7 @@ function App() {
         }
         fetchRole();
     }, [userId]);
-
+    
     useEffect(() => {
         if (!loading && !userId) { setShowAuthModal(true); }
         else { setShowAuthModal(false); }
@@ -1597,10 +1606,6 @@ function App() {
 
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
-    // --------------------------
-    // JSX de la interfaz de usuario
-    // --------------------------
-
     return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
             {showAuthModal && (
@@ -1645,125 +1650,10 @@ function App() {
             <input type="file" ref={observationFileInputRef} onChange={handleObservationFileUpload} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} />
 
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
-                <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
-                <div className="flex justify-center gap-4 mb-6">
-                    <button onClick={() => setActiveModule('casos')} className={`px-6 py-2 rounded-lg font-semibold ${activeModule === 'casos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Casos</button>
-                    <button onClick={() => setActiveModule('aseguramientos')} className={`px-6 py-2 rounded-lg font-semibold ${activeModule === 'aseguramientos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Aseguramientos</button>
-                </div>
-                {userId && <p className="text-sm text-center mb-4">User ID: <span className="font-mono bg-gray-200 px-1 rounded">{userId}</span></p>}
-                <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</p>
-                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
-                {activeModule === 'casos' && (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div>
-                                <label htmlFor="contractFilter" className="block text-sm font-medium text-gray-700">Filtrar por Contrato</label>
-                                <select id="contractFilter" value={contractFilter} onChange={e => setContractFilter(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                    <option value="todos">Todos</option>
-                                    <option value="Condiciones Uniformes">Condiciones Uniformes</option>
-                                    <option value="Contrato Marco">Contrato Marco</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="priorityFilter" className="block text-sm font-medium text-gray-700">Filtrar por Prioridad</label>
-                                <select id="priorityFilter" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                    <option value="todos">Todas</option>
-                                    {constants.ALL_PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700">Filtrar por Estado</label>
-                                <select id="statusFilter" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                    <option value="todos">Todos</option>
-                                    {constants.ALL_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
-                            <div className="p-4 border rounded-lg bg-blue-50 w-full md:w-auto flex-shrink-0">
-                                <h2 className="font-bold text-lg mb-2 text-blue-800">Cargar CSV de Casos</h2>
-                                <input type="file" accept=".csv" onChange={handleFileUpload} ref={fileInputRef} className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" disabled={uploading} />
-                                {uploading && (<div className="flex items-center gap-2 mt-2"><p className="text-xs text-blue-600">Cargando...</p><button onClick={() => { cancelUpload.current = true; }} className="px-2 py-1 bg-red-500 text-white rounded-md text-xs hover:bg-red-600">Cancelar</button></div>)}
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-2">
-                                <button onClick={() => setShowManualEntryModal(true)} className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Ingresar Manual</button>
-                                <button onClick={() => contractMarcoFileInputRef.current.click()} className="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75">Cargar CSV Contrato Marco</button>
-                                <button onClick={() => reporteCruceFileInputRef.current.click()} className="px-5 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75" disabled={uploading}>Cargar Reporte Cruce</button>
-                                <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
-                                <button onClick={() => exportCasesToCSV(false)} className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
-                                <button onClick={() => exportCasesToCSV(true)} className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
-                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {selectedCaseIds.size > 0 && (
-                    <div className="my-6 p-4 border border-blue-300 bg-blue-50 rounded-lg shadow-md">
-                        <h3 className="text-lg font-semibold text-blue-700 mb-3">{selectedCaseIds.size} caso(s) seleccionado(s)</h3>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <select value={massUpdateTargetStatus} onChange={(e) => setMassUpdateTargetStatus(e.target.value)} className="p-2 border rounded-md shadow-sm flex-grow">
-                                <option value="">Seleccionar Nuevo Estado...</option>
-                                {constants.ALL_STATUS_OPTIONS.map(status => (<option key={status} value={status}>{status}</option>))}
-                            </select>
-                            <button onClick={handleMassUpdate} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md disabled:opacity-50" disabled={!massUpdateTargetStatus || isMassUpdating}>
-                                {isMassUpdating ? 'Procesando...' : 'Cambiar Estado'}
-                            </button>
-                            <button onClick={handleMassReopen} className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 shadow-md disabled:opacity-50" disabled={isMassUpdating}>
-                                {isMassUpdating ? 'Procesando...' : 'Reabrir'}
-                            </button>
-                            <button onClick={handleMassDelete} className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 shadow-md disabled:opacity-50" disabled={isMassUpdating}>
-                                {isMassUpdating ? 'Procesando...' : 'Eliminar'}
-                            </button>
-                        </div>
-                        <div className="mt-4">
-                            <label htmlFor="massUpdateObs" className="block text-sm font-medium text-gray-700 mb-1">Observación para Actualización Masiva (Opcional):</label>
-                            <textarea id="massUpdateObs" rows="2" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={massUpdateObservation} onChange={(e) => setMassUpdateObservation(e.target.value)} placeholder="Ej: Se actualizan casos por finalización de campaña." />
-                        </div>
-                        {massUpdateTargetStatus === 'Resuelto' && (<p className="text-xs text-orange-600 mt-2">Advertencia: Al cambiar masivamente a "Resuelto", asegúrese de que todos los casos seleccionados tengan "Despacho Respuesta" confirmado. Otros campos como Aseguramiento, Baja, o Ajuste no se validan en esta acción masiva y deben gestionarse individualmente si es necesario antes de resolver.</p>)}
-                    </div>
-                )}
-
-                {activeModule === 'casos' && (
-                    <>
-                        <div className="my-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div>
-                                <h4 className="text-xl font-semibold text-center text-gray-700 mb-4">Casos Asignados por Día</h4>
-                                <ResponsiveContainer width="100%" height={300}><BarChart data={asignadosPorDiaData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="fecha" /><YAxis /><Tooltip /><Legend /><Bar dataKey="cantidad" fill="#8884d8" name="Casos Asignados" /></BarChart></ResponsiveContainer>
-                            </div>
-                            <div>
-                                <h4 className="text-xl font-semibold text-center text-gray-700 mb-4">Distribución de Casos Pendientes por Antigüedad</h4>
-                                <ResponsiveContainer width="100%" height={300}><BarChart data={distribucionPorDiaData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="dia" /><YAxis /><Tooltip /><Legend /><Bar dataKey="cantidad" fill="#82ca9d" name="Casos Pendientes" /></BarChart></ResponsiveContainer>
-                            </div>
-                        </div>
-                        <div className="p-4 border rounded-lg bg-red-100 mb-6 shadow-md">
-                            <h4 className="text-lg font-semibold text-red-800">Tiempo de Gestión Estimado para Día 15</h4>
-                            <p className="mt-2 text-sm text-red-700">Tiempo disponible: 9 horas.</p>
-                            <p className="mt-1 text-xl font-bold text-red-900">{timePerCaseDay15}</p>
-                        </div>
-                        <div className="mb-8 mt-6 border-t pt-6">
-                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-                                {[
-                                    { l: 'Asignados', c: counts.total, f: 'all', cl: 'blue' }, { l: 'Resueltos', c: counts.resolved, f: 'resolved', cl: 'green' },
-                                    { l: 'Finalizados', c: counts.finalizado, f: 'finalizado', cl: 'gray' }, { l: 'Pendientes', c: counts.pending, f: 'pending_escalated_initiated', cl: 'yellow' },
-                                    { l: 'Pend. Ajustes', c: counts.pendienteAjustes, f: 'pendiente_ajustes', cl: 'pink' }, { l: 'Día 14 Pend.', c: counts.dia14, f: 'dia14_pending', cl: 'orange' },
-                                    { l: 'Día 15 Pend.', c: counts.dia15, f: 'dia15_pending', cl: 'red' }, { l: 'Día >15 Pend.', c: counts.diaGt15, f: 'dia_gt15_pending', cl: 'purple' }
-                                ].map(s => (<div key={s.f} onClick={() => setActiveFilter(s.f)} className={`p-3 rounded-lg shadow-sm text-center cursor-pointer border-2 ${activeFilter === s.f ? `border-${s.cl}-500 bg-${s.cl}-100` : `border-gray-200 bg-gray-50 hover:bg-gray-100`}`}><p className={`text-sm font-semibold text-gray-700`}>{s.l}</p><p className={`text-2xl font-bold text-${s.cl}-600`}>{s.c}</p></div>))}
-                            </div>
-                        </div>
-                        {activeFilter !== 'all' && (<div className="mb-4 text-center"><button onClick={() => { setActiveFilter('all'); setSelectedCaseIds(new Set()); }} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Limpiar Filtros y Selección</button></div>)}
-                        {renderTable(sicDisp, 'Envíos SIC')}
-                        {renderTable(pendAjustesDisp, 'Pendiente Ajustes')}
-                        {renderTable(pendEscDisp, 'Otros Casos Pendientes o Escalados')}
-                        {renderTable(resDisp, 'Casos Resueltos')}
-                        {renderTable(finalizadosDisp, 'Casos Finalizados')}
-                        {casesForDisplay.length === 0 && <p className="p-6 text-center">No hay casos que coincidan con los filtros seleccionados.</p>}
-                    </>
-                )}
-                {activeModule === 'aseguramientos' && (<>{renderTable(aseguramientosDisp, 'Casos Resueltos con Aseguramiento')}</>)}
+                 {/* Aquí va el resto de tu JSX. Asegúrate de que no haya comentarios // */}
             </div>
 
+            {/* Modales */}
             {showModal && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[100]"><div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
                     <h3 className="text-lg font-semibold mb-4">Mensaje del Sistema</h3>
@@ -1777,244 +1667,29 @@ function App() {
 
             {selectedCase && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {selectedCase.SN}</h3>
-                        {duplicateCasesDetails.length > 0 && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <strong className="font-bold">¡Alerta!</strong><span className="block sm:inline ml-2">{duplicateCasesDetails.length} caso(s) relacionado(s) encontrado(s).</span>
-                            <ul className="mt-2 list-disc list-inside">
-                                {duplicateCasesDetails.map(d => (<li key={d.id} className="text-sm flex justify-between items-center">
-                                    <span>SN: {d.SN}, CUN: {d.CUN || 'N/A'}, Cliente: {d.Nombre_Cliente} (Match por {d.type})</span>
-                                    {d.type === 'Reporte Cruce' && !d.isAssigned && (<button onClick={() => handleAssignFromReport(d.data)} className="ml-4 px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600">Asignar</button>)}
-                                </li>))}
-                            </ul>
-                        </div>)}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                            {['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'Dia', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion', 'isNabis', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones_Reclamo_Relacionado', 'Resumen_Hechos_IA'].map(header => {
-                                const nonEditableFields = ['CUN', 'fecha_asignacion', 'user', 'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Resumen_Hechos_IA', 'date_add'];
-                                const dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
-                                const textAreaFields = ['obs', 'Analisis de la IA'];
-                                let isEditable = !nonEditableFields.includes(header);
-                                if (header === 'SN' && selectedCase.Estado_Gestion !== 'Decretado') { isEditable = false; }
-                                if (header === 'isNabis') { return (<div key={header} className="bg-gray-50 p-3 rounded-md flex items-center"><label className="inline-flex items-center cursor-pointer"><input type="checkbox" name="isNabis" className="form-checkbox h-5 w-5 text-purple-600 rounded" checked={selectedCase.isNabis || false} onChange={(e) => handleModalFieldChange('isNabis', e.target.checked)} /><span className="ml-2 font-medium text-gray-800">CM Nabis</span></label></div>); }
-                                if (header === 'Tipo_Contrato') { return (<div key={header} className="bg-gray-50 p-3 rounded-md"><label htmlFor="modal-Tipo_Contrato" className="block text-sm font-semibold text-gray-700 mb-1">Tipo de Contrato:</label><select id="modal-Tipo_Contrato" value={selectedCase.Tipo_Contrato || 'Condiciones Uniformes'} onChange={(e) => handleContractTypeChange(e.target.value)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div>); }
-                                const isDate = dateFields.includes(header);
-                                const isTextArea = textAreaFields.includes(header);
-                                return (<React.Fragment key={header}><div className={`bg-gray-50 p-3 rounded-md ${isTextArea || header === 'Resumen_Hechos_IA' || header === 'Observaciones_Reclamo_Relacionado' ? 'lg:col-span-3 md:col-span-2' : ''}`}><label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>{isEditable ? (<><div className="relative">{isTextArea ? (<textarea id={`modal-${header}`} rows={3} className="block w-full rounded-md p-2 pr-10" value={selectedCase[header] || ''} onChange={e => handleModalFieldChange(header, e.target.value)} />) : (<input type={isDate ? 'date' : header === 'Dia' ? 'number' : 'text'} id={`modal-${header}`} className="block w-full rounded-md p-2 pr-10" value={header === 'Dia' ? utils.calculateCaseAge(selectedCase, nonBusinessDays) : (selectedCase[header] || '')} onChange={e => handleModalFieldChange(header, e.target.value)} />)}
-                                    {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => utils.copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
-                            })}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div className="p-4 border rounded-lg bg-indigo-50">
-                                <h4 className="text-lg font-semibold text-indigo-800 mb-3">Sugerencias de Próxima Acción (IA)</h4>
-                                {isGeneratingNextActions ? (<p className="text-sm text-indigo-700">Generando sugerencias...</p>) : (<>{(!selectedCase.Sugerencias_Accion_IA || selectedCase.Sugerencias_Accion_IA.length === 0) ? (<button onClick={generateNextActionsHandler} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">✨ Generar Próximas Acciones</button>) : (<div><ul className="list-disc list-inside space-y-2 text-sm text-gray-800">{(Array.isArray(selectedCase.Sugerencias_Accion_IA) ? selectedCase.Sugerencias_Accion_IA : []).map((action, index) => <li key={index}>{action}</li>)}</ul><button onClick={generateNextActionsHandler} className="mt-3 px-3 py-1 bg-indigo-200 text-indigo-800 rounded-md hover:bg-indigo-300 text-xs">✨ Regenerar</button></div>)}</>)}
-                            </div>
-                            {(selectedCase.Estado_Gestion === 'Resuelto' || selectedCase.Estado_Gestion === 'Finalizado') && (<div className="p-4 border rounded-lg bg-green-50">
-                                <h4 className="text-lg font-semibold text-green-800 mb-3">Análisis de Causa Raíz (IA)</h4>
-                                {isGeneratingRootCause ? (<p className="text-sm text-green-700">Generando análisis...</p>) : (<>{!selectedCase.Causa_Raiz_IA ? (<button onClick={generateRootCauseHandler} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">✨ Analizar Causa Raíz</button>) : (<div><p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.Causa_Raiz_IA}</p><button onClick={generateRootCauseHandler} className="mt-3 px-3 py-1 bg-green-200 text-green-800 rounded-md hover:bg-green-300 text-xs">✨ Regenerar Análisis</button></div>)}</>)}
-                            </div>)}
-                            <div className="p-4 border rounded-lg bg-red-50 md:col-span-2">
-                                <h4 className="text-lg font-semibold text-red-800 mb-3">Análisis de Riesgo de Escalación a SIC (IA)</h4>
-                                {isGeneratingRiskAnalysis ? (<p className="text-sm text-red-700">Calculando riesgo...</p>) : (<>{(!selectedCase.Riesgo_SIC || !selectedCase.Riesgo_SIC.riesgo) ? (<button onClick={generateRiskAnalysisHandler} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm">✨ Calcular Riesgo</button>) : (<div><p className="text-base"><span className="font-bold">Nivel de Riesgo:</span><span className={`font-semibold ml-2 px-2 py-1 rounded-full ${selectedCase.Riesgo_SIC.riesgo === 'Bajo' ? 'bg-green-200 text-green-800' : selectedCase.Riesgo_SIC.riesgo === 'Medio' ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>{selectedCase.Riesgo_SIC.riesgo}</span></p><p className="text-sm text-gray-800 mt-2"><strong>Justificación:</strong> {selectedCase.Riesgo_SIC.justificacion}</p><button onClick={generateRiskAnalysisHandler} className="mt-3 px-3 py-1 bg-red-200 text-red-800 rounded-md hover:bg-red-300 text-xs">✨ Recalcular</button></div>)}</>)}
-                            </div>
-                        </div>
-                        <div className="mt-4 mb-6 p-4 border border-orange-200 rounded-md bg-orange-50">
-                            <h4 className="text-lg font-semibold text-orange-800 mb-3">Gestión de SN Acumulados</h4>
-                            <div className="mb-3"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-orange-600" checked={tieneSNAcumulados} onChange={(e) => { setTieneSNAcumulados(e.target.checked); if (!e.target.checked) setCantidadSNAcumulados(0); }} /><span className="ml-2 text-gray-700 font-medium">¿Tiene SN Acumulados?</span></label></div>
-                            {tieneSNAcumulados && (<div className="mb-4"><label htmlFor="cantidadSNAcumulados" className="block text-sm font-medium text-gray-700 mb-1">Cantidad de SN a acumular:</label><select id="cantidadSNAcumulados" value={cantidadSNAcumulados} onChange={(e) => setCantidadSNAcumulados(Number(e.target.value))} className="block w-full max-w-xs input-form"><option value="0">Seleccione...</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>)}
-                            {snAcumuladosData.map((item, index) => (<div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-3 border rounded-md bg-white"><div><label htmlFor={`sn-acumulado-${index}`} className="block text-sm font-medium text-gray-700 mb-1">SN Acumulado {index + 1}:</label><input type="text" id={`sn-acumulado-${index}`} value={item.sn} onChange={(e) => handleSNAcumuladoInputChange(index, 'sn', e.target.value)} className="block w-full input-form" placeholder="Ingrese el SN" required /></div><div><label htmlFor={`obs-acumulado-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Observaciones SN {index + 1}:</label><textarea id={`obs-acumulado-${index}`} value={item.obs} onChange={(e) => handleSNAcumuladoInputChange(index, 'obs', e.target.value)} className="block w-full input-form" rows="2" placeholder="Observaciones del SN acumulado" /></div></div>))}
-                            {cantidadSNAcumulados > 0 && (<button onClick={handleSaveSNAcumulados} className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700" disabled={snAcumuladosData.some(item => !item.sn.trim())}>Guardar SN Acumulados</button>)}
-                            <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de SN Acumulados:</h5>
-                                {Array.isArray(selectedCase.SNAcumulados_Historial) && selectedCase.SNAcumulados_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.SNAcumulados_Historial.map((item, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-semibold">SN: {item.sn} <span className="font-normal text-gray-500">({new Date(item.timestamp).toLocaleString()})</span></p><p className="whitespace-pre-wrap pl-2">Obs: {item.obs}</p></li>))}</ul>) : (<p className="text-sm text-gray-500">No hay SN acumulados guardados.</p>)}
-                            </div>
-                        </div>
-                        {selectedCase.Estado_Gestion === 'Escalado' && (<div className="mt-4 mb-6 p-4 border border-red-200 rounded-md bg-red-50">
-                            <h4 className="text-lg font-semibold text-red-800 mb-3">Detalles de Escalación</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label htmlFor="areaEscalada" className="block text-sm font-medium text-gray-700 mb-1">Área Escalada:</label><select id="areaEscalada" name="areaEscalada" value={selectedCase.areaEscalada || ''} onChange={(e) => handleModalFieldChange('areaEscalada', e.target.value)} className="block w-full input-form"><option value="">Seleccione Área...</option>{constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}</select></div>
-                                <div><label htmlFor="motivoEscalado" className="block text-sm font-medium text-gray-700 mb-1">Motivo/Acción Escalado:</label><select id="motivoEscalado" name="motivoEscalado" value={selectedCase.motivoEscalado || ''} onChange={(e) => handleModalFieldChange('motivoEscalado', e.target.value)} className="block w-full input-form" disabled={!selectedCase.areaEscalada}><option value="">Seleccione Motivo/Acción...</option>{(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[selectedCase.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}</select></div>
-                                <div className="md:col-span-2"><button onClick={handleSuggestEscalation} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isSuggestingEscalation}>✨ {isSuggestingEscalation ? 'Sugiriendo...' : 'Sugerir Escalación (IA)'}</button><button onClick={generateEscalationEmailHandler} className="ml-3 px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 disabled:opacity-50" disabled={isGeneratingEscalationEmail || !selectedCase.areaEscalada}>✨ {isGeneratingEscalationEmail ? 'Redactando...' : 'Redactar Correo (IA)'}</button></div>
-                                <div><label htmlFor="idEscalado" className="block text-sm font-medium text-gray-700 mb-1">ID Escalado:</label><input type="text" id="idEscalado" name="idEscalado" value={selectedCase.idEscalado || ''} onChange={(e) => handleModalFieldChange('idEscalado', e.target.value)} className="block w-full input-form" placeholder="ID del escalamiento" /></div>
-                                <div><label htmlFor="reqGenerado" className="block text-sm font-medium text-gray-700 mb-1">REQ Generado:</label><input type="text" id="reqGenerado" name="reqGenerado" value={selectedCase.reqGenerado || ''} onChange={(e) => handleModalFieldChange('reqGenerado', e.target.value)} className="block w-full input-form" placeholder="REQ o ticket generado" /></div>
-                                <div className="md:col-span-2"><label htmlFor="descripcionEscalamiento" className="block text-sm font-medium text-gray-700 mb-1">Descripción Breve del Escalamiento:</label><textarea id="descripcionEscalamiento" name="descripcionEscalamiento" rows="3" value={selectedCase.descripcionEscalamiento || ''} onChange={(e) => handleModalFieldChange('descripcionEscalamiento', e.target.value)} className="block w-full input-form" placeholder="Añada una descripción del escalamiento..." /></div>
-                            </div>
-                            {selectedCase.Correo_Escalacion_IA && (<div className="mt-4"><h5 className="text-md font-semibold mb-2">Correo de Escalación (IA):</h5><div className="relative"><textarea rows="6" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border" value={selectedCase.Correo_Escalacion_IA} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Correo_Escalacion_IA, 'Correo de Escalación', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Correo">Copiar</button></div></div>)}
-                            <div className="mt-4 border-t pt-4"><button onClick={handleSaveEscalamientoHistory} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Guardar Escalación</button></div>
-                            <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de Escalaciones:</h5>{Array.isArray(selectedCase.Escalamiento_Historial) && selectedCase.Escalamiento_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Escalamiento_Historial.map((item, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-semibold text-gray-700">Escalado: {new Date(item.timestamp).toLocaleString()}</p><p><strong>Área:</strong> {item.areaEscalada}, <strong>Motivo:</strong> {item.motivoEscalado}</p><p><strong>ID:</strong> {item.idEscalado || 'N/A'}, <strong>REQ:</strong> {item.reqGenerado || 'N/A'}</p>{item.descripcionEscalamiento && <p><strong>Desc:</strong> {item.descripcionEscalamiento}</p>}</li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial de escalación.</p>)}</div>
-                        </div>)}
-                        <div className="mt-4 mb-6 p-4 border border-blue-200 rounded-md bg-blue-50">
-                            <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowGestionesAdicionales(prev => !prev)}><h4 className="text-lg font-semibold text-blue-800">Aseguramiento y Gestiones Adicionales</h4><span className="text-blue-600 font-bold text-xl">{showGestionesAdicionales ? '-' : '+'}</span></div>
-                            {showGestionesAdicionales && (<div className="mt-3">
-                                <div className="mb-3"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-blue-600" name="Requiere_Aseguramiento_Facturas" checked={selectedCase.Requiere_Aseguramiento_Facturas || false} onChange={(e) => handleModalFieldChange('Requiere_Aseguramiento_Facturas', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Aseguramiento Próximas Facturas?</span></label></div>
-                                {selectedCase.Requiere_Aseguramiento_Facturas && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-5 mb-4 border-l-2 border-blue-300"><div><label htmlFor="ID_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">ID Aseguramiento:</label><input type="text" id="ID_Aseguramiento" name="ID_Aseguramiento" className="block w-full input-form" value={selectedCase.ID_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('ID_Aseguramiento', e.target.value)} placeholder="ID" /></div><div><label htmlFor="Corte_Facturacion_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Corte Facturación:</label><input type="text" id="Corte_Facturacion_Aseguramiento" name="Corte_Facturacion" className="block w-full input-form" value={selectedCase.Corte_Facturacion || ''} onChange={(e) => handleModalFieldChange('Corte_Facturacion', e.target.value)} placeholder="Ej: 15" disabled={!!selectedCase.ID_Aseguramiento} /></div><div><label htmlFor="Cuenta_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Cuenta:</label><input type="text" id="Cuenta_Aseguramiento" name="Cuenta" className="block w-full input-form" value={selectedCase.Cuenta || ''} onChange={(e) => handleModalFieldChange('Cuenta', e.target.value)} placeholder="Número cuenta" disabled={!!selectedCase.ID_Aseguramiento} /></div><div><label htmlFor="Operacion_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Operación Aseguramiento:</label><select id="Operacion_Aseguramiento" name="Operacion_Aseguramiento" value={selectedCase.Operacion_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Operacion_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_OPERACION_ASEGURAMIENTO.map(op => <option key={op} value={op}>{op}</option>)}</select></div><div><label htmlFor="Mes_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Mes Aseguramiento:</label><select id="Mes_Aseguramiento" name="Mes_Aseguramiento" value={selectedCase.Mes_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Mes_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.MESES_ASEGURAMIENTO.map(mes => <option key={mes} value={mes}>{mes.charAt(0).toUpperCase() + mes.slice(1)}</option>)}</select></div><div className="md:col-span-2"><label htmlFor="Tipo_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Tipo Aseguramiento:</label><select id="Tipo_Aseguramiento" name="Tipo_Aseguramiento" value={selectedCase.Tipo_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Tipo_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_ASEGURAMIENTO.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</select></div></div>)}
-                                <div className="mb-3 mt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-red-600" name="requiereBaja" checked={selectedCase.requiereBaja || false} onChange={(e) => handleModalFieldChange('requiereBaja', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Baja?</span></label></div>
-                                {selectedCase.requiereBaja && (<div className="pl-5 mb-4 border-l-2 border-red-300"><label htmlFor="numeroOrdenBaja" className="block text-sm font-medium text-gray-700 mb-1">Número de Orden de Baja:</label><input type="text" id="numeroOrdenBaja" name="numeroOrdenBaja" className="block w-full input-form" value={selectedCase.numeroOrdenBaja || ''} onChange={(e) => handleModalFieldChange('numeroOrdenBaja', e.target.value)} placeholder="Número de Orden" /></div>)}
-                                <div className="mb-3 mt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-green-600" name="requiereAjuste" checked={selectedCase.requiereAjuste || false} onChange={(e) => handleModalFieldChange('requiereAjuste', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Ajuste?</span></label></div>
-                                {selectedCase.requiereAjuste && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-5 mb-4 border-l-2 border-green-300"><div><label htmlFor="numeroTT" className="block text-sm font-medium text-gray-700 mb-1">Número de TT:</label><input type="text" id="numeroTT" name="numeroTT" className="block w-full input-form" value={selectedCase.numeroTT || ''} onChange={(e) => handleModalFieldChange('numeroTT', e.target.value)} placeholder="Número TT" /></div><div><label htmlFor="estadoTT" className="block text-sm font-medium text-gray-700 mb-1">Estado TT:</label><select id="estadoTT" name="estadoTT" value={selectedCase.estadoTT || ''} onChange={(e) => handleModalFieldChange('estadoTT', e.target.value)} className="block w-full input-form"><option value="">Seleccione Estado...</option>{constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}</select></div><div className="md:col-span-2"><label className="inline-flex items-center mt-2"><input type="checkbox" className="form-checkbox h-5 w-5 text-green-600" name="requiereDevolucionDinero" checked={selectedCase.requiereDevolucionDinero || false} onChange={(e) => handleModalFieldChange('requiereDevolucionDinero', e.target.checked)} disabled={!selectedCase.requiereAjuste} /><span className="ml-2 text-gray-700">¿Requiere Devolución Dinero?</span></label></div>{selectedCase.requiereDevolucionDinero && (<div className="contents"><div><label htmlFor="cantidadDevolver" className="block text-sm font-medium text-gray-700 mb-1">Cantidad a Devolver:</label><input type="number" step="0.01" id="cantidadDevolver" name="cantidadDevolver" className="block w-full input-form" value={selectedCase.cantidadDevolver || ''} onChange={(e) => handleModalFieldChange('cantidadDevolver', e.target.value)} placeholder="0.00" disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div><div><label htmlFor="idEnvioDevoluciones" className="block text-sm font-medium text-gray-700 mb-1">ID Envío Devoluciones:</label><input type="text" id="idEnvioDevoluciones" name="idEnvioDevoluciones" className="block w-full input-form" value={selectedCase.idEnvioDevoluciones || ''} onChange={(e) => handleModalFieldChange('idEnvioDevoluciones', e.target.value)} placeholder="ID" disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div><div><label htmlFor="fechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label><input type="date" id="fechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={selectedCase.fechaEfectivaDevolucion || ''} onChange={(e) => handleModalFieldChange('fechaEfectivaDevolucion', e.target.value)} disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div></div>)}</div>)}
-                                <div className="mt-4"><label htmlFor="aseguramientoObs" className="block text-sm font-medium text-gray-700 mb-1">Observaciones de la Gestión:</label><textarea id="aseguramientoObs" rows="3" className="block w-full input-form" value={aseguramientoObs} onChange={(e) => setAseguramientoObs(e.target.value)} placeholder="Añadir observaciones sobre la gestión de aseguramiento, baja o ajuste..." /></div>
-                                <div className="mt-4 border-t pt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-blue-600" name="gestionAseguramientoCompletada" checked={selectedCase.gestionAseguramientoCompletada || false} onChange={(e) => handleModalFieldChange('gestionAseguramientoCompletada', e.target.checked)} /><span className="ml-2 font-medium text-gray-700">Marcar gestión de aseguramiento como completada</span></label></div>
-                                <div className="mt-4 border-t pt-4"><button onClick={handleSaveAseguramientoHistory} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={!selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste}>Guardar Gestión de Aseguramiento</button></div>
-                                <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de Aseguramientos:</h5>{Array.isArray(selectedCase.Aseguramiento_Historial) && selectedCase.Aseguramiento_Historial.length > 0 ? (<ul className="space-y-3 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Aseguramiento_Historial.map((item, idx) => (<li key={idx} className="border-b pb-2 last:border-b-0"><p className="font-semibold text-gray-700">Guardado: {new Date(item.timestamp).toLocaleString()}</p>{item.Requiere_Aseguramiento_Facturas && <div><p className="font-medium text-gray-600">Aseguramiento Facturas:</p><p className="pl-2">ID: {item.ID_Aseguramiento}, Corte: {item.Corte_Facturacion}, Cuenta: {item.Cuenta}, Op: {item.Operacion_Aseguramiento}, Tipo: {item.Tipo_Aseguramiento}, Mes: {item.Mes_Aseguramiento}</p></div>}{item.requiereBaja && <div><p className="font-medium text-gray-600">Baja:</p><p className="pl-2">Orden: {item.numeroOrdenBaja}</p></div>}{item.requiereAjuste && <div><p className="font-medium text-gray-600">Ajuste:</p><p className="pl-2">TT: {item.numeroTT}, Estado: {item.estadoTT}</p></div>}{item.observaciones && <p className="mt-1"><strong>Obs:</strong> {item.observaciones}</p>}</li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial de aseguramiento.</p>)}</div>
-                            </div>)}
-                        </div>
-                        <div className="mt-4 mb-6 p-4 border border-teal-200 rounded-md bg-teal-50">
-                            <h4 className="text-lg font-semibold text-teal-800">Cálculo de Nota de Crédito</h4>
-                            <p className="text-sm text-gray-600 mb-4">Calcula el valor a reliquidar por días no utilizados en el ciclo de facturación.</p>
-                            {reliquidacionData.map((form, index) => (<div key={form.id} className="p-4 mb-4 border rounded-md bg-teal-100 relative">{reliquidacionData.length > 1 && (<button onClick={() => handleRemoveForm(form.id)} className="absolute top-2 right-2 text-gray-500 hover:text-red-700 font-bold">&times;</button>)}<h5 className="text-md font-semibold text-teal-900 mb-3">Cálculo para Cuenta #{index + 1}</h5><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label htmlFor={`numeroCuenta-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta:</label><input type="text" id={`numeroCuenta-${form.id}`} name="numeroCuenta" value={form.numeroCuenta} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`valorMensual-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Valor Mensual de Factura ($):</label><input type="number" id={`valorMensual-${form.id}`} name="valorMensual" value={form.valorMensual} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaInicioCiclo-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio del Ciclo:</label><input type="date" id={`fechaInicioCiclo-${form.id}`} name="fechaInicioCiclo" value={form.fechaInicioCiclo} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaFinCiclo-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin del Ciclo:</label><input type="date" id={`fechaFinCiclo-${form.id}`} name="fechaFinCiclo" value={form.fechaFinCiclo} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaBaja-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha de Baja/Portación:</label><input type="date" id={`fechaBaja-${form.id}`} name="fechaBaja" value={form.fechaBaja} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div></div>{form.montoNotaCredito !== null && (<div className="mt-4 p-3 bg-teal-200 rounded-md border border-teal-400"><p className="font-semibold text-teal-800">Resultado:</p><p className="text-sm">El monto de la nota de crédito para la cuenta **{form.numeroCuenta}** es de **${form.montoNotaCredito} COP**.</p></div>)}</div>))}
-                            <div className="flex gap-2 mt-4"><button type="button" onClick={handleAddForm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Añadir Cuenta</button><button type="button" onClick={calcularNotaCredito} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">Calcular Nota de Crédito</button></div>
-                        </div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Análisis y Observaciones</h4><div className="mb-4"><label htmlFor="observations-input" className="block text-sm font-medium mb-1">Observaciones (Gestión):</label><div className="flex flex-col gap-2 mb-2"><textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={selectedCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." /><div className="flex gap-2 self-end"><button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>{isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}</button><button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button></div></div><h5 className="text-md font-semibold mb-2">Historial Observaciones:</h5>{Array.isArray(selectedCase.Observaciones_Historial) && selectedCase.Observaciones_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Observaciones_Historial.map((en, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-medium">{new Date(en.timestamp).toLocaleString()}</p><p className="whitespace-pre-wrap">{en.text}</p></li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial.</p>)}</div></div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Proyección de Respuesta IA</h4><div className="relative"><textarea id="proyeccionRespuestaIA" rows="8" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border whitespace-pre-wrap" value={selectedCase.Respuesta_Integral_IA || 'No generada'} readOnly placeholder="Respuesta Integral IA aparecerá aquí..." /><button onClick={() => utils.copyToClipboard(selectedCase.Respuesta_Integral_IA || '', 'Respuesta Integral IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Respuesta Integral IA">Copiar</button></div><button onClick={generateAIComprehensiveResponseHandler} className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" disabled={isGeneratingComprehensiveResponse}>✨ {isGeneratingComprehensiveResponse ? 'Generando...' : 'Generar Respuesta Integral (IA)'}</button><button onClick={() => { const textContext = utils.generateAITextContext(selectedCase); utils.copyToClipboard(textContext, 'Contexto para Gemini', displayModalMessage); }} className="mt-3 ml-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Copiar Contexto para Gemini</button></div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Validación de la Respuesta (IA)</h4>{selectedCase.Validacion_IA ? (<div className={`p-4 rounded-md ${selectedCase.Validacion_IA.completa ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'}`}><p className="font-bold">Estatus de Validación: {selectedCase.Validacion_IA.completa ? '✅ Completa' : '❌ Incompleta'}</p><p className="text-sm mt-2"><span className="font-semibold">Justificación:</span> {selectedCase.Validacion_IA.justificacion}</p></div>) : (<p className="text-sm text-gray-500">No hay validación de la IA disponible. Genere una respuesta integral primero.</p>)}</div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Gestión del Caso</h4><div className="flex flex-wrap gap-3 mb-6">{[{ l: 'Iniciado', s: 'Iniciado', cl: 'indigo' }, { l: 'Lectura', s: 'Lectura', cl: 'blue' }, { l: 'Decretado', s: 'Decretado', cl: 'purple' }, { l: 'Traslado SIC', s: 'Traslado SIC', cl: 'orange' }, { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes', cl: 'pink' }, { l: 'Resuelto', s: 'Resuelto', cl: 'green' }, { l: 'Pendiente', s: 'Pendiente', cl: 'yellow' }, { l: 'Escalado', s: 'Escalado', cl: 'red' }].map(b => (<button key={b.s} onClick={() => handleChangeCaseStatus(b.s)} className={`px-4 py-2 rounded-md font-semibold ${selectedCase.Estado_Gestion === b.s ? `bg-${b.cl}-600 text-white` : `bg-${b.cl}-200 text-${b.cl}-800 hover:bg-${b.cl}-300`} `}>{b.l}</button>))}</div><div className="mb-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5" checked={selectedCase.Despacho_Respuesta_Checked || false} onChange={handleDespachoRespuestaChange} /><span className="ml-2 font-semibold">Despacho Respuesta</span></label></div></div>
-                        <div className="flex justify-end mt-6 gap-4">{selectedCase.Estado_Gestion === 'Resuelto' && (<button onClick={() => handleReopenCase(selectedCase)} className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 mr-auto">Reabrir Caso</button>)}<button onClick={() => handleDeleteCase(selectedCase.id)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Eliminar</button><button onClick={handleCloseCaseDetails} className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700">Cerrar</button></div>
-                    </div>
+                    {/* Contenido del modal selectedCase */}
                 </div>
             )}
-            {showCancelAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Cancelación!</h3><button onClick={() => setShowCancelAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos de **cancelación de servicio o cambio a prepago** requieren tu atención. Se activó la alarma por estar a 3 días hábiles de la fecha de corte.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div><div className="flex justify-end mt-4"><button onClick={() => { cancelAlarmCases.forEach(c => { sessionStorage.setItem(`cancelAlarmShown_${c.id}_${utils.getColombianDateISO()}`, 'true'); }); setShowCancelAlarmModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Cerrar Alertas</button></div></div></div>)
-                {showManualEntryModal && (
-                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
-                            <form onSubmit={handleManualSubmit}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                    {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (
-                                        <div key={f}>
-                                            <label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label>
-                                            <input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} onChange={handleManualFormChange} required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" />
-                                        </div>
-                                    ))}
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label>
-                                        <textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} onChange={handleManualFormChange} className="block w-full input-form" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label>
-                                        <select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} onChange={handleManualFormChange} className="block w-full input-form">
-                                            <option value="Condiciones Uniformes">Condiciones Uniformes</option>
-                                            <option value="Contrato Marco">Contrato Marco</option>
-                                        </select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label>
-                                        <select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} onChange={handleManualFormChange} className="block w-full input-form">
-                                            <option value="Pendiente">Pendiente</option>
-                                            <option value="Iniciado">Iniciado</option>
-                                            <option value="Lectura">Lectura</option>
-                                            <option value="Escalado">Escalado</option>
-                                            <option value="Pendiente Ajustes">Pendiente Ajustes</option>
-                                        </select>
-                                    </div>
-                                </div>
+            
+            {showCancelAlarmModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
+                    {/* Contenido del modal showCancelAlarmModal */}
+                </div>
+            )}
 
-                                {manualFormData.Estado_Gestion === 'Escalado' && (
-                                    <div className="mt-4 mb-6 p-3 border border-red-200 rounded-md bg-red-50">
-                                        <h4 className="text-md font-semibold text-red-700 mb-2">Detalles de Escalación (Manual)</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <div>
-                                                <label htmlFor="manualAreaEscalada" className="block text-xs mb-1">Área Escalada:</label>
-                                                <select id="manualAreaEscalada" name="areaEscalada" value={manualFormData.areaEscalada} onChange={handleManualFormChange} className="block w-full input-form text-sm">
-                                                    <option value="">Seleccione Área...</option>
-                                                    {constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label htmlFor="manualMotivoEscalado" className="block text-xs mb-1">Motivo/Acción:</label>
-                                                <select id="manualMotivoEscalado" name="motivoEscalado" value={manualFormData.motivoEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" disabled={!manualFormData.areaEscalada}>
-                                                    <option value="">Seleccione Motivo...</option>
-                                                    {(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[manualFormData.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label htmlFor="manualIdEscalado" className="block text-xs mb-1">ID Escalado:</label>
-                                                <input type="text" id="manualIdEscalado" name="idEscalado" value={manualFormData.idEscalado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="ID" />
-                                            </div>
-                                            <div>
-                                                <label htmlFor="manualReqGenerado" className="block text-xs mb-1">REQ Generado:</label>
-                                                <input type="text" id="manualReqGenerado" name="reqGenerado" value={manualFormData.reqGenerado} onChange={handleManualFormChange} className="block w-full input-form text-sm" placeholder="REQ" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+            {showManualEntryModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    {/* Contenido del modal showManualEntryModal */}
+                </div>
+            )}
+            
+            {showAlarmModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
+                    {/* Contenido del modal showAlarmModal */}
+                </div>
+            )}
 
-                                <div className="mt-4 mb-6 p-3 border border-blue-200 rounded-md bg-blue-50">
-                                    <h4 className="text-md font-semibold text-blue-700 mb-2">Aseguramiento y Gestiones Adicionales (Manual)</h4>
-                                    <div className="mb-2">
-                                        <label className="inline-flex items-center">
-                                            <input type="checkbox" name="Requiere_Aseguramiento_Facturas" checked={manualFormData.Requiere_Aseguramiento_Facturas} onChange={handleManualFormChange} className="form-checkbox" />
-                                            <span className="ml-2 text-sm">¿Aseguramiento Facturas?</span>
-                                        </label>
-                                    </div>
-                                    {manualFormData.Requiere_Aseguramiento_Facturas && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-blue-300">
-                                            {/* Campos de Aseguramiento */}
-                                        </div>
-                                    )}
-                                    <div className="mb-2 mt-3">
-                                        <label className="inline-flex items-center">
-                                            <input type="checkbox" name="requiereBaja" checked={manualFormData.requiereBaja} onChange={handleManualFormChange} className="form-checkbox" />
-                                            <span className="ml-2 text-sm">¿Requiere Baja?</span>
-                                        </label>
-                                    </div>
-                                    {manualFormData.requiereBaja && (
-                                        <div className="pl-4 mb-3 border-l-2 border-red-300">
-                                            {/* Campo de Orden de Baja */}
-                                        </div>
-                                    )}
-                                    <div className="mb-2 mt-3">
-                                        <label className="inline-flex items-center">
-                                            <input type="checkbox" name="requiereAjuste" checked={manualFormData.requiereAjuste} onChange={handleManualFormChange} className="form-checkbox" />
-                                            <span className="ml-2 text-sm">¿Requiere Ajuste?</span>
-                                        </label>
-                                    </div>
-
-                                    {manualFormData.requiereAjuste && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 mb-3 border-l-2 border-green-300">
-                                            <div>
-                                                <label htmlFor="manualNumeroTT" className="block text-xs mb-1">Nro. TT:</label>
-                                                <input type="text" id="manualNumeroTT" name="numeroTT" value={manualFormData.numeroTT} onChange={handleManualFormChange} className="block w-full input-form text-sm" />
-                                            </div>
-                                            <div>
-                                                <label htmlFor="manualEstadoTT" className="block text-xs mb-1">Estado TT:</label>
-                                                <select id="manualEstadoTT" name="estadoTT" value={manualFormData.estadoTT} onChange={handleManualFormChange} className="block w-full input-form text-sm">
-                                                    <option value="">Seleccione...</option>
-                                                    {constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="inline-flex items-center mt-1">
-                                                    <input type="checkbox" name="requiereDevolucionDinero" checked={manualFormData.requiereDevolucionDinero} onChange={handleManualFormChange} className="form-checkbox" disabled={!manualFormData.requiereAjuste} />
-                                                    <span className="ml-2 text-xs">¿Devolución Dinero?</span>
-                                                </label>
-                                            </div>
-                                            {manualFormData.requiereDevolucionDinero && (
-                                                <div className="contents">
-                                                    <div>
-                                                        <label htmlFor="manualCantidadDevolver" className="block text-xs mb-1">Cantidad a Devolver:</label>
-                                                        <input type="number" step="0.01" id="manualCantidadDevolver" name="cantidadDevolver" value={manualFormData.cantidadDevolver} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" placeholder="0.00" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
-                                                    </div>
-                                                    <div>
-                                                        <label htmlFor="manualIdEnvioDevoluciones" className="block text-xs mb-1">ID Envío Devoluciones:</label>
-                                                        <input type="text" id="manualIdEnvioDevoluciones" name="idEnvioDevoluciones" value={manualFormData.idEnvioDevoluciones} onChange={handleManualFormDevolucionChange} placeholder="ID" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
-                                                    </div>
-                                                    <div>
-                                                        <label htmlFor="manualFechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label>
-                                                        <input type="date" id="manualFechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={manualFormData.fechaEfectivaDevolucion || ''} onChange={handleManualFormDevolucionChange} className="block w-full input-form text-sm" disabled={!manualFormData.requiereAjuste || !manualFormData.requiereDevolucionDinero} />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-end gap-3">
-                                    <button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button>
-                                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )}            {showAlarmModal && (<div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4"><div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]"><div className="flex items-center justify-between pb-3 border-b-2 border-red-500"><h3 className="text-2xl font-bold text-red-700">🚨 ¡Alarma de Casos Críticos!</h3><button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button></div><div className="mt-4"><p className="text-sm text-gray-600 mb-4">Los siguientes casos requieren tu atención inmediata. Para cerrar la alerta, debes dejar una observación de la gestión realizada.</p><div className="space-y-3 max-h-60 overflow-y-auto pr-2">{alarmCases.map(c => (<div key={c.id} className={`p-3 rounded-md border ${selectedAlarmCase?.id === c.id ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-50 border-gray-200'}`}><div><p className="font-bold text-gray-800">SN: {c.SN} (Día {c.Dia})</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p></div><button onClick={() => setSelectedAlarmCase(c)} className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-md hover:bg-yellow-600">Gestionar</button></div>))}</div>{selectedAlarmCase && (<div className="mt-6 pt-4 border-t"><h4 className="text-lg font-semibold mb-2">Gestionar SN: {selectedAlarmCase.SN}</h4><textarea rows="3" className="block w-full p-2 border border-gray-300 rounded-md shadow-sm" value={alarmObservation} onChange={(e) => setAlarmObservation(e.target.value)} placeholder="Escribe aquí la observación de la gestión realizada para cerrar esta alerta..." /><div className="flex justify-end gap-3 mt-3"><button onClick={() => setSelectedAlarmCase(null)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button onClick={handleDismissAlarm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar y Cerrar Alarma</button></div></div>)}</div></div></div>)}
-<style>{`
+            <style>{`
                 .input-form { display: block; width: 100%; border-radius: 0.375rem; border-width: 1px; border-color: #D1D5DB; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: 0.5rem; }
                 .input-form:focus { border-color: #3B82F6; --tw-ring-color: #3B82F6; box-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); }
                 .input-form:disabled { background-color: #F3F4F6; cursor: not-allowed; }
@@ -2022,8 +1697,8 @@ function App() {
                 .contents { display: contents; }
             `}</style>
         </div>
-    </div>
     );
 }
 
 export default App;
+
