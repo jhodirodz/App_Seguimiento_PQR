@@ -2374,7 +2374,7 @@ function App() {
                                                                                                                                     displayModalMessage(`Error generando correo de escalación: ${e.message}`);
                                                                                                                                 } finally {
                                                                                                                                     setIsGeneratingEscalationEmail(false);
-                                                                                                                                }
+                                                                                                                                }}
 
                                                                                                                                 async function generateRiskAnalysisHandler() {
                                                                                                                                     if (!selectedCase) return;
@@ -2387,7 +2387,7 @@ function App() {
                                                                                                                                         displayModalMessage(`Error generando análisis de riesgo: ${e.message}`);
                                                                                                                                     } finally {
                                                                                                                                         setIsGeneratingRiskAnalysis(false);
-                                                                                                                                    }
+                                                                                                                                    }}
                                                                                                                                     async function generateAIComprehensiveResponseHandler() {
                                                                                                                                         if (!selectedCase) return;
                                                                                                                                         setIsGeneratingComprehensiveResponse(true);
