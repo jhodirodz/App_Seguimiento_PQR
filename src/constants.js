@@ -1,5 +1,7 @@
-export const ALL_STATUS_OPTIONS = ['Pendiente','Iniciado','Lectura','Resuelto', 'Finalizado', 'Escalado','Decretado','Traslado SIC', 'Pendiente Ajustes'];
+// src/constants.js
+
 export const ALL_PRIORITY_OPTIONS = ['Alta', 'Media', 'Baja'];
+export const ALL_STATUS_OPTIONS = ['Pendiente', 'Iniciado', 'Lectura', 'Resuelto', 'Finalizado', 'Escalado', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'];
 
 export const MAIN_TABLE_HEADERS = [
     'SN',
@@ -40,11 +42,7 @@ export const TIPOS_ASEGURAMIENTO = [
 ];
 export const MESES_ASEGURAMIENTO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 export const ESTADOS_TT = ["Pendiente", "Aplicado"];
-export const COLOMBIAN_HOLIDAYS = [
-    '2025-01-01', '2025-01-06', '2025-03-24', '2025-03-20', '2025-03-21', '2025-05-01', '2025-05-26',
-    '2025-06-16', '2025-06-23', '2025-07-04', '2025-07-20', '2025-08-07', '2025-08-18', '2025-10-13',
-    '2025-11-03', '2025-11-17', '2025-12-08', '2025-12-25', '2026-01-01', '2026-01-12', '2026-03-23', '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-18', '2026-06-08', '2026-06-15', '2026-06-29', '2026-07-20', '2026-08-07', '2026-08-17', '2026-10-12', '2026-11-02', '2026-11-16', '2026-12-08', '2026-12-25',
-];
+
 export const MOTIVOS_ESCALAMIENTO_POR_AREA = {
     "Voz del cliente Individual": [
         "Datos Movil - No navega - No tiene equipo para pruebas", "Datos Movil - No navega - Problemas Red", "Datos Movil - No navega - Problemas Cobertura", "Datos Movil - No navega - Inconveniente Atipico-Requiere Pruebas", "Datos Movil - No navega - Conciliacion - Cierre de ciclo", "Datos Movil - No navega - Conciliacion Plataformas HLR-DPI-TI", "Datos Movil - No navega - Escalamiento tecnico abierto excede SLA", "Datos Movil - No navega - Falla en Bonos - Altamira",
@@ -80,9 +78,9 @@ export const MOTIVOS_ESCALAMIENTO_POR_AREA = {
     "Movistar TU - Play": [
         "Errores de Activacion", "Devolucion dinero", "Informacion comercial de productos y oferta", "Valores del plan no coinciden con oferta", "Direcciones no creadas no georeferenciadas",
     ],
-    "Consultas cobertura": [ "Solicitud de cobertura voz y datos", "Inconvenientes cobertura voz y datos" ],
-    "Centrales de riesgo": [ "Modificar", "Eliminar", "Pago voluntario", "Pago al dia" ],
-    "Retencion": [ "Movil", "Fija", "Solicitud de Baja no realizada" ],
+    "Consultas cobertura": ["Solicitud de cobertura voz y datos", "Inconvenientes cobertura voz y datos"],
+    "Centrales de riesgo": ["Modificar", "Eliminar", "Pago voluntario", "Pago al dia"],
+    "Retencion": ["Movil", "Fija", "Solicitud de Baja no realizada"],
     "Facturacion": [
         "Factura no llega", "Requerimientos especiais - Fecha de vencimientos especiais", "Requerimientos especiais - Cambio de categoria tributaria",
         "Solicitudes STP - Equipos con seguro movil", "Solicitudes STP - Modificaciones de ordenes", "Solicitudes STP - Solicitud de grabacion llamadas fuera de garantia", "Solicitudes STP - traslado equipo apertura bandas (nokia)", "Solicitudes STP - solicitud devolucion equipo abandonado", "Solicitudes STP - Notificar equipo traido", "Solicitudes STP - Gestion novedad ticket Logytech- seg Empresas", "Solicitudes STP - Solicitud de brigada - seg Empresas",
@@ -132,3 +130,8 @@ export const MOTIVOS_ESCALAMIENTO_POR_AREA = {
     ],
 };
 export const AREAS_ESCALAMIENTO = Object.keys(MOTIVOS_ESCALAMIENTO_POR_AREA);
+export const COLOMBIAN_HOLIDAYS = [
+    '2025-01-01', '2025-01-06', '2025-03-24', '2025-03-20', '2025-03-21', '2025-05-01', '2025-05-26',
+    '2025-06-16', '2025-06-23', '2025-07-04', '2025-07-20', '2025-08-07', '2025-08-18', '2025-10-13',
+    '2025-11-03', '2025-11-17', '2025-12-08', '2025-12-25', '2026-01-01', '2026-01-12', '2026-03-23', '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-18', '2026-06-08', '2026-06-15', '2026-06-29', '2026-07-20', '2026-08-07', '2026-08-17', '2026-10-12', '2026-11-02', '2026-11-16', '2026-12-08', '2026-12-25',
+];
