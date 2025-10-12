@@ -9,9 +9,8 @@ import * as utils from './utils.js';
 import { getAIAnalysisAndCategory, getAIPriority, getAISentiment, getAISummary, getAIResponseProjection, getAINextActions, getAIRootCause, getAIEscalationSuggestion, getAIComprehensiveResponse, getAIRiskAnalysis, getAIValidation } from './aiServices';
 import { ALL_PRIORITY_OPTIONS, ALL_STATUS_OPTIONS, MAIN_TABLE_HEADERS, AREAS_ESCALAMIENTO, MOTIVOS_ESCALAMIENTO_POR_AREA, ESTADOS_TT, TIPOS_OPERACION_ASEGURAMIENTO, MESES_ASEGURAMIENTO, TIPOS_ASEGURAMIENTO, COLOMBIAN_HOLIDAYS } from './constants';
 import PaginatedTable from './components/PaginatedTable';
+import { db, auth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebaseConfig.js';
 
-const firebaseConfig = {
-    // Tu configuración de Firebase
 };
 
 function App() {
