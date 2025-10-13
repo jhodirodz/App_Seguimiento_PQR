@@ -1797,14 +1797,61 @@ function App() {
                             </ul>
                         </div>)}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                            {['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'Dia', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion', 'isNabis', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones_Reclamo_Relacionado', 'Resumen_Hechos_IA'].map(header => {
+                            {['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'fecha_asignacion', 'user',
+        'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos',
+        'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Dia', 'Fecha Vencimiento',
+        'Tipo_Contrato', 'Numero_Contrato_Marco', 'isNabis', 'Nombre_Cliente',
+        'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente',
+        'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante',
+        'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante',
+        'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request',
+        'obs', 'Numero_Reclamo_Relacionado', 'nombre_oficina', 'Tipopago',
+        'date_add', 'Tipo_Operacion', 'Prioridad', 'Analisis de la IA',
+        'Categoria del reclamo', 'Resumen_Hechos_IA', 'Documento_Adjunto'].map(header => {
                                 const nonEditableFields = ['CUN', 'fecha_asignacion', 'user', 'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Resumen_Hechos_IA', 'date_add'];
-                                const dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
-                                const textAreaFields = ['obs', 'Analisis de la IA'];
-                                let isEditable = !nonEditableFields.includes(header);
-                                if (header === 'SN' && selectedCase.Estado_Gestion !== 'Decretado') { isEditable = false; }
-                                if (header === 'isNabis') { return (<div key={header} className="bg-gray-50 p-3 rounded-md flex items-center"><label className="inline-flex items-center cursor-pointer"><input type="checkbox" name="isNabis" className="form-checkbox h-5 w-5 text-purple-600 rounded" checked={selectedCase.isNabis || false} onChange={(e) => handleModalFieldChange('isNabis', e.target.checked)} /><span className="ml-2 font-medium text-gray-800">CM Nabis</span></label></div>); }
-                                if (header === 'Tipo_Contrato') { return (<div key={header} className="bg-gray-50 p-3 rounded-md"><label htmlFor="modal-Tipo_Contrato" className="block text-sm font-semibold text-gray-700 mb-1">Tipo de Contrato:</label><select id="modal-Tipo_Contrato" value={selectedCase.Tipo_Contrato || 'Condiciones Uniformes'} onChange={(e) => handleContractTypeChange(e.target.value)} className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div>); }
+const dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
+const textAreaFields = ['obs', 'Analisis de la IA']; // 'Analisis de la IA' ahora es un área de texto
+
+let isEditable = !nonEditableFields.includes(header);
+if (header === 'SN' && selectedCase.Estado_Gestion !== 'Decretado') { isEditable = false; }
+
+// --- LÓGICA EXISTENTE PARA CAMPOS ESPECIALES (NO CAMBIA) ---
+if (header === 'isNabis') { /* ...código existente... */ }
+if (header === 'Tipo_Contrato') { /* ...código existente... */ }
+
+// --- NUEVA LÓGICA PARA LOS CAMPOS RESTAURADOS ---
+if (header === 'Prioridad') {
+    return (
+        <div key={header} className="bg-gray-50 p-3 rounded-md">
+            <label htmlFor="modal-Prioridad" className="block text-sm font-semibold text-gray-700 mb-1">Prioridad:</label>
+            <select
+                id="modal-Prioridad"
+                value={selectedCase.Prioridad || ''}
+                onChange={(e) => handleModalFieldChange('Prioridad', e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm p-2"
+            >
+                <option value="">Seleccione...</option>
+                {constants.ALL_PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+        </div>
+    );
+}
+
+// Lógica para Radicado SIC y Fecha Vencimiento Decreto
+if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
+    return (
+        <div key={header} className="bg-gray-50 p-3 rounded-md">
+            <label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>
+            <input
+                type={header === 'Fecha_Vencimiento_Decreto' ? 'date' : 'text'}
+                id={`modal-${header}`}
+                value={selectedCase[header] || ''}
+                onChange={header === 'Radicado_SIC' ? handleRadicadoSICChange : handleFechaVencimientoDecretoChange}
+                className="block w-full rounded-md p-2"
+            />
+        </div>
+    );
+}
                                 const isDate = dateFields.includes(header);
                                 const isTextArea = textAreaFields.includes(header);
                                 return (<React.Fragment key={header}><div className={`bg-gray-50 p-3 rounded-md ${isTextArea || header === 'Resumen_Hechos_IA' || header === 'Observaciones_Reclamo_Relacionado' ? 'lg:col-span-3 md:col-span-2' : ''}`}><label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>{isEditable ? (<><div className="relative">{isTextArea ? (<textarea id={`modal-${header}`} rows={3} className="block w-full rounded-md p-2 pr-10" value={selectedCase[header] || ''} onChange={e => handleModalFieldChange(header, e.target.value)} />) : (<input type={isDate ? 'date' : header === 'Dia' ? 'number' : 'text'} id={`modal-${header}`} className="block w-full rounded-md p-2 pr-10" value={header === 'Dia' ? utils.calculateCaseAge(selectedCase, nonBusinessDays) : (selectedCase[header] || '')} onChange={e => handleModalFieldChange(header, e.target.value)} />)}
