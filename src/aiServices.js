@@ -7,7 +7,7 @@ async function geminiApiCall(prompt, parts = []) {
     throw new Error("Gemini API key is not configured.");
   }
 
-  const modelName = "gemini-1.5-flash-latest";
+  const modelName = "gemini-2.5-flash";
   const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`; // ✅ Correcto
 
   const payload = {
