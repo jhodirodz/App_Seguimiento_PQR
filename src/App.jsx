@@ -1036,7 +1036,7 @@ function App() {
                 const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`; // ✅ Usa v1
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
@@ -1049,7 +1049,7 @@ function App() {
                 const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`; // ✅ Usa v1
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`); }
