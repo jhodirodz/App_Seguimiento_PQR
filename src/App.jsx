@@ -14,6 +14,24 @@ import PaginatedTable from './components/PaginatedTable';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 // Importa las instancias de Firebase ya inicializadas desde tu configuración
 import { db, auth } from "./firebaseConfig.js";
+const MODAL_DISPLAY_HEADERS = [
+    'SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'fecha_asignacion', 'user',
+    'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos',
+    'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Dia', 'Fecha Vencimiento',
+    'Tipo_Contrato', 'Numero_Contrato_Marco', 'isNabis', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente',
+    'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante',
+    'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante',
+    'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo',
+    'type_request', 'obs', 'Numero_Reclamo_Relacionado',
+    'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion',
+    'Prioridad', 'Analisis de la IA', 'Categoria del reclamo', 'Resumen_Hechos_IA', 'Documento_Adjunto',
+    'Respuesta_Integral_IA' // AÑADIDO: Nuevo campo para la respuesta robusta
+]
+
+// Constants for various dropdowns and logic
+const TIPOS_OPERACION_ASEGURAMIENTO = ["Aseguramiento FS", "Aseguramiento TELCO", "Aseguramiento SINTEL", "Aseguramiento D@VOX"];
+
+
 
 const appId = "App_Seguimiento_PQR";
 
@@ -1036,7 +1054,7 @@ function App() {
                 const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
@@ -1049,7 +1067,7 @@ function App() {
                 const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
                 const modelName = "gemini-1.5-flash-latest";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`); }
@@ -1366,7 +1384,7 @@ function App() {
                 }],
             };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`;
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const result = await response.json();
@@ -1925,3 +1943,1110 @@ function App() {
 }
 
 export default App;
+
+// --- Block added from App.jsx: getColombianDateISO ---
+
+const getColombianDateISO = () => {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date());
+};
+/**
+ * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
+ * @param {string} dateStr - La cadena de fecha a parsear.
+ * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
+ */
+
+
+// --- Block added from App.jsx: parseDate ---
+
+const parseDate = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+
+    // Intenta analizar formatos como MM/DD/YYYY, M/D/YYYY, etc.
+    let parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (parts) {
+        // Asume MM/DD/YYYY y convierte a YYYY-MM-DD
+        const month = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        const year = parts[3];
+        return `${year}-${month}-${day}`;
+    }
+
+    // Si no coincide, devuelve el valor original para no romper otras lógicas
+    return dateStr;
+};
+/**
+ * Calcula los días hábiles entre dos fechas.
+ * Esta función ajusta el día de inicio si es un fin de semana o festivo, y
+ * también ajusta si el inicio es en un día hábil para que el primer día de conteo sea el siguiente.
+ */
+
+
+// --- Block added from App.jsx: calculateBusinessDays ---
+
+const calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => {
+    try {
+        const startParts = startDateStr.split('-').map(Number);
+        const endParts = endDateStr.split('-').map(Number);
+        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
+        if (startDate > endDate) return 0;
+
+        let currentDate = new Date(startDate);
+        const nonBusinessDaysSet = new Set(nonBusinessDays);
+
+        // Lógica para encontrar el primer día hábil después de la radicación
+        // Se mueve al día siguiente
+        currentDate.setDate(currentDate.getDate() + 1);
+
+        // Bucle para encontrar el siguiente día hábil si el día posterior a la radicación cae en fin de semana o festivo
+        while (true) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                break;
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        let count = 0;
+        let safetyCounter = 0;
+
+        while (currentDate <= endDate && safetyCounter < 10000) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                count++;
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            safetyCounter++;
+        }
+        return count;
+    } catch (e) {
+        console.error("Error en calculateBusinessDays:", e);
+        return "N/A";
+    }
+};
+
+/**
+ * Calcula la antigüedad del caso en días hábiles.
+ * La antigüedad es simplemente el resultado de calculateBusinessDays, sin ajustes adicionales.
+ */
+
+
+// --- Block added from App.jsx: calculateCaseAge ---
+
+const calculateCaseAge = (caseItem, nonBusinessDays) => {
+    // Si el caso ya está resuelto o finalizado, devuelve el último valor registrado en 'Dia'.
+    if (caseItem.Estado_Gestion === 'Resuelto' || caseItem.Estado_Gestion === 'Finalizado') {
+        return caseItem.Dia; // O el campo que almacena el conteo final
+    }
+
+    if (!caseItem || !caseItem['Fecha Radicado']) return 'N/A';
+    const startDate = caseItem['Fecha Radicado'];
+    const today = getColombianDateISO();
+
+    let age = calculateBusinessDays(startDate, today, nonBusinessDays);
+
+    if (String(caseItem['nombre_oficina'] || '').toUpperCase().includes("OESIA")) {
+        if (age !== 'N/A' && !isNaN(age)) {
+            age += 2;
+        }
+    }
+
+    return age;
+};
+
+/**
+ * Parses a CSV text string into an array of objects.
+ * Handles different delimiters (',' or ';') and quoted fields.
+ * @param {string} text - The CSV content as a string.
+ * @returns {{headers: string[], data: object[]}} Parsed headers and data rows.
+ */
+
+
+// --- Block added from App.jsx: parseCSV ---
+
+const parseCSV = (text) => {
+    const headerLineEnd = text.indexOf('\n');
+    if (headerLineEnd === -1) return { headers: [], data: [] };
+    let headerLine = text.substring(0, headerLineEnd).trim();
+    const delimiter = (headerLine.match(/,/g) || []).length >= (headerLine.match(/;/g) || []).length ? ',' : ';';
+
+    const rows = [];
+    let currentRow = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let i = headerLineEnd + 1; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i+1];
+
+        if (inQuotes) {
+            if (char === '"' && nextChar !== '"') {
+                inQuotes = false;
+            } else if (char === '"' && nextChar === '"') {
+                currentField += '"';
+                i++;
+            } else {
+                currentField += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuotes = true;
+            } else if (char === delimiter) {
+                currentRow.push(currentField);
+                currentField = '';
+            } else if (char === '\n' || char === '\r') {
+                if (char === '\n') {
+                    currentRow.push(currentField);
+                    if (currentRow.join('').trim() !== '') {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = '';
+                }
+            } else {
+                currentField += char;
+            }
+        }
+    }
+
+    currentRow.push(currentField);
+    if(currentRow.join('').trim() !== '') {
+        rows.push(currentRow);
+    }
+
+    if (rows.length === 0) {
+        return { headers: [], data: [] };
+    }
+
+    const headers = headerLine.split(delimiter).map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+
+    for (const rowData of rows) {
+        const row = {};
+        headers.forEach((header, index) => {
+            if (header && header.trim() !== '') {
+                let value = (rowData[index] || '').trim();
+                if (value.startsWith('"') && value.endsWith('"')) {
+                    value = value.slice(1, -1).replace(/""/g, '"');
+                }
+
+                if (header === 'Nro_Nuip_Cliente' && (value.startsWith('8') || value.startsWith('9')) && value.length > 9) {
+                    value = value.substring(0, 9);
+                } else if (header === 'Nombre_Cliente') {
+                    value = value.toUpperCase();
+                }
+                row[header] = value;
+            }
+        });
+        data.push(row);
+    }
+
+    const finalHeaders = headers.filter(h => h && h.trim() !== '');
+
+    return { headers: finalHeaders, data };
+};
+
+
+// List of Colombian holidays for calculations.
+const COLOMBIAN_HOLIDAYS = [
+    '2025-01-01', '2025-01-06', '2025-03-24', '2025-03-20', '2025-03-21', '2025-05-01', '2025-05-26',
+    '2025-06-16', '2025-06-23', '2025-07-04', '2025-07-20', '2025-08-07', '2025-08-18', '2025-10-13',
+    '2025-11-03', '2025-11-17', '2025-12-08', '2025-12-25','2026-01-01', '2026-01-12',   '2026-03-23',   '2026-04-02',  '2026-04-03', '2026-05-01', '2026-05-18',   '2026-06-08',   '2026-06-15',   '2026-06-29',   '2026-07-20',   '2026-08-07',  '2026-08-17',  '2026-10-12',   '2026-11-02',  '2026-11-16',   '2026-12-08',   '2026-12-25',
+];
+
+
+/**
+ * Calculates duration between two ISO date strings in minutes.
+ * @param {string} startDateISO - The start date in ISO format.
+ * @param {string} endDateISO - The end date in ISO format.
+ * @returns {number|string} Duration in minutes or 'N/A'.
+ */
+
+
+// --- Block added from App.jsx: getDurationInMinutes ---
+
+const getDurationInMinutes = (startDateISO, endDateISO) => {
+    if (!startDateISO || !endDateISO) return 'N/A';
+    const start = new Date(startDateISO); const end = new Date(endDateISO);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'N/A';
+    return Math.round((end.getTime() - start.getTime()) / 60000);
+};
+
+/**
+ * A utility to pause execution.
+ * @param {number} ms - Milliseconds to sleep.
+ * @returns {Promise<void>}
+ */
+
+
+// --- Block added from App.jsx: sleep ---
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * A fetch wrapper with exponential backoff retry logic.
+ * @param {string} url - The URL to fetch.
+ * @param {object} options - Fetch options.
+ * @param {number} retries - Number of retries.
+ * @param {number} delay - Initial delay in ms.
+ * @returns {Promise<Response>}
+ */
+const retryFetch = async (url, options, retries = 5, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.ok) return response;
+            console.warn(`Fetch attempt ${i+1} failed: ${response.status}. Retrying...`);
+            if (i < retries - 1) await sleep(delay * (i+1) + Math.random() * 500);
+        } catch (error) {
+            console.error(`Fetch attempt ${i+1} error: ${error.message}. Retrying...`);
+            if (i < retries - 1) await sleep(delay * (i+1) + Math.random() * 500); else throw error;
+        }
+    }
+    throw new Error('All fetch retries failed.');
+};
+
+// =================================================================================================
+// AI (Gemini) Integration Functions
+// =================================================================================================
+
+const getAIAnalysisAndCategory = async (caseData) => {
+    // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
+
+
+// --- Block added from App.jsx: accumulatedSNInfo ---
+
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
+    .map((item, index) => 
+        `Reclamo Acumulado ${index + 1} (SN: ${item.sn}):\n- Observación: ${item.obs}`
+    ).join('\n\n');
+    // --- FIN: Lógica para formatear ---
+
+    const prompt = `Analiza el siguiente caso de reclamo y su historial para proporcionar:
+1.  Un "Analisis de la IA" detallado y completo.
+2.  Una "Categoria del reclamo" que refleje la problemática principal.
+
+Instrucciones para el Análisis:
+-   DEBES considerar la información del "Historial de Reclamos Acumulados" para entender el panorama completo de las pretensiones del cliente. El análisis debe sintetizar tanto el reclamo actual como los anteriores.
+-   Menciona explícitamente datos clave como números de cuenta o líneas si están disponibles.
+
+---
+DETALLES DEL CASO PRINCIPAL:
+-   SN: ${caseData.SN || 'N/A'}
+-   Fecha Radicado: ${caseData['Fecha Radicado'] || 'N/A'}
+-   Observaciones (obs): ${caseData.obs || 'N/A'}
+---
+HISTORIAL DE RECLAMOS ACUMULADOS (CONTEXTO ADICIONAL):
+${accumulatedSNInfo || 'No hay reclamos acumulados.'}
+---
+
+Formato de respuesta JSON:
+{
+  "analisis_ia": "...",
+  "categoria_reclamo": "..."
+}`;
+    
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "analisis_ia": { "type": "STRING" }, "categoria_reclamo": { "type": "STRING" } }, "propertyOrdering": ["analisis_ia", "categoria_reclamo"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
+            return { 'Analisis de la IA': json.analisis_ia, 'Categoria del reclamo': json.categoria_reclamo };
+        }
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (análisis).');
+    } catch (e) { console.error("Error AI analysis:", e); throw new Error(`Error IA (análisis): ${e.message}`); }
+};
+
+const getAIPriority = async (obsText) => {
+    const prompt = `Asigna "Prioridad" ("Alta", "Media", "Baja") a obs: ${obsText || 'N/A'}. Default "Media". JSON: {"prioridad": "..."}`;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "prioridad": { "type": "STRING" } }, "propertyOrdering": ["prioridad"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).prioridad || 'Media';
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (prioridad).');
+    } catch (e) { console.error("Error AI priority:", e); throw new Error(`Error IA (prioridad): ${e.message}`); }
+};
+
+const getAISentiment = async (obsText) => {
+    const prompt = `Analiza el sentimiento del siguiente texto y clasifícalo como "Positivo", "Negativo" o "Neutral".
+    Texto: "${obsText || 'N/A'}"
+    Responde solo con JSON: {"sentimiento_ia": "..."}`;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "sentimiento_ia": { "type": "STRING" } }, "propertyOrdering": ["sentimiento_ia"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
+            return { Sentimiento_IA: json.sentimiento_ia || 'Neutral' };
+        }
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (sentimiento).');
+    } catch (e) {
+        console.error("Error AI sentiment:", e);
+        return { Sentimiento_IA: 'Neutral' }; // Return a default value on error
+    }
+};
+
+const getAISummary = async (caseData) => {
+    // --- INICIO: Lógica para formatear el historial de SN Acumulados ---
+
+
+// --- Block added from App.jsx: accumulatedSNInfo ---
+
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
+    .map((item, index) => 
+        `Sobre un reclamo anterior (SN: ${item.sn}), también manifesté: "${item.obs}"`
+    ).join('\n');
+    // --- FIN: Lógica para formatear ---
+
+    const prompt = `Eres un asistente experto que resume casos de reclamos de telecomunicaciones.
+        Genera un resumen conciso (máximo 700 caracteres, en primera persona) de los hechos y pretensiones del caso.
+        Tu resumen debe sintetizar la "Observación Principal" y, si se proporcionan, también el "Historial de SN Acumulados" y las "Observaciones del Reclamo Relacionado".
+
+Instrucciones para el Resumen:
+-   Sintetiza la información tanto de las "Observaciones del Caso Actual" como del "Historial de Reclamos Anteriores" en un relato coherente.
+-   El resumen DEBE ser específico y mencionar datos clave como la línea o la cuenta si se proporcionan.
+
+---
+OBSERVACIONES DEL CASO ACTUAL:
+"${caseData.obs || 'No hay observaciones para el caso actual.'}"
+---
+HISTORIAL DE RECLAMOS ANTERIOORES (ACUMULADOS):
+${accumulatedSNInfo || 'No hay historial de reclamos anteriores.'}
+---
+    
+Formato de respuesta JSON: {"resumen_cliente": "..."}`;
+
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "resumen_cliente": { "type": "STRING" } }, "propertyOrdering": ["resumen_cliente"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).resumen_cliente || 'No se pudo generar resumen.';
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (resumen).');
+    } catch (e) { console.error("Error AI summary:", e);
+    throw new Error(`Error IA (resumen): ${e.message}`); }
+};
+
+const getAIResponseProjection = async (lastObservationText, caseData, contractType) => {
+    let contractSpecificInstructions = '';
+    if (contractType === 'Contrato Marco') {
+        contractSpecificInstructions = `
+    **Enfoque Normativo (Contrato Marco):** La respuesta NO DEBE MENCIONAR el Régimen de Protección de Usuarios de Servicios de Comunicaciones (Resolución CRC 5050 de 2016 y sus modificaciones).
+    En su lugar, debe basarse en las disposiciones del Código de Comercio colombiano, los términos y condiciones específicos del contrato marco suscrito entre las partes, y la legislación mercantil aplicable.
+    NO incluir la frase: "le recordamos que puede acudir a la Superintendencia de Industria y Comercio (SIC)...".`;
+    } else { 
+        contractSpecificInstructions = `
+    **Enfoque Normativo (Condiciones Uniformes):** La respuesta DEBE basarse principalmente en el Régimen de Protección de los Derechos de los Usuarios de Servicios de Comunicaciones (Establecido por la Comisión de Regulación de Comunicaciones - CRC), la Ley 1480 de 2011 (Estatuto del Consumidor) en lo aplicable, y las directrices de la Superintendencia de Industria y Comercio (SIC).`;
+    }
+
+    // --- LÓGICA MEJORADA ---
+    // Se formatea el historial completo de observaciones para que la IA lo entienda claramente.
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
+        .map(obs =>
+            ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`
+        ).join('\n\n');
+
+
+// --- Block added from App.jsx: accumulatedSNInfo ---
+
+const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
+    `  Reclamo Acumulado ${index + 1}:\n   - SN: ${item.sn} (CUN: ${item.cun || 'No disponible'})\n   - Observación: ${item.obs}`
+).join('\n');
+    
+    const relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
+        ? `**Reclamo Relacionado (SN: ${caseData.Numero_Reclamo_Relacionado}):**\n   - Observaciones: ${caseData.Observaciones_Reclamo_Relacionado || 'N/A'}\n` 
+        : 'No hay un reclamo principal relacionado.';
+
+    // --- INSTRUCCIONES DEL PROMPT MEJORADAS ---
+    // El prompt ahora es mucho más específico y exige una respuesta definitiva basada en el historial.
+    const prompt = `Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
+Genera una 'Proyección de Respuesta' integral para la empresa (COLOMBIA TELECOMUNICACIONES S.A. E.S.P BIC) dirigida al cliente.
+
+**Instrucciones CRÍTICAS para la Proyección de Respuesta:**
+1.  **Asociación SN-CUN:** Es mandatorio que cada vez que se mencione un número de radicado (SN), se incluya también su CUN asociado.
+2.  **Contexto Completo y Respuesta Definitiva:** La respuesta DEBE sintetizar la información de TODAS las fuentes. Crucialmente, debes basar tu conclusión en las gestiones y hallazgos registrados en el "Historial de Gestiones Internas". La respuesta debe ser **definitiva sobre lo que la empresa ya analizó y decidió, NO una promesa de análisis futuro**.
+3.  **Adherencia a los Hechos:** Céntrate ÚNICA Y EXCLUSIVAMENTE en los hechos y pretensiones mencionados. NO introduzcas información o soluciones no mencionadas.
+4.  **Sustento Normativo:** Fundamenta CADA PARTE de la respuesta con normas colombianas VIGENTES (SIC, CRC, leyes).
+5.  **Formato de Valores Monetarios:** Cuando menciones un valor monetario, el formato exacto debe ser: \`$VALOR (valor en letras pesos) IVA incluido\`. Ejemplo: \`$5.000 (cinco mil pesos) IVA incluido\`.
+6.  ${contractSpecificInstructions}
+
+**FUENTES DE INFORMACIÓN A CONSIDERAR:**
+---
+DATOS DEL CASO PRINCIPAL:
+- SN Principal: ${caseData.SN || 'N/A'} (CUN: ${caseData.CUN || 'N/A'})
+- Observación Inicial del Cliente (obs): ${caseData.obs || 'N/A'}
+- Análisis de la IA (Resumen inicial): ${caseData['Analisis de la IA'] || 'N/A'}
+---
+CONTEXTO ADICIONAL:
+${relatedClaimInfo}
+${accumulatedSNInfo ? `---
+HISTORIAL DE RECLAMOS ACUMULADOS:
+${accumulatedSNInfo}
+---` : ''}
+---
+**HISTORIAL DE GESTIONES INTERNAS (OBSERVACIONES):**
+Este es el registro de los análisis y acciones ya realizadas. Basa tu respuesta final en esta información.
+${internalHistoryInfo || 'No hay historial de gestiones internas.'}
+---
+
+Formato de respuesta JSON: {"proyeccion_respuesta_ia": "..."}`;
+    
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "proyeccion_respuesta_ia": { "type": "STRING" } }, "propertyOrdering": ["proyeccion_respuesta_ia"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) return JSON.parse(res.candidates[0].content.parts[0].text).proyeccion_respuesta_ia || 'No se pudo generar proyección.';
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (proyección).');
+    } catch (e) { console.error("Error AI projection:", e);
+        throw new Error(`Error IA (proyección): ${e.message}`); }
+};
+
+const getAIEscalationSuggestion = async (caseData) => {
+    const prompt = `Basado en los detalles de este caso, sugiere un "Área Escalada" y un "Motivo/Acción Escalado".
+Áreas Disponibles: ${AREAS_ESCALAMIENTO.join(', ')}.
+Razones por Área: ${JSON.stringify(MOTIVOS_ESCALAMIENTO_POR_AREA)}.
+Detalles del Caso:
+- Observaciones: ${caseData.obs || 'N/A'}
+- Categoría Reclamo: ${caseData['Categoria del reclamo'] || 'N/A'}
+- Análisis IA: ${caseData['Analisis de la IA'] || 'N/A'}
+Responde SOLO con JSON: {"area": "...", "motivo": "..."}`;
+
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: ch, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "area": { "type": "STRING" }, "motivo": { "type": "STRING" } }, "propertyOrdering": ["area", "motivo"] }}};
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    try {
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
+            return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+        throw new Error(result.error?.message || 'Respuesta de IA inesperada (sugerencia escalación).');
+    } catch (e) {
+        console.error("Error en la sugerencia de escalación por IA:", e);
+        throw new Error(`Error IA (sugerencia escalación): ${e.message}`);
+    }
+};
+
+const getAINextActions = async (caseData) => {
+    const prompt = `Basado en el siguiente caso y su historial, sugiere 3 a 5 acciones concretas y priorizadas para que el agente resuelva el caso.
+    Historial:
+    ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
+    Última observación: ${caseData.Observaciones || 'N/A'}
+    Categoría: ${caseData['Categoria del reclamo'] || 'N/A'}
+    Análisis IA: ${caseData['Analisis de la IA'] || 'N/A'}
+
+    Responde solo con JSON en el formato: {"acciones": ["Acción 1", "Acción 2", "Acción 3"]}`;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: { "acciones": { "type": "ARRAY", "items": { "type": "STRING" } } },
+                "propertyOrdering": ["acciones"]
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
+            return json.acciones || [];
+        }
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (siguientes acciones).');
+    } catch (e) {
+        console.error("Error AI Next Actions:", e);
+        throw new Error(`Error IA (siguientes acciones): ${e.message}`);
+    }
+};
+
+const getAIRootCause = async (caseData) => {
+    const prompt = `Analiza el historial completo de este caso RESUELTO y proporciona un análisis conciso de la causa raíz más probable del problema original.
+    Historial:
+    ${(caseData.Observaciones_Historial || []).map(obs => `- ${obs.text}`).join('\n')}
+    Categoría: ${caseData['Categoria del reclamo'] || 'N/A'}
+    Análisis IA Inicial: ${caseData['Analisis de la IA'] || 'N/A'}
+    Resolución Final: ${caseData.Observaciones || 'N/A'}
+
+    Responde solo con JSON en el formato: {"causa_raiz": "Análisis detallado de la causa raíz..."}`;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: { "causa_raiz": { "type": "STRING" } },
+                "propertyOrdering": ["causa_raiz"]
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
+            const json = JSON.parse(res.candidates[0].content.parts[0].text);
+            return json.causa_raiz || 'No se pudo determinar la causa raíz.';
+        }
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (causa raíz).');
+    } catch (e) {
+        console.error("Error AI Root Cause:", e);
+        throw new Error(`Error IA (causa raíz): ${e.message}`);
+    }
+};
+
+const getAIEscalationEmail = async (caseData) => {
+    const prompt = `
+    Redacta un correo electrónico de escalación interna formal y profesional.
+    
+    Destinatario: ${caseData.areaEscalada || '[Nombre del área]'}
+    Asunto: Escalación Caso - SN: ${caseData.SN} - ${caseData['Categoria del reclamo']}
+
+    Cuerpo del correo:
+    - Saludo formal.
+    - Introducción indicando que se escala el caso.
+    - Resumen claro y conciso de los hechos del caso (basado en el análisis de la IA y observaciones).
+    - Solicitud o pretensión del cliente.
+    - Acción específica requerida del área escalada (basado en el motivo de escalación).
+    - Datos clave del caso: SN, CUN, Nombre Cliente, NUIP Cliente.
+    - Despedida formal.
+
+    Información del caso:
+    - SN: ${caseData.SN || 'N/A'}
+    - CUN: ${caseData.CUN || 'N/A'}
+    - Nombre Cliente: ${caseData.Nombre_Cliente || 'N/A'}
+    - NUIP Cliente: ${caseData.Nro_Nuip_Cliente || 'N/A'}
+    - Análisis IA: ${caseData['Analisis de la IA'] || 'N/A'}
+    - Resumen Hechos IA: ${caseData.Resumen_Hechos_IA || 'N/A'}
+    - Motivo Escalado: ${caseData.motivoEscalado || '[Motivo no especificado]'}
+    - Descripción Escalado: ${caseData.descripcionEscalamiento || 'N/A'}
+    
+    Responde SOLO con JSON: {"email_body": "Cuerpo completo del correo..."}
+    `;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: { "email_body": { "type": "STRING" } },
+                "propertyOrdering": ["email_body"]
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
+            const json = JSON.parse(result.candidates[0].content.parts[0].text);
+            return json.email_body || 'No se pudo generar el correo.';
+        }
+        throw new Error(result.error?.message || 'Respuesta IA inesperada (email escalación).');
+    } catch (e) {
+        console.error("Error AI Escalation Email:", e);
+        throw new Error(`Error IA (email escalación): ${e.message}`);
+    }
+};
+
+const getAIRiskAnalysis = async (caseData) => {
+    const prompt = `
+    Evalúa el riesgo de que este caso sea escalado a la Superintendencia de Industria y Comercio (SIC).
+    Considera los siguientes factores:
+    - Antigüedad del caso (Día): ${calculateCaseAge(caseData)}
+    - Prioridad: ${caseData.Prioridad || 'N/A'}
+    - Sentimiento del Cliente (IA): ${caseData.Sentimiento_IA || 'N/A'}
+    - Categoría del Reclamo: ${caseData['Categoria del reclamo'] || 'N/A'}
+    - Historial de observaciones (si hay palabras como "queja", "demora", "insatisfecho"): ${(caseData.Observaciones_Historial || []).map(o => o.text).join('; ')}
+
+    Responde SOLO con JSON con una puntuación de riesgo ("Bajo", "Medio", "Alto") y una justificación breve.
+    Formato: {"riesgo": "...", "justificacion": "..."}
+    `;
+    let ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: {
+                    "riesgo": { "type": "STRING" },
+                    "justificacion": { "type": "STRING" }
+                },
+                "propertyOrdering": ["riesgo", "justificacion"]
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
+            return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+        throw new Error(result.error?.message || 'Respuesta IA inesperada (análisis de riesgo).');
+    } catch (e) {
+        console.error("Error AI Risk Analysis:", e);
+        throw new Error(`Error IA (análisis de riesgo): ${e.message}`);
+    }
+};
+
+const getAIComprehensiveResponse = async (caseData, contractType) => {
+    // Formatea el historial completo de observaciones
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
+        .map(obs =>
+           ` - Observación de gestión: "${obs.text}"`
+        ).join('\n\n');
+
+    let contractSpecificInstructions = '';
+    let resourceSectionInstruction = '';
+    
+    // Nueva lógica: La sección de recursos se adapta al tipo de contrato.
+    if (contractType === 'Contrato Marco') {
+        contractSpecificInstructions = `
+    **Enfoque Normativo (Contrato Marco):** La respuesta NO DEBE MENCIONAR el Régimen de Protección de Usuarios de Servicios de Comunicaciones (Resolución CRC 5050 de 2016 y sus modificaciones). En su lugar, debe basarse en las disposiciones del Código de Comercio colombiano, los términos y condiciones específicos del contrato marco suscrito entre las partes, y la legislación mercantil aplicable.
+    **Citas de Contrato:** En la primera mención, cita el número del contrato marco usando el campo 'Numero_Contrato_Marco'. En menciones posteriores, refiérete a 'Contrato Marco, cláusula X'.`;
+        
+        resourceSectionInstruction = `
+        -   **d) Información sobre recursos y plazos:** Esta sección DEBE ser incluida. NO menciones recursos como el de reposición o apelación ante la SIC. En su lugar, informa al cliente que su caso ha sido resuelto conforme al contrato marco y la legislación mercantil, y que tiene el derecho de acudir a los mecanismos de solución de controversias previstos por la ley.`;
+    } else { 
+        contractSpecificInstructions = `
+    **Enfoque Normativo (Condiciones Uniformes):** La respuesta DEBE basarse principalmente en el Régimen de Protección de los Derechos de los Usuarios de Servicios de Comunicaciones (Establecido por la Comisión de Regulación de Comunicaciones - CRC), la Ley 1480 de 2011 (Estatuto del Consumidor) en lo aplicable, y las directrices de la Superintendencia de Industria y Comercio (SIC).`;
+        
+        resourceSectionInstruction = `
+        -   **d) Información sobre recursos y plazos:** Si la decisión es desfavorable al cliente, informa claramente que puede presentar recurso de reposición y en subsidio de apelación, con el plazo legal para hacerlo. Si la decisión es favorable, indica que no procede recurso.`;
+    }
+    
+    // Nueva plantilla de inicio
+    const startTemplate = `En la presente damos atención al CUN/SN ${caseData.CUN || caseData.SN} y si es un caso de traslado por competencia SIC, CRC tambien relacionarlo`;
+    
+    // Lógica para SN acumulados
+    const accumulatedSNInfo = (caseData.SNAcumulados_Historial || []).length > 0
+        ? `Adicionalmente, esta respuesta también atiende a los SN/CUN acumulados: ${caseData.SNAcumulados_Historial.map(s => `${s.sn}/${s.cun}`).join(', ')}.`
+        : '';
+
+    const prompt = `Eres un asistente legal experto que genera respuestas para clientes de telecomunicaciones.
+Tu identidad es Colombia Telecomunicaciones S.A. E.S.P BIC - Movistar.
+**Tarea Crítica:** Genera una proyección de respuesta integral para el cliente, que sea exhaustiva, fluida y coherente.
+La respuesta debe ser inmediata, no a futuro, y basarse exclusivamente en la información del caso.
+**Instrucciones Críticas:**
+    1. **Foco en el Servicio:** Revisa el caso e identifica el servicio o línea de reclamo.
+Exclusivamente usa cálculos y explicaciones que se refieran a ese servicio.
+Ignora otros servicios de la cuenta que no estén relacionados.
+2. **Cálculos Precisos:** Si hay un ajuste monetario, muestra la fórmula de cálculo y relaciona el valor que queda posterior a la nota crédito.
+Usa solo los valores del "Resumen Financiero" o "Movimiento de Cuenta" que apliquen directamente al reclamo.
+3. **Contrato Correcto:**
+        ${contractSpecificInstructions}
+    4. **Respuesta Completa:**
+        - Abarca una respuesta para todas las pretensiones y hechos, y da las razones jurídicas, técnicas o económicas en que se apoya la decisión.
+- Si hay SN/CUN acumulados, menciónalos en el primer párrafo y respóndelos de forma unificada.
+- Finaliza con un párrafo sobre los saldos pendientes (tomados del movimiento de cuenta), si existen.
+5. **Inclusión de Contacto:** Al final de la respuesta, incluye un párrafo indicando que la notificación se realizará a los correos electrónicos y/o direcciones postales que se han validado en el expediente. Cita las direcciones específicas si están disponibles en la sección "FUENTES DE INFORMACIÓN ADICIONAL".
+**Formato de Salida:** Proporciona solo el texto de la respuesta.
+Comienza con la plantilla obligatoria y genera el contenido en párrafos separados por una línea en blanco.
+**FUENTES DE INFORMACIÓN:**
+    ---
+    **DATOS DEL CASO PRINCIPAL:**
+    - SN Principal: ${caseData.SN ||
+'N/A'}
+    - CUN: ${caseData.CUN || 'N/A'}
+    - Observación Inicial del Cliente (obs): ${caseData.obs ||
+'N/A'}
+    - Tipo de Contrato: ${caseData.Tipo_Contrato ||
+'N/A'}
+    - Número de Contrato Marco: ${caseData.Numero_Contrato_Marco ||
+'N/A'}
+
+    **HISTORIAL DE GESTIONES INTERNAS:**
+    ${internalHistoryInfo ||
+'No hay historial de gestiones internas.'}
+
+    **HISTORIAL DE RECLAMOS ACUMULADOS:**
+    ${accumulatedSNInfo ||
+'No hay reclamos acumulados.'}
+
+    **FUENTES DE INFORMACIÓN ADICIONAL:**
+    - Correos Electrónicos del Cliente: ${caseData.Correo_Electronico_Cliente || 'N/A'}
+    - Direcciones del Cliente: ${caseData.Direccion_Cliente || 'N/A'}
+    - Historial de Direcciones Extraídas de Adjuntos: ${JSON.stringify(caseData.Direcciones_Extraidas || [])}
+    ---
+
+    Comienza tu respuesta ahora, siguiendo este formato estricto:
+    ${startTemplate}
+
+    a) Resumen de los hechos (corto y conciso):
+    ...
+
+    b) Acciones adelantadas:
+    ...
+
+    c) Razones (jurídicas, técnicas o económicas):
+    ...
+
+    d) Información sobre recursos y plazos:
+    ...
+
+
+Párrafo de saldos pendientes (si aplica):
+    ...`;
+
+    const ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: { "respuesta_integral_ia": { "type": "STRING" } }
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || ""); // Tu API Key
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    try {
+        const r = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await r.json();
+        if (r.ok && res.candidates?.[0]?.content?.parts?.[0]) {
+            return JSON.parse(res.candidates[0].content.parts[0].text).respuesta_integral_ia || 'No se pudo generar la respuesta integral.';
+        }
+        throw new Error(res.error?.message || 'Respuesta IA inesperada (respuesta integral).');
+    } catch (e) {
+        console.error("Error AI comprehensive response:", e);
+        throw new Error(`Error IA (respuesta integral): ${e.message}`);
+    }
+};
+const getAIValidation = async (caseData) => {
+    // Se prepara un prompt detallado para la IA, pidiéndole que actúe como el cliente.
+    const prompt = `Eres un cliente que presentó un reclamo. Basado en tus pretensiones originales, lee la 'respuesta de la empresa' y determina si todas tus pretensiones fueron atendidas de manera completa. La favorabilidad de la respuesta no es relevante, solo si se abordó cada punto.
+
+**MIS PRETENSIONES ORIGINALES (hechos del caso):**
+- Mi observación inicial: "${caseData.obs || 'N/A'}"
+- Historial de reclamos relacionados:
+${(Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : [])
+    .map((item, index) => `- Reclamo anterior (SN ${item.sn}): "${item.obs}"`).join('\n') || 'N/A'}
+- Reclamo principal relacionado: ${caseData.Numero_Reclamo_Relacionado || 'N/A'} con observaciones: "${caseData.Observaciones_Reclamo_Relacionado || 'N/A'}"
+
+**RESPUESTA DE LA EMPRESA (Análisis de la IA):**
+"${caseData.Respuesta_Integral_IA || 'N/A'}"
+
+**Instrucciones CRÍTICAS:**
+1. Lee tu 'observación inicial' y la 'respuesta de la empresa'.
+2. Identifica si hay alguna pretensión o punto clave en tu 'observación inicial' que la 'respuesta de la empresa' no haya abordado.
+3. Ignora el tono o la favorabilidad de la respuesta; solo concéntrate en la completitud.
+4. Si la 'respuesta de la empresa' está vacía, no es válida.
+5. Responde con un JSON.
+   - Si se abordaron todas las pretensiones, la propiedad 'completa' debe ser 'true' y 'justificacion' una confirmación simple.
+   - Si se omitió alguna pretensión, 'completa' debe ser 'false' y 'justificacion' debe detallar qué pretensión no fue atendida.
+
+Formato de respuesta JSON:
+{
+  "completa": true,
+  "justificacion": "..."
+}`;
+
+    const ch = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = {
+        contents: ch,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: {
+                    "completa": { "type": "BOOLEAN" },
+                    "justificacion": { "type": "STRING" }
+                },
+                "propertyOrdering": ["completa", "justificacion"]
+            }
+        }
+    };
+    const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    try {
+        const response = await retryFetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (response.ok && result.candidates?.[0]?.content?.parts?.[0]) {
+            return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+        throw new Error(result.error?.message || 'Respuesta de IA inesperada (validación).');
+    } catch (e) {
+        console.error("Error AI Validation:", e);
+        throw new Error(`Error IA (validación): ${e.message}`);
+    }
+};
+
+
+// --- Block added from App.jsx: generateAITextContext ---
+
+const generateAITextContext = (caseData) => {
+    // Formatea el historial completo de observaciones
+    const internalHistoryInfo = (caseData.Observaciones_Historial || [])
+        .map(obs => ` - Fecha: ${new Date(obs.timestamp).toLocaleString('es-CO')}\n   Observación de gestión: "${obs.text}"`)
+        .join('\n\n');
+
+    // Lógica para SN acumulados
+    const accumulatedSNInfo = (Array.isArray(caseData.SNAcumulados_Historial) ? caseData.SNAcumulados_Historial : []).map((item, index) => 
+        `  Reclamo Acumulado ${index + 1}:\n   - SN: ${item.sn} (CUN: ${item.cun || 'No disponible'})\n   - Observación: ${item.obs}`
+    ).join('\n');
+
+    // Contexto del reclamo relacionado
+    const relatedClaimInfo = caseData.Numero_Reclamo_Relacionado && caseData.Numero_Reclamo_Relacionado !== 'N/A' 
+        ? `**Reclamo Relacionado (SN: ${caseData.Numero_Reclamo_Relacionado}):**\n   - Observaciones: ${caseData.Observaciones_Reclamo_Relacionado || 'N/A'}\n`
+        : 'No hay un reclamo principal relacionado.';
+
+    const textContext = `
+    Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
+    Necesito que me ayudes a redactar una "Proyección de Respuesta" para un cliente.
+    La respuesta debe ser exhaustiva, fluida y coherente, y basarse solo en la información que te proporciono a continuación.
+
+    **Instrucciones para la Respuesta:**
+    - La respuesta debe abarcar todas las pretensiones y hechos del cliente.
+    - Debe dar las razones jurídicas, técnicas o económicas en que se apoya la decisión.
+    - Si hay SN/CUN acumulados, respóndelos de forma unificada.
+    - Proporciona solo el texto de la respuesta, sin plantillas de formato o JSON.
+
+    ---
+    **FUENTES DE INFORMACIÓN DEL CASO:**
+    
+    **DATOS PRINCIPALES:**
+    - SN Principal: ${caseData.SN || 'N/A'} (CUN: ${caseData.CUN || 'N/A'})
+    - Observación Inicial del Cliente: "${caseData.obs || 'N/A'}"
+    - Tipo de Contrato: ${caseData.Tipo_Contrato || 'N/A'}
+    
+    **HISTORIAL DE GESTIONES INTERNAS:**
+    Este es el registro de los análisis y acciones ya realizadas.
+    ${internalHistoryInfo || 'No hay historial de gestiones internas.'}
+    
+    **HISTORIAL DE RECLAMOS ACUMULADOS:**
+    ${accumulatedSNInfo || 'No hay reclamos acumulados.'}
+    
+    **CONTEXTO ADICIONAL:**
+    ${relatedClaimInfo}
+    ---
+    
+    **TU RESPUESTA DEBE COMENZAR A PARTIR DE AQUÍ.**`;
+
+    return textContext;
+};
+
+
+// --- Block added from App.jsx: extractRelatedComplaintNumber ---
+
+const extractRelatedComplaintNumber = (obsText) => {
+    if (!obsText || typeof obsText !== 'string') return 'N/A';
+    const match = obsText.toLowerCase().match(/\b(\d{16}|\d{20})\b/i);
+    return match ? (match[1] || 'N/A') : 'N/A';
+};
+
+/**
+ * Normalizes a NUIP by taking the part before any hyphen.
+ * @param {string} nuip - The NUIP string.
+ * @returns {string} The normalized NUIP.
+ */
+
+
+// --- Block added from App.jsx: normalizeNuip ---
+
+const normalizeNuip = (nuip) => {
+    if (!nuip || typeof nuip !== 'string') return '';
+    return nuip.split('-')[0].trim();
+};
+
+
+// --- Block added from App.jsx: copyToClipboard ---
+
+const copyToClipboard = (text, fieldName, showMessageCallback) => {
+    if (!text) {
+        showMessageCallback(`No hay contenido en "${fieldName}" para copiar.`);
+        return;
+    }
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        showMessageCallback(`Contenido de "${fieldName}" copiado al portapapeles.`);
+    } catch (err) {
+        console.error('Error al copiar al portapapeles:', err);
+        showMessageCallback(`Error al copiar "${fieldName}". Intenta manualmente.`);
+    }
+    document.body.removeChild(textArea);
+};
+/**
+ * Extrae correos electrónicos y direcciones físicas de un bloque de texto.
+ * @param {string} text - El texto a analizar.
+ * @returns {{emails: string[], addresses: string[]}} Un objeto con las direcciones encontradas.
+ */
+
+
+// --- Block added from App.jsx: extractAddressesFromText ---
+
+const extractAddressesFromText = (text) => {
+    if (!text || typeof text !== 'string') {
+        return { emails: [], addresses: [] };
+    }
+
+    // Expresión regular para encontrar correos electrónicos.
+    const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
+    const emails = text.match(emailRegex) || [];
+
+    // Expresión regular para encontrar direcciones físicas colombianas (simplificada).
+    // Busca patrones comunes como "Calle", "Carrera", "Avenida", "Transversal", "Diagonal" seguidos de números.
+    const addressRegex = /(?:calle|cll|carrera|cra|k|avenida|av|transversal|trans|diagonal|diag|dg)\.?\s*[\d\sA-Za-zñÑáéíóúÁÉÍÓÚ#\-\.]+/gi;
+    const addresses = text.match(addressRegex) || [];
+
+    // Devuelve los resultados únicos para evitar duplicados.
+    return {
+        emails: [...new Set(emails)],
+        addresses: [...new Set(addresses)]
+    };
+};
+// =================================================================================================
+// React Components
+// =================================================================================================
+
+
+// --- Block added from App.jsx: PaginatedTable ---
+
+const PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, priorityColors, selectedCaseIds, handleSelectCase, handleOpenCaseDetails, onScanClick, nonBusinessDays, calculateCaseAge }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const casesPerPage = 10;
+
+    const indexOfLastCase = currentPage * casesPerPage;
+    const indexOfFirstCase = indexOfLastCase - casesPerPage;
+    const currentCases = cases.slice(indexOfFirstCase, indexOfLastCase);
+    const totalPages = Math.ceil(cases.length / casesPerPage);
+    const paginate = (pageNumber) => {
+        if (pageNumber < 1 || pageNumber > totalPages) return;
+        setCurrentPage(pageNumber);
+    };
+
+    return (
+        <div className="mb-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4 px-2 py-1 bg-gray-200 rounded-md">{title} ({cases.length})</h3>
+            <div className="overflow-x-auto rounded-lg shadow-md border">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-teal-500">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox h-4 w-4 text-blue-600"
+                                    onChange={(e) => {
+                                        const newSelectedIds = new Set(selectedCaseIds);
+                                        if (e.target.checked) {
+                                            cases.forEach(c => newSelectedIds.add(c.id));
+                                        } else {
+                                            cases.forEach(c => newSelectedIds.delete(c.id));
+                                        }
+                                        handleSelectCase(newSelectedIds, true);
+                                    }}
+                                    checked={cases.length > 0 && cases.every(c => selectedCaseIds.has(c.id))}
+                                    disabled={cases.length === 0}
+                                />
+                            </th>
+                            {mainTableHeaders.map(h => <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>)}
+                            <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {currentCases.length > 0 ?
+                            currentCases.map(c => (
+                            <tr key={c.id} className={`hover:bg-gray-50 ${selectedCaseIds.has(c.id) ? 'bg-blue-50' : (c.Prioridad === 'Alta' ? 'bg-red-100' : '')}`}>
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox h-4 w-4 text-blue-600"
+                                        checked={selectedCaseIds.has(c.id)}
+                                        onChange={() => handleSelectCase(c.id)}
+                                    />
+                                </td>
+                                {mainTableHeaders.map(h => {
+                                    let v = c[h] || 'N/A';
+                                    if (h === 'Nro_Nuip_Cliente' && (!v || v === '0')) v = c.Nro_Nuip_Reclamante || 'N/A';
+                                    
+                                    // --- LÍNEA CLAVE AÑADIDA ---
+                                    if (h === 'Dia') v = calculateCaseAge(c, nonBusinessDays);
+                                    // -------------------------
+
+                                    if (h === 'Estado_Gestion') return <td key={h} className="px-6 py-4"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[v] || statusColors['N/A']}`}>{v}</span></td>;
+                                    if (h === 'Prioridad') return <td key={h} className="px-6 py-4"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${priorityColors[v] || priorityColors['N/A']}`}>{v}</span></td>;
+                                    return <td key={h} className="px-6 py-4 whitespace-nowrap text-sm">{v}</td>
+                                })}
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                    <button onClick={e => { e.stopPropagation(); handleOpenCaseDetails(c); }} className="text-blue-600 hover:text-blue-900">Ver Detalles</button>
+                                    {c.Documento_Adjunto && String(c.Documento_Adjunto).startsWith('http') && (
+                                        <a href={c.Documento_Adjunto} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="ml-4 text-green-600 hover:text-green-900 font-semibold">
+                                            Ver Adjunto
+                                        </a>
+                                    )}
+                                    {c.Documento_Adjunto === "Si_Adjunto" && (
+                                        <button onClick={(e) => { e.stopPropagation(); onScanClick(c); }} className="ml-4 text-green-600 hover:text-green-900 font-semibold">
+                                            ✨ Escanear Adjunto
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                            )) : <tr><td colSpan={mainTableHeaders.length + 2} className="p-6 text-center">No hay casos.</td></tr>}
+                    </tbody>
+                </table>
+            </div>
+            {totalPages > 1 && (
+                <nav className="mt-4" aria-label="Pagination">
+                    <ul className="flex justify-center items-center -space-x-px">
+                        <li><button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50">Anterior</button></li>
+                        {[...Array(totalPages).keys()].map(number => (
+                            <li key={number + 1}><button onClick={() => paginate(number + 1)} className={`px-3 py-2 leading-tight border border-gray-300 ${currentPage === number + 1 ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' : 'text-gray-500 bg-white hover:bg-gray-100 hover:text-gray-700'}`}>{number + 1}</button></li>
+                        ))}
+                        <li><button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50">Siguiente</button></li>
+                    </ul>
+                </nav>
+            )}
+        </div>
+    );
+};
+
+
+/**
+ * The main application component.
+ */
