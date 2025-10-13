@@ -38,7 +38,10 @@ function App() {
     const [showManualEntryModal, setShowManualEntryModal] = useState(false);
     const [activeModule, setActiveModule] = useState('casos');
     const [currentDateTime, setCurrentDateTime] = useState(new Date());
-
+function isTextArea(fieldName) {
+  if (!fieldName) return false;
+  return ['OBS', 'Observacion', 'Observaciones', 'Descripcion', 'Comentarios'].includes(fieldName);
+}
     const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [isGeneratingResponseProjection, setIsGeneratingResponseProjection] = useState(false);
