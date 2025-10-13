@@ -96,14 +96,20 @@ export async function getAIComprehensiveResponse(caseData, contractType) {
 }
 
 export async function getAIRiskAnalysis(caseData) {
-  // Lógica para analizar el riesgo
-  const prompt = `Analiza el riesgo de que el siguiente caso escale a la Superintendencia de Industria y Comercio (SIC) y justifica la respuesta. La respuesta debe tener el formato: "riesgo": "Alto", "justificacion": "El cliente ha expresado insatisfacción y amenaza con escalar a la SIC."`;
+  const prompt = `Analiza el riesgo de que el siguiente caso escale a la Superintendencia de Industria y Comercio (SIC) y justifica la respuesta. La respuesta DEBE ser un objeto JSON con el formato: {"riesgo": "Alto" o "Medio" o "Bajo", "justificacion": "..."}`;
   const result = await geminiApiCall(prompt);
   try {
+    // Intenta analizar la respuesta como JSON
     return JSON.parse(result);
   } catch (e) {
     console.error("Failed to parse AI risk analysis result:", e);
-    return { riesgo: 'N/A', justificacion: 'Error al procesar el análisis de riesgo.' };
+    // Fallback: intenta extraer la información del texto plano
+    const riesgoMatch = result.match(/riesgo"\s*:\s*"(.*?)"/i);
+    const justificacionMatch = result.match(/justificacion"\s*:\s*"(.*?)"/i);
+    return {
+      riesgo: riesgoMatch ? riesgoMatch[1] : 'N/A',
+      justificacion: justificacionMatch ? justificacionMatch[1] : 'Error al procesar el análisis de riesgo. Revise la respuesta de la IA.'
+    };
   }
 }
 
