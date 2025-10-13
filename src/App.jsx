@@ -1035,7 +1035,7 @@ function App() {
                 const base64Image = await fileToBase64(file);
                 const imagePart = { inline_data: { mime_type: file.type, data: base64Image } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                const modelName = "gemini-1.5-flash-latest";
+                const modelName = "gemini-2.5-flash";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`; // ✅ CORRECTO
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1048,7 +1048,7 @@ function App() {
                 const base64Audio = await fileToBase64(file);
                 const audioPart = { inline_data: { mime_type: file.type, data: base64Audio } };
                 const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                const modelName = "gemini-1.5-flash-latest";
+                const modelName = "gemini-2.5-flash";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
