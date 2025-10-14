@@ -1141,7 +1141,7 @@ useEffect(() => {
                             const prompt = 'Analiza la siguiente imagen de un documento y transcribe todo el texto relevante que encuentres de manera estructurada.';
                             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
                             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                            const modelName = "gemini-1.5-flash";
+                            const modelName = "gemini-2.5-flash";
                             const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
                             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
