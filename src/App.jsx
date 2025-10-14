@@ -1092,7 +1092,7 @@ useEffect(() => {
             const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
             // FIX: Corrected model name
-            const modelName = "gemini-1.5-pro";
+            const modelName = "gemini-2.0-flash";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
             // ... (resto del bloque if para imagen)
@@ -1102,7 +1102,7 @@ useEffect(() => {
             const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
             // FIX: Corrected model name
-            const modelName = "gemini-1.5-pro";
+            const modelName = "gemini-2.0-flash";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1117,7 +1117,7 @@ useEffect(() => {
             const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
             // FIX: Corrected model name to a valid public model
-            const modelName = "gemini-1.5-pro";
+            const modelName = "gemini-2.0-flash";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
