@@ -1473,15 +1473,23 @@ function App() {
         return Object.keys(countsByDate).map(fecha => ({ fecha, cantidad: countsByDate[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     }, [cases]);
 
-    const distribucionPorDiaData = useMemo(() => {
-        const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
-        const countsByDay = cases.filter(c => pendStates.includes(c.Estado_Gestion)).reduce((acc, curr) => {
-            const dia = `Día ${curr.Dia || 'N/A'}`;
-            acc[dia] = (acc[dia] || 0) + 1;
+const distribucionPorDiaData = useMemo(() => {
+    const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
+    const countsByDay = cases
+        .filter(c => pendStates.includes(c.Estado_Gestion))
+        .reduce((acc, curr) => {
+            // CORRECCIÓN: Se usa la función para calcular la antigüedad en tiempo real
+            const dia = utils.calculateCaseAge(curr, nonBusinessDays);
+            if (dia !== 'N/A' && !isNaN(dia)) {
+                const key = `Día ${dia}`;
+                acc[key] = (acc[key] || 0) + 1;
+            }
             return acc;
         }, {});
-        return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] })).sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
-    }, [cases]);
+        
+    return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] }))
+        .sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
+}, [cases, nonBusinessDays]); // Se añade nonBusinessDays a las dependencias del useMemo
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
     function getFilterStyles(isActive, color) {
