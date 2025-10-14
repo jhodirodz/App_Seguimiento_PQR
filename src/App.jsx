@@ -1085,13 +1085,22 @@ useEffect(() => {
         } else if (fileType.startsWith('image/')) {
             const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
             const base64Image = await fileToBase64(file);
-            // FIX: Corrected payload structure to use camelCase keys
             const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            // FIX: Corrected model name to a valid public model
-            const modelName = "gemini-1.5-flash";
+            // FIX: Corrected model name
+            const modelName = "gemini-1.5-flash-latest";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
+            // ... (resto del bloque if para imagen)
+        } else if (fileType.startsWith('audio/')) {
+            const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
+            const base64Audio = await fileToBase64(file);
+            const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+            // FIX: Corrected model name
+            const modelName = "gemini-1.5-flash-latest";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
             const result = await response.json();
@@ -1405,7 +1414,7 @@ useEffect(() => {
         scanFileInputRef.current.click();
     }
 
-    async function handleScanFileUpload(event) {
+async function handleScanFileUpload(event) {
     const file = event.target.files[0];
     if (!file || !caseToScan) return;
     setIsScanning(true);
@@ -1418,18 +1427,18 @@ useEffect(() => {
         const payload = {
             contents: [{
                 role: "user",
-                // FIX: Corrected payload structure to use camelCase keys
                 parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }]
             }],
         };
         const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-        // FIX: Corrected model name to a valid public model
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // FIX: Reverted model name to the correct one with '-latest'
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await response.json();
             if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
                 const transcribedText = result.candidates[0].content.parts[0].text;
+                // ... (el resto de la función sigue igual)
                 const extractedData = utils.extractAddressesFromText(transcribedText);
                 const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
                 const newHistoryEntry = { timestamp: new Date().toISOString(), emails: extractedData.emails, addresses: extractedData.addresses };
