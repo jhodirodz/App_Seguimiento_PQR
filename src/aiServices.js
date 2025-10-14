@@ -8,7 +8,7 @@ async function geminiApiCall(prompt, parts = [], isJson = false, responseSchema 
   }
 
   const modelName = "gemini-2.0-flash";
-  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [{
