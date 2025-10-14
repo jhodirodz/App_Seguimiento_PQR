@@ -1630,39 +1630,44 @@ const distribucionPorDiaData = useMemo(() => {
         }
     }, [cantidadSNAcumulados]);
 useEffect(() => {
-        if (cases.length === 0) return;
+    // Si no hay casos, no hagas nada.
+    if (cases.length === 0) return;
 
-        const checkAlarms = () => {
-            const todayISO = utils.getColombianDateISO(); // Asegúrate de usar tu import de utils
-            const casesToAlert = cases.filter(c => {
-                const caseId = c.id;
-                const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
+    // La lógica se ejecuta inmediatamente, no después de un retraso.
+    const checkAlarms = () => {
+        const todayISO = utils.getColombianDateISO();
+        const casesToAlert = cases.filter(c => {
+            const caseId = c.id;
+            const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
 
-                // Si la alarma para este caso ya fue cerrada hoy, no la mostramos.
-                if (sessionStorage.getItem(alarmKey)) {
-                    return false;
-                }
-
-                const dia = utils.calculateCaseAge(c, nonBusinessDays); // Usa la función de cálculo
-                if (isNaN(dia)) return false;
-
-                const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
-                const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
-
-                return isTrasladoSIC || isDecretado;
-            });
-
-            if (casesToAlert.length > 0) {
-                setAlarmCases(casesToAlert);
-                setShowAlarmModal(true);
+            // 1. Si la alarma para este caso ya fue gestionada y cerrada hoy, no se muestra.
+            if (sessionStorage.getItem(alarmKey)) {
+                return false;
             }
-        };
 
-        // Revisa las alarmas 5 segundos después de que los casos se carguen.
-        const timer = setTimeout(checkAlarms, 5000);
-        return () => clearTimeout(timer);
+            // 2. Se calcula la antigüedad real del caso.
+            const dia = utils.calculateCaseAge(c, nonBusinessDays);
+            if (isNaN(dia)) return false;
 
-    }, [cases]); // Este hook depende de 'cases'
+            // 3. Se verifican las condiciones de la alarma.
+            const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
+            const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
+
+            return isTrasladoSIC || isDecretado;
+        });
+
+        // 4. Si se encontraron casos que cumplen la condición, se muestra la alarma.
+        if (casesToAlert.length > 0) {
+            setAlarmCases(casesToAlert);
+            setShowAlarmModal(true);
+        }
+    };
+
+    // Llama a la función de verificación directamente.
+    checkAlarms();
+
+    // La dependencia [cases] asegura que esto se ejecute cada vez que los casos cambien.
+}, [cases, nonBusinessDays]); // Se añade nonBusinessDays como dependencia explícita
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
     return (
