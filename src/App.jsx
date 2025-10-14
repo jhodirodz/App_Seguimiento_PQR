@@ -1082,53 +1082,57 @@ useEffect(() => {
     try {
         let summary = '';
         const fileType = file.type;
-        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-        
-        // Define el modelo y la URL una sola vez si la lógica es similar
-        const modelName = "gemini-1.5-pro-latest"; // Modelo recomendado para multimodalidad
-        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
-
         if (fileType.startsWith('text/')) {
-            // ... (lógica de texto, sin cambios)
+            // ... (no changes here)
         } else if (fileType === 'application/pdf') {
-            // ... (lógica de pdf, sin cambios)
+            // ... (no changes here)
         } else if (fileType.startsWith('image/')) {
             const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
             const base64Image = await fileToBase64(file);
             const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+            // FIX: Corrected model name
+            const modelName = "gemini-1.5-flash-latest";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`Error en la API de imagen: ${response.status}`);
-            const result = await response.json();
-            if (result.candidates && result.candidates[0].content.parts[0].text) { summary = result.candidates[0].content.parts[0].text; }
-             else { throw new Error('La IA no pudo procesar la imagen.'); }
+            // ... (resto del bloque if para imagen)
         } else if (fileType.startsWith('audio/')) {
             const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
             const base64Audio = await fileToBase64(file);
             const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+            // FIX: Corrected model name
+            const modelName = "gemini-1.5-flash-latest";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
+            const result = await response.json();
+            if (result.candidates && result.candidates[0].content.parts[0].text) { summary = result.candidates[0].content.parts[0].text; }
+            else { throw new Error('La IA no pudo procesar la imagen.'); }
+        } else if (fileType.startsWith('audio/')) {
+            const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
+            const base64Audio = await fileToBase64(file);
+            // FIX: Corrected payload structure to use camelCase keys
+            const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+            // FIX: Corrected model name to a valid public model
+            const modelName = "gemini-1.5-flash";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`); }
             const result = await response.json();
             if (result.candidates && result.candidates[0].content.parts[0].text) { summary = result.candidates[0].content.parts[0].text; }
             else { throw new Error('La IA no pudo procesar el audio.'); }
-        } else { 
-            throw new Error(`Tipo de archivo no soportado: ${fileType}`); 
-        }
-
+        } else { throw new Error(`Tipo de archivo no soportado: ${fileType}`); }
         const currentObs = selectedCase.Observaciones || '';
         const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
         setSelectedCase(prev => ({ ...prev, Observaciones: newObs }));
         await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs });
         displayModalMessage('✅ Adjunto analizado y añadido a las observaciones.');
-    } catch (error) { 
-        console.error("Error processing observation file:", error); 
-        displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`); 
-    }
-    finally { 
-        setIsTranscribingObservation(false); 
-        if (observationFileInputRef.current) { observationFileInputRef.current.value = ""; } 
-    }
+    } catch (error) { console.error("Error processing observation file:", error); displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`); }
+    finally { setIsTranscribingObservation(false); if (observationFileInputRef.current) { observationFileInputRef.current.value = ""; } }
 }
 
     function downloadCSV(csvContent, filename) {
@@ -1431,9 +1435,8 @@ async function handleScanFileUpload(event) {
             }],
         };
         const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-// CORRECCIÓN: Usar el modelo multimodal actual y la versión v1 de la API
-const modelName = "gemini-1.5-pro-latest";
-const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+        // FIX: Reverted model name to the correct one with '-latest'
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await response.json();
