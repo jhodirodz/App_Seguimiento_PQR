@@ -16,7 +16,24 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, creat
 import { db, auth } from "./firebaseConfig.js";
 
 const appId = "App_Seguimiento_PQR";
+const normalizeTextForSearch = (text) => {
+    if (!text) return '';
+    return text
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+};
 
+// Lista de expresiones regulares para buscar las palabras clave y sus variaciones.
+const KEYWORD_ALARM_TRIGGERS = [
+    /impuesto(s)?/,
+    /estampilla(s)?/,
+    /reteica/,
+    /reinstala(r|cion|ndo|ciones)/,
+    /reactiva(r|cion|ndo|ciones)/,
+    /dano\s+tecnico/, // "dano tecnico"
+    /cancela(r|cion|ndo|ciones)\s+(el\s+|de\s+)?servicio/, // "cancelar servicio", "cancelacion de servicio", etc.
+];
 function App() {
     // --------------------------
     // Declaraciones de estado y referencias
@@ -115,7 +132,8 @@ function App() {
     const [selectedAlarmCase, setSelectedAlarmCase] = useState(null);
     const [showCancelAlarmModal, setShowCancelAlarmModal] = useState(false);
     const [cancelAlarmCases, setCancelAlarmCases] = useState([]);
-
+    const [showKeywordAlarmModal, setShowKeywordAlarmModal] = useState(false);
+    const [keywordAlarmCases, setKeywordAlarmCases] = useState([]);
     // --------------------------
     // Definición de funciones y lógicas
     // --------------------------
@@ -315,7 +333,53 @@ function App() {
             setShowCancelAlarmModal(true);
         }
     }, [cases, nonBusinessDays]);
+useEffect(() => {
+        if (cases.length === 0) return;
 
+        // Usamos un Map para evitar duplicados si un caso coincide con varias palabras clave.
+        const casesToAlertMap = new Map();
+
+        const checkKeywordAlarms = () => {
+            cases.forEach(c => {
+                const alarmKey = `keyword_alarm_dismissed_${c.id}`;
+                // Si la alarma ya fue descartada en esta sesión, la ignoramos.
+                if (sessionStorage.getItem(alarmKey)) {
+                    return; 
+                }
+
+                // Combinamos todas las observaciones (actual, OBS del CSV e historial) en un solo texto.
+                const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
+                const allText = `${c.Observaciones || ''} ${c.OBS || ''} ${historicalObs}`;
+
+                if (!allText.trim()) {
+                    return; // No hay texto para revisar.
+                }
+
+                const normalizedText = normalizeTextForSearch(allText);
+
+                // Revisamos si alguna de nuestras palabras clave coincide.
+                for (const trigger of KEYWORD_ALARM_TRIGGERS) {
+                    if (trigger.test(normalizedText)) {
+                        // Si hay coincidencia, añadimos el caso al mapa y pasamos al siguiente.
+                        if (!casesToAlertMap.has(c.id)) {
+                            casesToAlertMap.set(c.id, c);
+                        }
+                        break; 
+                    }
+                }
+            });
+
+            const casesToAlert = Array.from(casesToAlertMap.values());
+
+            if (casesToAlert.length > 0) {
+                setKeywordAlarmCases(casesToAlert);
+                setShowKeywordAlarmModal(true);
+            }
+        };
+
+        checkKeywordAlarms();
+
+    }, [cases]); // Se ejecuta cada vez que los casos cambian.
     const handleReliquidacionChange = (index, e) => {
         const { name, value } = e.target;
         setReliquidacionData(prev => {
@@ -2025,6 +2089,59 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                             {/* ... el resto del código del formulario ... */}
                             <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {showKeywordAlarmModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]">
+                        <div className="flex items-center justify-between pb-3 border-b-2 border-yellow-500">
+                            <h3 className="text-2xl font-bold text-yellow-700">🔔 Alarma de Palabras Clave</h3>
+                            <button onClick={() => setShowKeywordAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+                        </div>
+                        <div className="mt-4">
+                            <p className="text-sm text-gray-600 mb-4">
+                                Los siguientes casos contienen observaciones con palabras clave que requieren atención especial (impuestos, daño técnico, cancelación, etc.).
+                            </p>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                {keywordAlarmCases.map(c => (
+                                    <div key={c.id} className="p-3 rounded-md border bg-yellow-50 border-yellow-200">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="font-bold text-yellow-800">SN: {c.SN}</p>
+                                                <p className="text-sm">
+                                                    <span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>
+                                                        {c.Estado_Gestion}
+                                                    </span>
+                                                </p>
+                                                <p className="text-sm text-gray-700 mt-1">
+                                                    Cliente: {c.Nombre_Cliente || 'N/A'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleOpenCaseDetails(c)}
+                                                className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                            >
+                                                Ver Caso
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end mt-4">
+                                <button
+                                    onClick={() => {
+                                        keywordAlarmCases.forEach(c => {
+                                            sessionStorage.setItem(`keyword_alarm_dismissed_${c.id}`, 'true');
+                                        });
+                                        setShowKeywordAlarmModal(false);
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Entendido, Cerrar Alertas
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
