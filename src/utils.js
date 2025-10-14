@@ -14,7 +14,28 @@ export const getColombianDateISO = () => {
         day: '2-digit'
     }).format(new Date());
 };
-
+/**
+ * Formats a date string into 'YYYY-MM-DD' for HTML date inputs.
+ * Handles various formats like MM/DD/YYYY.
+ * @param {string} dateString - The date string to format.
+ * @returns {string} The formatted date string or original if parsing fails.
+ */
+export const formatDateForInput = (dateString) => {
+    if (!dateString || typeof dateString !== 'string') return '';
+    // Handles formats like MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
+    try {
+        const date = new Date(dateString.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2'));
+        if (isNaN(date.getTime())) return dateString; // Return original if parsing fails
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        return dateString; // Return original on error
+    }
+};
 /**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
  * @param {string} dateStr - La cadena de fecha a parsear.
