@@ -349,7 +349,7 @@ useEffect(() => {
 
                 // Combinamos todas las observaciones (actual, OBS del CSV e historial) en un solo texto.
                 const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
-                const allText = `${c.Observaciones || ''} ${c.OBS || ''} ${historicalObs}`;
+                const allText = `${c.Observaciones || ''} ${c.obs || c.OBS || ''} ${historicalObs}`;
 
                 if (!allText.trim()) {
                     return; // No hay texto para revisar.
