@@ -1484,7 +1484,22 @@ function App() {
     }, [cases]);
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
-
+    function getFilterStyles(isActive, color) {
+        if (isActive) {
+            switch (color) {
+                case 'blue': return 'border-blue-500 bg-blue-100';
+                case 'green': return 'border-green-500 bg-green-100';
+                case 'gray': return 'border-gray-500 bg-gray-100';
+                case 'yellow': return 'border-yellow-500 bg-yellow-100';
+                case 'pink': return 'border-pink-500 bg-pink-100';
+                case 'orange': return 'border-orange-500 bg-orange-100';
+                case 'red': return 'border-red-500 bg-red-100';
+                case 'purple': return 'border-purple-500 bg-purple-100';
+                default: return 'border-gray-500 bg-gray-100';
+            }
+        }
+        return 'border-gray-200 bg-gray-50 hover:bg-gray-100';
+    }
     useEffect(() => {
         if (document.getElementById('pdfjs-script')) return;
         const script = document.createElement('script');
@@ -1606,7 +1621,40 @@ function App() {
             setSnAcumuladosData([]);
         }
     }, [cantidadSNAcumulados]);
+useEffect(() => {
+        if (cases.length === 0) return;
 
+        const checkAlarms = () => {
+            const todayISO = utils.getColombianDateISO(); // Asegúrate de usar tu import de utils
+            const casesToAlert = cases.filter(c => {
+                const caseId = c.id;
+                const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
+
+                // Si la alarma para este caso ya fue cerrada hoy, no la mostramos.
+                if (sessionStorage.getItem(alarmKey)) {
+                    return false;
+                }
+
+                const dia = utils.calculateCaseAge(c, nonBusinessDays); // Usa la función de cálculo
+                if (isNaN(dia)) return false;
+
+                const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
+                const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
+
+                return isTrasladoSIC || isDecretado;
+            });
+
+            if (casesToAlert.length > 0) {
+                setAlarmCases(casesToAlert);
+                setShowAlarmModal(true);
+            }
+        };
+
+        // Revisa las alarmas 5 segundos después de que los casos se carguen.
+        const timer = setTimeout(checkAlarms, 5000);
+        return () => clearTimeout(timer);
+
+    }, [cases]); // Este hook depende de 'cases'
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
     return (
@@ -1757,7 +1805,7 @@ function App() {
                                     { l: 'Finalizados', c: counts.finalizado, f: 'finalizado', cl: 'gray' }, { l: 'Pendientes', c: counts.pending, f: 'pending_escalated_initiated', cl: 'yellow' },
                                     { l: 'Pend. Ajustes', c: counts.pendienteAjustes, f: 'pendiente_ajustes', cl: 'pink' }, { l: 'Día 14 Pend.', c: counts.dia14, f: 'dia14_pending', cl: 'orange' },
                                     { l: 'Día 15 Pend.', c: counts.dia15, f: 'dia15_pending', cl: 'red' }, { l: 'Día >15 Pend.', c: counts.diaGt15, f: 'dia_gt15_pending', cl: 'purple' }
-                                ].map(s => (<div key={s.f} onClick={() => setActiveFilter(s.f)} className={`p-3 rounded-lg shadow-sm text-center cursor-pointer border-2 ${activeFilter === s.f ? `border-${s.cl}-500 bg-${s.cl}-100` : `border-gray-200 bg-gray-50 hover:bg-gray-100`}`}><p className={`text-sm font-semibold text-gray-700`}>{s.l}</p><p className={`text-2xl font-bold text-${s.cl}-600`}>{s.c}</p></div>))}
+                                ].map(s => (<div key={s.f} onClick={() => setActiveFilter(s.f)} className={`p-3 rounded-lg shadow-sm text-center cursor-pointer border-2 ${getFilterStyles(activeFilter === s.f, s.cl)}`}><p className={`text-sm font-semibold text-gray-700`}>{s.l}</p><p className={`text-2xl font-bold text-${s.cl}-600`}>{s.c}</p></div>))}
                             </div>
                         </div>
                         {activeFilter !== 'all' && (<div className="mb-4 text-center"><button onClick={() => { setActiveFilter('all'); setSelectedCaseIds(new Set()); }} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Limpiar Filtros y Selección</button></div>)}
