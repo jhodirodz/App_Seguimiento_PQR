@@ -627,22 +627,26 @@ useEffect(() => {
         reader.readAsText(file, 'ISO-8859-1');
     }
 
-    function handleAssignFromReport(reportRowData) {
-        const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
-        const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
-        const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
-        const fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
-        const prefilledData = {
-            ...initialManualFormData,
-            SN: reportRowData[snHeader] || '',
-            CUN: reportRowData[cunHeader] || '',
-            Nro_Nuip_Cliente: reportRowData[nuipHeader] || '',
-            FechaRadicado: reportRowData[fechaRadicadoHeader] || '',
-        };
-        setManualFormData(prefilledData);
-        handleCloseCaseDetails();
-        setShowManualEntryModal(true);
-    }
+ function handleAssignFromReport(reportRowData) {
+    const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
+    const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
+    const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
+    const fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
+    
+    // FIX: Format the date correctly for the input field
+    const formattedDate = utils.formatDateForInput(reportRowData[fechaRadicadoHeader] || '');
+
+    const prefilledData = {
+        ...initialManualFormData,
+        SN: reportRowData[snHeader] || '',
+        CUN: reportRowData[cunHeader] || '',
+        Nro_Nuip_Cliente: reportRowData[nuipHeader] || '',
+        FechaRadicado: formattedDate, // Use the formatted date here
+    };
+    setManualFormData(prefilledData);
+    handleCloseCaseDetails();
+    setShowManualEntryModal(true);
+}
 
     async function handleOpenCaseDetails(caseItem) {
         setSelectedCase(caseItem);
@@ -1545,7 +1549,7 @@ const distribucionPorDiaData = useMemo(() => {
     const countsByDay = cases
         .filter(c => pendStates.includes(c.Estado_Gestion))
         .reduce((acc, curr) => {
-            // CORRECCIÓN: Se usa la función para calcular la antigüedad en tiempo real
+            // This is the correct way to do it for real-time data
             const dia = utils.calculateCaseAge(curr, nonBusinessDays);
             if (dia !== 'N/A' && !isNaN(dia)) {
                 const key = `Día ${dia}`;
@@ -1556,7 +1560,7 @@ const distribucionPorDiaData = useMemo(() => {
         
     return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] }))
         .sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
-}, [cases, nonBusinessDays]); // Se añade nonBusinessDays a las dependencias del useMemo
+}, [cases, nonBusinessDays]);
 
     const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
     function getFilterStyles(isActive, color) {
