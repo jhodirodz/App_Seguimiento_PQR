@@ -1077,62 +1077,106 @@ useEffect(() => {
     async function handleObservationFileUpload(event) {
     const file = event.target.files[0];
     if (!file || !selectedCase) return;
+
     setIsTranscribingObservation(true);
     displayModalMessage(`Analizando adjunto (${file.type})... Esto puede tardar un momento.`);
+
     try {
         let summary = '';
         const fileType = file.type;
+
         if (fileType.startsWith('text/')) {
-            // ... (no changes here)
+            summary = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
         } else if (fileType === 'application/pdf') {
-            // ... (no changes here)
+            // --- INICIO DEL CÓDIGO AÑADIDO ---
+            if (!window.pdfjsLib) {
+                throw new Error('La librería PDF.js no está cargada. Intente de nuevo en unos segundos.');
+            }
+            const reader = new FileReader();
+            summary = await new Promise((resolve, reject) => {
+                reader.onload = async (e) => {
+                    try {
+                        const pdfData = new Uint8Array(e.target.result);
+                        const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
+                        let fullText = '';
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += pageText + '\n\n';
+                        }
+                        resolve(fullText.trim());
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = (e) => reject(new Error("Error al leer el archivo PDF."));
+                reader.readAsArrayBuffer(file);
+            });
         } else if (fileType.startsWith('image/')) {
             const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
             const base64Image = await fileToBase64(file);
             const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            // FIX: Corrected model name
-            const modelName = "gemini-2.5-flash";
+            const modelName = "gemini-2.5-flash"; // Modelo actualizado
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-            // ... (resto del bloque if para imagen)
-        } else if (fileType.startsWith('audio/')) {
-            const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-            const base64Audio = await fileToBase64(file);
-            const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
-            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            // FIX: Corrected model name
-            const modelName = "gemini-2.5-flash";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
             const result = await response.json();
-            if (result.candidates && result.candidates[0].content.parts[0].text) { summary = result.candidates[0].content.parts[0].text; }
-            else { throw new Error('La IA no pudo procesar la imagen.'); }
+            if (result.candidates && result.candidates[0].content.parts[0].text) {
+                summary = result.candidates[0].content.parts[0].text;
+            } else {
+                throw new Error('La IA no pudo procesar la imagen.');
+            }
         } else if (fileType.startsWith('audio/')) {
             const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
             const base64Audio = await fileToBase64(file);
-            // FIX: Corrected payload structure to use camelCase keys
             const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
             const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            // FIX: Corrected model name to a valid public model
-            const modelName = "gemini-2.0-flash";
+            const modelName = "gemini-2.5-flash"; // Modelo actualizado
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`); }
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`);
+            }
             const result = await response.json();
-            if (result.candidates && result.candidates[0].content.parts[0].text) { summary = result.candidates[0].content.parts[0].text; }
-            else { throw new Error('La IA no pudo procesar el audio.'); }
-        } else { throw new Error(`Tipo de archivo no soportado: ${fileType}`); }
+            if (result.candidates && result.candidates[0].content.parts[0].text) {
+                summary = result.candidates[0].content.parts[0].text;
+            } else {
+                throw new Error('La IA no pudo procesar el audio.');
+            }
+        } else {
+            throw new Error(`Tipo de archivo no soportado: ${fileType}`);
+        }
+
+        // Esta parte ahora funcionará correctamente porque 'summary' tendrá el texto del PDF.
         const currentObs = selectedCase.Observaciones || '';
         const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
         setSelectedCase(prev => ({ ...prev, Observaciones: newObs }));
-        await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs });
-        displayModalMessage('✅ Adjunto analizado y añadido a las observaciones.');
-    } catch (error) { console.error("Error processing observation file:", error); displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`); }
-    finally { setIsTranscribingObservation(false); if (observationFileInputRef.current) { observationFileInputRef.current.value = ""; } }
+        
+        // No es necesario actualizar Firestore aquí, ya que el usuario podría querer editar antes de guardar.
+        // El guardado se hará con el botón "Guardar Obs."
+        // await updateCaseInFirestore(selectedCase.id, { Observaciones: newObs });
+
+        displayModalMessage('✅ Adjunto analizado y añadido a las observaciones. Haz clic en "Guardar Obs." para confirmar los cambios.');
+
+    } catch (error) {
+        console.error("Error processing observation file:", error);
+        displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`);
+    } finally {
+        setIsTranscribingObservation(false);
+        if (observationFileInputRef.current) {
+            observationFileInputRef.current.value = "";
+        }
+    }
 }
 
     function downloadCSV(csvContent, filename) {
