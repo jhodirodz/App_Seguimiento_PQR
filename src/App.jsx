@@ -334,53 +334,65 @@ function App() {
         }
     }, [cases, nonBusinessDays]);
 useEffect(() => {
-        if (cases.length === 0) return;
+    if (cases.length === 0) return;
 
-        // Usamos un Map para evitar duplicados si un caso coincide con varias palabras clave.
-        const casesToAlertMap = new Map();
+    // Usamos un Map para evitar duplicados si un caso coincide con varias palabras clave.
+    const casesToAlertMap = new Map();
 
-        const checkKeywordAlarms = () => {
-            cases.forEach(c => {
-                const alarmKey = `keyword_alarm_dismissed_${c.id}`;
-                // Si la alarma ya fue descartada en esta sesión, la ignoramos.
-                if (sessionStorage.getItem(alarmKey)) {
-                    return; 
-                }
-
-                // Se combina el OBS original del CSV y el historial de observaciones guardado.
-                const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
-                // MODIFICACIÓN: Se ha eliminado `c.Observaciones` de esta línea para que no analice el campo de texto en tiempo real.
-                const allText = `${c.obs || c.OBS || ''} ${historicalObs}`;
-
-                if (!allText.trim()) {
-                    return; // No hay texto para revisar.
-                }
-
-                const normalizedText = normalizeTextForSearch(allText);
-
-                // Revisamos si alguna de nuestras palabras clave coincide.
-                for (const trigger of KEYWORD_ALARM_TRIGGERS) {
-                    if (trigger.test(normalizedText)) {
-                        // Si hay coincidencia, añadimos el caso al mapa y pasamos al siguiente.
-                        if (!casesToAlertMap.has(c.id)) {
-                            casesToAlertMap.set(c.id, c);
-                        }
-                        break; 
-                    }
-                }
-            });
-
-            const casesToAlert = Array.from(casesToAlertMap.values());
-
-            if (casesToAlert.length > 0) {
-                setKeywordAlarmCases(casesToAlert);
-                setShowKeywordAlarmModal(true);
+    const checkKeywordAlarms = () => {
+        cases.forEach(c => {
+            // --- ¡NUEVO! --- Ignora los casos que ya están finalizados.
+            if (c.Estado_Gestion === 'Finalizado') {
+                return;
             }
-        };
 
-        checkKeywordAlarms();
+            const alarmKey = `keyword_alarm_dismissed_${c.id}`;
+            // Si la alarma ya fue descartada en esta sesión, la ignoramos.
+            if (sessionStorage.getItem(alarmKey)) {
+                return;
+            }
 
-    }, [cases]); // Se ejecuta cada vez que los casos cambian.
+            const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
+            const allText = `${c.obs || c.OBS || ''} ${historicalObs}`;
+
+            if (!allText.trim()) {
+                return; // No hay texto para revisar.
+            }
+
+            const normalizedText = normalizeTextForSearch(allText);
+
+            // Revisamos si alguna de nuestras palabras clave coincide.
+            for (const trigger of KEYWORD_ALARM_TRIGGERS) {
+                if (trigger.test(normalizedText)) {
+                    // --- ¡MEJORADO! --- Se guarda la palabra clave que activó la alarma.
+                    // Convierte la expresión regular en un texto legible.
+                    const matchedKeyword = trigger.source
+                        .replace(/\\s\+/g, ' ') // convierte \s+ a espacio
+                        .replace(/\(s\)\?/g, '') // quita (s)?
+                        .replace(/\(r\|cion\|ndo\|ciones\)/g, '') // quita terminaciones verbales
+                        .replace(/\(el\\s\+|de\\s\+\)\?/g, '') // quita "el " o "de "
+                        .replace(/\\/g, ''); // quita barras invertidas
+
+                    if (!casesToAlertMap.has(c.id)) {
+                        // Guardamos el caso junto con la palabra clave encontrada.
+                        casesToAlertMap.set(c.id, { ...c, matchedKeyword });
+                    }
+                    break;
+                }
+            }
+        });
+
+        const casesToAlert = Array.from(casesToAlertMap.values());
+
+        if (casesToAlert.length > 0) {
+            setKeywordAlarmCases(casesToAlert);
+            setShowKeywordAlarmModal(true);
+        }
+    };
+
+    checkKeywordAlarms();
+
+}, [cases]);
     const handleReliquidacionChange = (index, e) => {
         const { name, value } = e.target;
         setReliquidacionData(prev => {
@@ -1542,7 +1554,47 @@ async function handleScanFileUpload(event) {
     };
     reader.onerror = (error) => { console.error("Error reading file:", error); displayModalMessage("Error al leer el archivo."); setIsScanning(false); };
 }
+async function handleMarkAsEscalatedFromAlarm(caseToUpdate) {
+        if (!caseToUpdate) return;
+        
+        const newObservation = { text: `(Gestión Alarma) Marcado como Escalado desde la alarma de palabras clave.`, timestamp: new Date().toISOString() };
+        const updatedHistory = [...(caseToUpdate.Observaciones_Historial || []), newObservation];
+        const updateData = {
+            Estado_Gestion: 'Escalado',
+            Observaciones_Historial: updatedHistory
+        };
 
+        try {
+            await updateCaseInFirestore(caseToUpdate.id, updateData);
+            
+            // Marcar como gestionado para la sesión actual
+            sessionStorage.setItem(`keyword_alarm_dismissed_${caseToUpdate.id}`, 'true');
+            
+            // Remover de la lista visible en el modal
+            setKeywordAlarmCases(prev => {
+                const updatedCases = prev.filter(c => c.id !== caseToUpdate.id);
+                if (updatedCases.length === 0) {
+                    setShowKeywordAlarmModal(false); // Cierra el modal si no quedan casos
+                }
+                return updatedCases;
+            });
+            
+            displayModalMessage(`El caso SN ${caseToUpdate.SN} se ha marcado como 'Escalado'.`);
+
+        } catch (error) {
+            displayModalMessage(`Error al actualizar el caso: ${error.message}`);
+        }
+    }
+
+    // --- ¡NUEVO! --- Función para copiar todos los SNs de la alarma al portapapeles.
+    function handleCopyAllAlarmSNs() {
+        if (keywordAlarmCases.length === 0) {
+            displayModalMessage('No hay SNs para copiar.');
+            return;
+        }
+        const allSNs = keywordAlarmCases.map(c => c.SN).join('\n');
+        utils.copyToClipboard(allSNs, 'SNs de Casos en Alarma', displayModalMessage);
+    }
     async function generateEscalationEmailHandler() {
         if (!selectedCase) return;
         setIsGeneratingEscalationEmail(true);
@@ -2187,12 +2239,12 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                         </div>
                         <div className="mt-4">
                             <p className="text-sm text-gray-600 mb-4">
-                                Los siguientes casos contienen observaciones con palabras clave que requieren atención especial (impuestos, daño técnico, cancelación, etc.).
+                                Los siguientes casos (no finalizados) contienen palabras clave que requieren atención especial.
                             </p>
                             <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                                 {keywordAlarmCases.map(c => (
                                     <div key={c.id} className="p-3 rounded-md border bg-yellow-50 border-yellow-200">
-                                        <div className="flex justify-between items-center">
+                                        <div className="flex justify-between items-start">
                                             <div>
                                                 <p className="font-bold text-yellow-800">SN: {c.SN}</p>
                                                 <p className="text-sm">
@@ -2203,18 +2255,38 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                                                 <p className="text-sm text-gray-700 mt-1">
                                                     Cliente: {c.Nombre_Cliente || 'N/A'}
                                                 </p>
+                                                {/* --- ¡NUEVO! --- Muestra la palabra clave detectada */}
+                                                <p className="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full inline-block mt-2">
+                                                    Motivo: {c.matchedKeyword}
+                                                </p>
                                             </div>
-                                            <button
-                                                onClick={() => handleOpenCaseDetails(c)}
-                                                className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                                            >
-                                                Ver Caso
-                                            </button>
+                                            {/* --- ¡NUEVO! --- Botones de acción por caso */}
+                                            <div className="flex flex-col items-end space-y-2">
+                                                <button
+                                                    onClick={() => handleOpenCaseDetails(c)}
+                                                    className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 w-full text-center"
+                                                >
+                                                    Ver Caso
+                                                </button>
+                                                <button
+                                                    onClick={() => handleMarkAsEscalatedFromAlarm(c)}
+                                                    className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 w-full text-center"
+                                                >
+                                                    Marcar Escalado
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex justify-end mt-4">
+                            {/* --- ¡NUEVO! --- Botones en el pie del modal */}
+                            <div className="flex justify-between items-center mt-4">
+                                <button
+                                    onClick={handleCopyAllAlarmSNs}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                >
+                                    Copiar todos los SN
+                                </button>
                                 <button
                                     onClick={() => {
                                         keywordAlarmCases.forEach(c => {
