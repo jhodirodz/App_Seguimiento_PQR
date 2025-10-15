@@ -1085,6 +1085,12 @@ useEffect(() => {
     try {
         let summary = '';
         const fileType = file.type;
+        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+        
+        // ACTUALIZACIÓN: Se usa el modelo más reciente y adecuado según la documentación.
+        const modelName = "gemini-2.5-flash"; 
+        
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
         if (fileType.startsWith('text/')) {
             summary = await new Promise((resolve, reject) => {
@@ -1106,7 +1112,6 @@ useEffect(() => {
                         const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
                         let fullText = '';
                         
-                        // Primero, intentamos extraer texto digitalmente
                         for (let i = 1; i <= pdf.numPages; i++) {
                             const page = await pdf.getPage(i);
                             const textContent = await page.getTextContent();
@@ -1114,12 +1119,9 @@ useEffect(() => {
                             fullText += pageText + '\n\n';
                         }
                         
-                        // Si el texto extraído es muy corto, asumimos que es un PDF de imagen
-                        if (fullText.trim().length < 50) { // Umbral de caracteres para decidir si es imagen
+                        if (fullText.trim().length < 50) { 
                             displayModalMessage('No se encontró texto digital. Procesando como imagen (OCR)...');
-                            
-                            // --- INICIO: Lógica de OCR para PDF de imagen ---
-                            const page = await pdf.getPage(1); // Procesamos solo la primera página
+                            const page = await pdf.getPage(1);
                             const scale = 1.5;
                             const viewport = page.getViewport({ scale: scale });
 
@@ -1134,16 +1136,9 @@ useEffect(() => {
                             };
                             
                             await page.render(renderContext).promise;
-                            
-                            // Convertimos el canvas a una imagen base64
                             const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
-
-                            // Reutilizamos la lógica de la API de visión que ya tienes para imágenes
                             const prompt = 'Analiza la siguiente imagen de un documento y transcribe todo el texto relevante que encuentres de manera estructurada.';
                             const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
-                            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-                            const modelName = "gemini-2.0-flash";
-                            const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
                             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
@@ -1155,9 +1150,7 @@ useEffect(() => {
                             } else {
                                 throw new Error('La IA no pudo procesar la imagen del PDF.');
                             }
-                            // --- FIN: Lógica de OCR ---
                         } else {
-                             // Si encontramos suficiente texto, lo usamos directamente
                             resolve(fullText.trim());
                         }
 
@@ -1173,9 +1166,6 @@ useEffect(() => {
             const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
             const base64Image = await fileToBase64(file);
             const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
-            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            const modelName = "gemini-2.5-flash"; // Modelo actualizado
-            const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
@@ -1189,9 +1179,6 @@ useEffect(() => {
             const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
             const base64Audio = await fileToBase64(file);
             const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
-            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-            const modelName = "gemini-2.5-flash"; // Modelo actualizado
-            const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) {
@@ -1525,15 +1512,16 @@ async function handleScanFileUpload(event) {
             }],
         };
         const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+        
+        // ACTUALIZACIÓN: Se usa el modelo más reciente y adecuado según la documentación.
         const modelName = "gemini-2.5-flash";
-        // FIX: Reverted model name to the correct one with '-latest'
+
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await response.json();
             if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
                 const transcribedText = result.candidates[0].content.parts[0].text;
-                // ... (el resto de la función sigue igual)
                 const extractedData = utils.extractAddressesFromText(transcribedText);
                 const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
                 const newHistoryEntry = { timestamp: new Date().toISOString(), emails: extractedData.emails, addresses: extractedData.addresses };
