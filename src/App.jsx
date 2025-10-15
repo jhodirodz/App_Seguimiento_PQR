@@ -2036,7 +2036,7 @@ useEffect(() => {
             </div>
 
             {showModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[100]"><div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[150]"><div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
                     <h3 className="text-lg font-semibold mb-4">Mensaje del Sistema</h3>
                     <p className="mb-6 whitespace-pre-line">{modalContent.message}</p>
                     <div className="flex justify-end gap-4">
@@ -2047,7 +2047,7 @@ useEffect(() => {
             )}
 
             {selectedCase && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[120] p-4">
                     <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
                         <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {selectedCase.SN}</h3>
                         {duplicateCasesDetails.length > 0 && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
