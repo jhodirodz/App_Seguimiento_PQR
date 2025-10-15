@@ -347,9 +347,10 @@ useEffect(() => {
                     return; 
                 }
 
-                // Combinamos todas las observaciones (actual, OBS del CSV e historial) en un solo texto.
+                // Se combina el OBS original del CSV y el historial de observaciones guardado.
                 const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
-                const allText = `${c.Observaciones || ''} ${c.obs || c.OBS || ''} ${historicalObs}`;
+                // MODIFICACIÓN: Se ha eliminado `c.Observaciones` de esta línea para que no analice el campo de texto en tiempo real.
+                const allText = `${c.obs || c.OBS || ''} ${historicalObs}`;
 
                 if (!allText.trim()) {
                     return; // No hay texto para revisar.
