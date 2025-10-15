@@ -523,7 +523,8 @@ useEffect(() => {
                             ID_Aseguramiento: '', Corte_Facturacion: row['Corte_Facturacion'] || '', Cuenta: row['Cuenta'] || '', Operacion_Aseguramiento: '',
                             Tipo_Aseguramiento: '', Mes_Aseguramiento: '', requiereBaja: false, numeroOrdenBaja: '', requiereAjuste: false,
                             numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '',
-                            fechaEfectivaDevolucion: '', areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
+                            fechaEfectivaDevolucion: '', areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '', Correo_Electronico_Reclamante: row.Correo_Electronico_Reclamante || 'N/A',
+    Direccion_Reclamante: row.Direccion_Reclamante || 'N/A'
                         });
                         addedCount++;
                         existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row });
