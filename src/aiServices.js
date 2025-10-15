@@ -326,6 +326,8 @@ Comienza con la plantilla obligatoria y genera el contenido en párrafos separad
     **FUENTES DE INFORMACIÓN ADICIONAL:**
     - Correos Electrónicos del Cliente: ${caseData.Correo_Electronico_Cliente || 'N/A'}
     - Direcciones del Cliente: ${caseData.Direccion_Cliente || 'N/A'}
+    - Correo Electrónico Reclamante: ${caseData.Correo_Electronico_Reclamante || 'N/A'}
+    - Dirección Reclamante: ${caseData.Direccion_Reclamante || 'N/A'}
     ---
 
     Comienza tu respuesta ahora, siguiendo este formato estricto:
