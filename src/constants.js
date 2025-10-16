@@ -2,7 +2,26 @@
 
 export const ALL_PRIORITY_OPTIONS = ['Alta', 'Media', 'Baja'];
 export const ALL_STATUS_OPTIONS = ['Pendiente', 'Iniciado', 'Lectura', 'Resuelto', 'Finalizado', 'Escalado', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'];
+export const priorityColors = {
+  'Alta': 'bg-red-100 text-red-800',
+  'Media': 'bg-yellow-100 text-yellow-800',
+  'Baja': 'bg-green-100 text-green-800',
+  'Critica': 'bg-red-700 text-white',
+  'N/A': 'bg-gray-100 text-gray-800'
+};
 
+export const statusColors = {
+  'Pendiente': 'bg-yellow-100 text-yellow-800',
+  'Iniciado': 'bg-blue-100 text-blue-800',
+  'Lectura': 'bg-indigo-100 text-indigo-800',
+  'Resuelto': 'bg-green-100 text-green-800',
+  'Finalizado': 'bg-gray-200 text-gray-600',
+  'Escalado': 'bg-red-100 text-red-800',
+  'Decretado': 'bg-purple-100 text-purple-800',
+  'Traslado SIC': 'bg-orange-100 text-orange-800',
+  'Pendiente Ajustes': 'bg-pink-100 text-pink-800',
+  'N/A': 'bg-gray-100 text-gray-800'
+};
 export const MAIN_TABLE_HEADERS = [
     'SN',
     'CUN',
