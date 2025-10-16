@@ -14,28 +14,26 @@ export const getColombianDateISO = () => {
         day: '2-digit'
     }).format(new Date());
 };
+
 /**
  * Formats a date string into 'YYYY-MM-DD' for HTML date inputs.
- * Handles various formats like MM/DD/YYYY.
+ * Replaces the old function with the more robust version.
  * @param {string} dateString - The date string to format.
- * @returns {string} The formatted date string or original if parsing fails.
+ * @returns {string} The formatted date string 'YYYY-MM-DD' or empty string.
  */
-export const formatDateForInput = (dateString) => {
-    if (!dateString || typeof dateString !== 'string') return '';
-    // Handles formats like MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
-    try {
-        const date = new Date(dateString.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2'));
-        if (isNaN(date.getTime())) return dateString; // Return original if parsing fails
-        
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        
-        return `${year}-${month}-${day}`;
-    } catch (e) {
-        return dateString; // Return original on error
-    }
-};
+export function formatDateForInput(dateString) {
+  if (!dateString || typeof dateString !== 'string') return '';
+  // Replaces hyphens with slashes for better cross-browser compatibility with the Date constructor
+  const dateObj = new Date(dateString.replace(/-/g, '/')); 
+  if (isNaN(dateObj.getTime())) return ''; // Return empty if the date is invalid
+
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
  * @param {string} dateStr - La cadena de fecha a parsear.
