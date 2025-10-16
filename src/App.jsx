@@ -662,22 +662,50 @@ useEffect(() => {
     setShowManualEntryModal(true);
 }
 
-    async function handleOpenCaseDetails(caseItem) {
-        setSelectedCase(caseItem);
-        setTieneSNAcumulados(false);
-        setCantidadSNAcumulados(0);
-        setSnAcumuladosData([]);
-        setAseguramientoObs('');
-        setDuplicateCasesDetails([]);
-        setReliquidacionData([{ id: 1, numeroCuenta: '', valorMensual: '', fechaInicioCiclo: '', fechaFinCiclo: '', fechaBaja: '', montoNotaCredito: null }]);
-        const duplicatesMap = new Map();
-        const normalizedCaseNuips = new Set([utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A'));
-        cases.forEach(otherCase => {
-            if (otherCase.id === caseItem.id) return;
-            const normalizedOtherNuips = new Set([utils.normalizeNuip(otherCase.Nro_Nuip_Cliente), utils.normalizeNuip(otherCase.Nro_Nuip_Reclamante)].filter(Boolean));
-            const hasCommonNuip = [...normalizedCaseNuips].some(nuip => normalizedOtherNuips.has(nuip));
-            if (hasCommonNuip) { duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' }); }
+const casesByNuip = useMemo(() => {
+    console.log("Re-calculando el mapa de NUIPs..."); // Para depurar
+    const map = new Map();
+    if (!cases || cases.length === 0) return map;
+
+    cases.forEach(caseItem => {
+        const nuips = [
+            utils.normalizeNuip(caseItem.Nro_Nuip_Cliente),
+            utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)
+        ].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A');
+
+        nuips.forEach(nuip => {
+            if (!map.has(nuip)) {
+                map.set(nuip, []);
+            }
+            map.get(nuip).push(caseItem);
         });
+    });
+    return map;
+}, [cases]); // Este useMemo solo se re-ejecuta cuando los casos cambian
+
+// Ahora, tu función handleOpenCaseDetails se vuelve súper rápida:
+async function handleOpenCaseDetails(caseItem) {
+    setSelectedCase(caseItem);
+    // ... (resto de tus estados iniciales)
+
+    const duplicatesMap = new Map();
+    const normalizedCaseNuips = new Set(
+        [
+            utils.normalizeNuip(caseItem.Nro_Nuip_Cliente),
+            utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)
+        ].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A')
+    );
+
+    // Búsqueda instantánea usando el mapa pre-calculado
+    normalizedCaseNuips.forEach(nuip => {
+        if (casesByNuip.has(nuip)) {
+            casesByNuip.get(nuip).forEach(otherCase => {
+                if (otherCase.id !== caseItem.id) {
+                    duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' });
+                }
+            });
+        }
+    });
         if (reporteCruceData.length > 0 && reporteCruceData[0]) {
             const nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
             const snHeader = Object.keys(reporteCruceData[0]).find(h => h.toLowerCase().trim() === 'sn');
@@ -1303,12 +1331,41 @@ useEffect(() => {
     const casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
 
     const sortSN = (a, b) => String(a.SN || '').toLowerCase().localeCompare(String(b.SN || '').toLowerCase());
-    const sicDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN);
-    const pendAjustesDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN);
-    const pendEscDisp = casesForDisplay.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN);
-    const resDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN);
-    const finalizadosDisp = casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN);
-    const aseguramientosDisp = casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN);
+const sicDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId)
+            .sort(sortSN);
+    }, [casesForDisplay, userId]);
+
+    const pendAjustesDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId)
+            .sort(sortSN);
+    }, [casesForDisplay, userId]);
+
+    const pendEscDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId)
+            .sort(sortSN);
+    }, [casesForDisplay, userId]);
+
+    const resDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId)
+            .sort(sortSN);
+    }, [casesForDisplay, userId]);
+
+    const finalizadosDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId)
+            .sort(sortSN);
+    }, [casesForDisplay, userId]);
+    
+    const aseguramientosDisp = useMemo(() => {
+        return casesForDisplay
+            .filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0)
+            .sort(sortSN);
+    }, [casesForDisplay]);
 
     const counts = {
         total: cases.length,
