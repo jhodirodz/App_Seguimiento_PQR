@@ -341,39 +341,88 @@ export default function CaseDetailModal({
         displayModalMessage('Observación guardada.');
     }
     
-    async function handleObservationFileUpload() {
-        // La lógica de `handleObservationFileUpload` es compleja e involucra `fileToBase64` y el fetch a la API.
-        // Se recomienda mantener esta función en `App.jsx` y pasarla como prop (handleTranscribeFile) 
-        // o, en su defecto, reescribirla con todas las dependencias necesarias.
-        // Dado que se pidió revisar el componente *con* esa lógica dentro, la recreamos aquí con un placeholder.
-        // NOTA: Para que esto funcione, *necesitarías* pasar `fileToBase64` y la lógica de la API de App.jsx como props, o copiarlas aquí.
+    async function handleObservationFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !localCase) return;
 
-        // Por ahora, solo se activa el input file, la lógica real debe estar en App.jsx para la transcripción y el fetch.
-        // El input ref debe pasarse al padre para ejecutar la lógica de IA y archivos.
-        if (observationFileInputRef.current) {
-            observationFileInputRef.current.click();
-        }
-        displayModalMessage("El proceso de transcripción debe estar gestionado en el componente principal (App.jsx) y pasarse como prop.");
-        setIsTranscribingObservation(true);
-        // La lógica real de transcripción (copiada de App.jsx) debería estar aquí, si este componente estuviera completamente desacoplado y tuviera acceso a firebase/utils/aiServices/etc.
-        // Como no se me proporciona el código de `fileToBase64` y la lógica de la API, y es complejo de pasar, se deja el handler.
-        // **¡ADVERTENCIA!** En un proyecto real, la lógica de `handleObservationFileUpload` *debe* ser replicada completamente aquí o gestionada en el padre.
+    setIsTranscribingObservation(true); // Activa el estado de carga
+    displayModalMessage(`Analizando adjunto (${file.type}) para caso ${localCase.SN}...`);
+
+    try {
+        let summary = '';
+        const fileType = file.type;
+        // La clave de API y la URL de la API se gestionan a través de aiServices
         
-        // Simulación de la lógica de actualización
-        // try {
-        //     const file = observationFileInputRef.current.files[0];
-        //     // ... lógica de fileToBase64, fetch, y transcripción de texto ...
-        //     const summary = 'Texto Transcrito de Prueba.';
-        //     const currentObs = localCase.Observaciones || '';
-        //     const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
-        //     setLocalCase(prev => ({ ...prev, Observaciones: newObs }));
-        //     displayModalMessage('✅ Adjunto analizado y añadido a las observaciones.');
-        // } catch (error) {
-        //     displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`);
-        // } finally {
-        //     setIsTranscribingObservation(false);
-        // }
+        const processFile = async (base64Content, mimeType, prompt) => {
+            // Reutilizamos la lógica de aiServices para llamar a Gemini
+            // Nota: Esto asume que tienes una función genérica en aiServices o la construyes aquí.
+            // Por simplicidad, adaptamos la llamada directa como en App.jsx.
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : "";
+            const modelName = "gemini-1.5-flash"; // o "gemini-pro-vision" si es el preferido
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Content } }]
+                }]
+            };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                 const errorBody = await response.json();
+                 throw new Error(`Error en la API: ${errorBody.error.message}`);
+            }
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || 'La IA no pudo extraer el texto.';
+        };
+
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+
+        if (fileType.startsWith('text/') || fileType === 'application/json') {
+            summary = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+            summary = `Contenido del archivo de texto:\n${summary}`;
+        } else if (fileType === 'application/pdf') {
+            displayModalMessage('La transcripción de PDF desde el cliente aún no está implementada en este componente. Considere procesarlo del lado del servidor o usar una librería como PDF.js.');
+            throw new Error('La lectura de PDF del lado del cliente no está configurada.');
+        } else if (fileType.startsWith('image/') || fileType.startsWith('audio/')) {
+            const base64Content = await fileToBase64(file);
+            const prompt = fileType.startsWith('image/')
+                ? 'Analiza esta imagen y transcribe todo el texto relevante.'
+                : 'Transcribe el texto que escuches en el audio.';
+            summary = await processFile(base64Content, file.type, prompt);
+        } else {
+            throw new Error(`Tipo de archivo no soportado para análisis: ${fileType}`);
+        }
+        
+        const currentObs = localCase.Observaciones || '';
+        const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
+        
+        // Usa la prop 'onUpdateCase' para actualizar el estado en Firestore
+        await onUpdateCase(localCase.id, { Observaciones: newObs });
+        
+        // Actualiza también el estado local para reflejar el cambio inmediatamente
+        setLocalCase(prev => ({ ...prev, Observaciones: newObs }));
+
+        displayModalMessage('✅ Adjunto analizado y añadido a las observaciones. Haz clic en "Guardar Obs." para agregarlo al historial.');
+
+    } catch (error) {
+        console.error("Error processing observation file:", error);
+        displayModalMessage(`❌ Error al analizar el adjunto: ${error.message || 'Error desconocido'}`);
+    } finally {
+        setIsTranscribingObservation(false); // Desactiva el estado de carga
+        if (event.target) event.target.value = null; 
     }
+}
 
 
       return (
