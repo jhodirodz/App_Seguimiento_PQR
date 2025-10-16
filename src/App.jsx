@@ -9,6 +9,7 @@ import * as utils from './utils.js';
 import * as aiServices from './aiServices';
 import * as constants from './constants';
 import PaginatedTable from './components/PaginatedTable';
+import CaseDetailModal from './CaseDetailModal';
 
 // Importa las funciones de autenticación desde el SDK de Firebase
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
@@ -16,116 +17,67 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, creat
 import { db, auth } from "./firebaseConfig.js";
 
 const appId = "App_Seguimiento_PQR";
+
 const normalizeTextForSearch = (text) => {
     if (!text) return '';
-    return text
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
-// Lista de expresiones regulares para buscar las palabras clave y sus variaciones.
-const KEYWORD_ALARM_TRIGGERS = [
-    /impuesto(s)?/,
-    /estampilla(s)?/,
-    /reteica/,
-    /reinstala(r|cion|ndo|ciones)/,
-    /reactiva(r|cion|ndo|ciones)/,
-    /dano\s+tecnico/, // "dano tecnico"
-    /cancela(r|cion|ndo|ciones)\s+(el\s+|de\s+)?servicio/, // "cancelar servicio", "cancelacion de servicio", etc.
-];
+const KEYWORD_ALARM_TRIGGERS = [ /impuesto(s)?/, /estampilla(s)?/, /reteica/, /reinstala(r|cion|ndo|ciones)/, /reactiva(r|cion|ndo|ciones)/, /dano\s+tecnico/, /cancela(r|cion|ndo|ciones)\s+(el\s+|de\s+)?servicio/, ];
+
 function App() {
-    // --------------------------
-    // Declaraciones de estado y referencias
-    // --------------------------
+    // --- ESTADOS GLOBALES DE LA APP ---
     const [userId, setUserId] = useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [cases, setCases] = useState([]);
+    const [loading, setLoading] = useState(true);
+    
+    // --- ESTADOS DE LA UI PRINCIPAL ---
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authLoading, setAuthLoading] = useState(false);
     const [authEmail, setAuthEmail] = useState('');
     const [authPassword, setAuthPassword] = useState('');
     const [authMode, setAuthMode] = useState('login');
-
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [cases, setCases] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => { }, confirmText: 'Confirmar', cancelText: 'Cancelar' });
-    const [selectedCase, setSelectedCase] = useState(null);
-    const [showManualEntryModal, setShowManualEntryModal] = useState(false);
     const [activeModule, setActiveModule] = useState('casos');
     const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
-    const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    const [isGeneratingResponseProjection, setIsGeneratingResponseProjection] = useState(false);
-    const [isSuggestingEscalation, setIsSuggestingEscalation] = useState(false);
-    const [isGeneratingNextActions, setIsGeneratingNextActions] = useState(false);
-    const [isGeneratingRootCause, setIsGeneratingRootCause] = useState(false);
-    const [isGeneratingEscalationEmail, setIsGeneratingEscalationEmail] = useState(false);
-    const [isGeneratingRiskAnalysis, setIsGeneratingRiskAnalysis] = useState(false);
-    const [isGeneratingComprehensiveResponse, setIsGeneratingComprehensiveResponse] = useState(false);
-    const [isGeneratingValidation, setIsGeneratingValidation] = useState(false);
-    const [isTranscribingObservation, setIsTranscribingObservation] = useState(false);
+    // --- ESTADOS RELACIONADOS CON EL MODAL ---
+    const [selectedCase, setSelectedCase] = useState(null);
+    const [duplicateCasesDetails, setDuplicateCasesDetails] = useState([]);
 
+    // --- ESTADOS PARA FILTROS Y BÚSQUEDA ---
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
     const [contractFilter, setContractFilter] = useState('todos');
     const [priorityFilter, setPriorityFilter] = useState('todos');
     const [statusFilter, setStatusFilter] = useState('todos');
+    
+    // --- ESTADOS PARA ACCIONES MASIVAS ---
     const [selectedCaseIds, setSelectedCaseIds] = useState(new Set());
     const [massUpdateTargetStatus, setMassUpdateTargetStatus] = useState('');
     const [isMassUpdating, setIsMassUpdating] = useState(false);
     const [massUpdateObservation, setMassUpdateObservation] = useState('');
-
-    const statusColors = {
-        'Pendiente': 'bg-yellow-200 text-yellow-800',
-        'Resuelto': 'bg-green-200 text-green-800',
-        'Finalizado': 'bg-gray-200 text-gray-800',
-        'Escalado': 'bg-red-200 text-red-800',
-        'Iniciado': 'bg-blue-200 text-blue-800',
-        'Lectura': 'bg-indigo-200 text-indigo-800',
-        'Pendiente Ajustes': 'bg-pink-200 text-pink-800',
-        'Decretado': 'bg-purple-200 text-purple-800',
-        'Traslado SIC': 'bg-orange-200 text-orange-800'
-    };
-    const priorityColors = { 'Alta': 'text-red-600', 'Media': 'text-yellow-600', 'Baja': 'text-green-600' };
-
-
-    const initialManualFormData = {
-        SN: '', CUN: '', FechaRadicado: '', FechaVencimiento: '', Nro_Nuip_Cliente: '', Nombre_Cliente: '',
-        OBS: '', Dia: '', Tipo_Contrato: 'Condiciones Uniformes', Numero_Contrato_Marco: '', isNabis: false,
-        Requiere_Aseguramiento_Facturas: false, ID_Aseguramiento: '', Corte_Facturacion: '',
-        Operacion_Aseguramiento: '', Tipo_Aseguramiento: '', Mes_Aseguramiento: '', Cuenta: '',
-        requiereBaja: false, numeroOrdenBaja: '',
-        requiereAjuste: false, numeroTT: '', estadoTT: '', requiereDevolucionDinero: false,
-        cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '',
-        areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', Estado_Gestion: 'Pendiente'
-    };
-    const [reliquidacionData, setReliquidacionData] = useState([{
-        id: 1,
-        numeroCuenta: '', valorMensual: '', fechaInicioCiclo: '', fechaFinCiclo: '', fechaBaja: '', montoNotaCredito: null,
-    }]);
-    const [manualFormData, setManualFormData] = useState(initialManualFormData);
-    const [duplicateCasesDetails, setDuplicateCasesDetails] = useState([]);
+    
+    // --- ESTADOS PARA FORMULARIO MANUAL Y OTROS DATOS ---
+    const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+    const [manualFormData, setManualFormData] = useState(constants.initialManualFormData);
     const [reporteCruceData, setReporteCruceData] = useState([]);
 
+    // --- REFERENCIAS ---
     const fileInputRef = useRef(null);
-    const observationFileInputRef = useRef(null);
     const cancelUpload = useRef(false);
     const [caseToScan, setCaseToScan] = useState(null);
     const [isScanning, setIsScanning] = useState(false);
     const scanFileInputRef = useRef(null);
     const contractMarcoFileInputRef = useRef(null);
     const reporteCruceFileInputRef = useRef(null);
-    const nonBusinessDays = new Set(constants.COLOMBIAN_HOLIDAYS);
-
-    const [tieneSNAcumulados, setTieneSNAcumulados] = useState(false);
-    const [cantidadSNAcumulados, setCantidadSNAcumulados] = useState(0);
-    const [snAcumuladosData, setSnAcumuladosData] = useState([]);
-    const [showGestionesAdicionales, setShowGestionesAdicionales] = useState(true);
-    const [aseguramientoObs, setAseguramientoObs] = useState('');
+    const observationFileInputRef = useRef(null);
+    
+    // --- ALARMAS ---
     const [showAlarmModal, setShowAlarmModal] = useState(false);
     const [alarmCases, setAlarmCases] = useState([]);
     const [alarmObservation, setAlarmObservation] = useState('');
@@ -134,22 +86,18 @@ function App() {
     const [cancelAlarmCases, setCancelAlarmCases] = useState([]);
     const [showKeywordAlarmModal, setShowKeywordAlarmModal] = useState(false);
     const [keywordAlarmCases, setKeywordAlarmCases] = useState([]);
-    // --------------------------
-    // Definición de funciones y lógicas
-    // --------------------------
-
+    
+    const nonBusinessDays = new Set(constants.COLOMBIAN_HOLIDAYS);
+    const statusColors = constants.statusColors;
+    
+    // --- FUNCIONES DE UTILIDAD Y MODALES ---
     const displayModalMessage = useCallback((message) => {
-        setModalContent({ message, isConfirm: false, onConfirm: () => { } });
+        setModalContent({ message, isConfirm: false });
         setShowModal(true);
     }, []);
 
     const displayConfirmModal = useCallback((message, { onConfirm, onCancel, confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) => {
-        setModalContent({
-            message, isConfirm: true,
-            onConfirm: onConfirm || (() => { }),
-            onCancel: onCancel || (() => setShowModal(false)),
-            confirmText, cancelText
-        });
+        setModalContent({ message, isConfirm: true, onConfirm, onCancel: onCancel || (() => setShowModal(false)), confirmText, cancelText });
         setShowModal(true);
     }, []);
 
@@ -160,6 +108,7 @@ function App() {
         reader.onerror = error => reject(error);
     });
 
+    // --- LÓGICA DE FIREBASE ---
     async function updateCaseInFirestore(caseId, newData) {
         if (!db || !userId) return;
         const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
@@ -170,7 +119,7 @@ function App() {
             displayModalMessage(`Error al guardar: ${e.message}`);
         }
     }
-
+    
     async function signInWithGoogleHandler() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
@@ -254,202 +203,155 @@ function App() {
         }
     }
 
-    async function createUserAsAdmin(email, password, role = 'user') {
-        if (!auth || !userId) { displayModalMessage('No hay sesión activa.'); return { ok: false }; }
+    // --- LÓGICA DE MANEJO DE CASOS Y CRUD COMPLETO ---
+
+    function handleDeleteCase(caseId) {
+        async function onConfirm() {
+            if (!db || !userId) { displayModalMessage('Error: DB no disponible.'); return; }
+            const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
+            try {
+                await deleteDoc(docRef);
+                displayModalMessage('Caso eliminado exitosamente.');
+                handleCloseCaseDetails();
+            } catch (error) { displayModalMessage(`Error al eliminar el caso: ${error.message}`); }
+        }
+        displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm });
+    }
+
+    function handleReopenCase(caseItem) {
+        if (!caseItem.id || caseItem.Estado_Gestion !== 'Resuelto') { displayModalMessage('Solo los casos resueltos pueden ser reabiertos.'); return; }
+        const updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
+        updateCaseInFirestore(caseItem.id, updateData).then(() => {
+            displayModalMessage('Caso reabierto exitosamente.');
+            handleCloseCaseDetails();
+        }).catch(error => {
+            displayModalMessage(`Error al reabrir el caso: ${error.message}`);
+        });
+    }
+
+    function handleAssignFromReport(reportRowData) {
+        const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
+        const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
+        const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
+        const fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
+        const formattedDate = utils.formatDateForInput(reportRowData[fechaRadicadoHeader] || '');
+        const prefilledData = {
+            ...constants.initialManualFormData,
+            SN: reportRowData[snHeader] || '',
+            CUN: reportRowData[cunHeader] || '',
+            Nro_Nuip_Cliente: reportRowData[nuipHeader] || '',
+            FechaRadicado: formattedDate,
+        };
+        setManualFormData(prefilledData);
+        handleCloseCaseDetails();
+        setShowManualEntryModal(true);
+    }
+
+    // --- HANDLERS DE COMUNICACIÓN CON EL MODAL ---
+    async function handleUpdateCase(caseId, newData, closeAccumulated = false) {
+        await updateCaseInFirestore(caseId, newData);
+
+        if (closeAccumulated && newData.Estado_Gestion === 'Resuelto') {
+            const caseToUpdate = cases.find(c => c.id === caseId);
+            if(caseToUpdate && caseToUpdate.SNAcumulados_Historial?.length > 0) {
+                const batch = writeBatch(db);
+                const accumulatedSNs = caseToUpdate.SNAcumulados_Historial.map(item => item.sn.trim()).filter(Boolean);
+                if (accumulatedSNs.length > 0) {
+                    const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where('SN', 'in', accumulatedSNs));
+                    const querySnapshot = await getDocs(q);
+                    const accumulatedAnnotationText = `Este caso fue resuelto como parte del cierre del caso principal SN: ${caseToUpdate.SN}`;
+                    const accumulatedAnnotation = { text: accumulatedAnnotationText, timestamp: new Date().toISOString() };
+                    querySnapshot.forEach(docSnap => {
+                        const newHistory = [...(docSnap.data().Observaciones_Historial || []), accumulatedAnnotation];
+                        batch.update(docSnap.ref, { Estado_Gestion: 'Resuelto', 'Fecha Cierre': utils.getColombianDateISO(), Observaciones_Historial: newHistory });
+                    });
+                    await batch.commit();
+                }
+            }
+        }
+        // Actualizar el estado local del caso seleccionado en App.jsx para que CaseDetailModal refleje los cambios inmediatamente.
+        setSelectedCase(prev => (prev && prev.id === caseId) ? { ...prev, ...newData } : prev);
+    }
+    
+    async function handleCreateNewCase(originalCase, newStatus) {
         try {
-            const currentSnap = await getDoc(doc(db, `artifacts/${appId}/users`, userId));
-            if (!currentSnap.exists() || currentSnap.data().role !== 'admin') {
-                displayModalMessage('Solo administradores pueden crear usuarios.');
-                return { ok: false };
-            }
-            const cred = await createUserWithEmailAndPassword(auth, email, password);
-            const newUser = cred.user;
-            await setDoc(doc(db, `artifacts/${appId}/users`, newUser.uid), {
-                email, displayName: null, role, createdAt: new Date().toISOString(), createdBy: userId
+            const batch = writeBatch(db);
+            const today = utils.getColombianDateISO();
+            const timestamp = new Date().toISOString();
+            const provisionalPrefix = newStatus === 'Decretado' ? 'DECRETO' : 'TRASLADO';
+            const provisionalSN = `${provisionalPrefix}-${Date.now()}`;
+            const newCaseData = { ...originalCase };
+            delete newCaseData.id;
+            delete newCaseData.SN_Original;
+            Object.assign(newCaseData, { SN: provisionalSN, SN_Original: originalCase.SN, Estado_Gestion: newStatus, 'Fecha Radicado': today, 'Dia': utils.calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId, Observaciones_Historial: [...(originalCase.Observaciones_Historial || []), { text: `Caso creado por ${newStatus.toLowerCase()} del SN original: ${originalCase.SN}. Radicado SIC: ${originalCase.Radicado_SIC}`, timestamp }], Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [], areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '' });
+            batch.set(doc(collection(db, `artifacts/${appId}/users/${userId}/cases`)), newCaseData);
+            const originalCaseUpdate = { Estado_Gestion: 'Resuelto', 'Fecha Cierre': today, Observaciones_Historial: [...(originalCase.Observaciones_Historial || []), { text: `Caso resuelto por ${newStatus.toLowerCase()}. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]};
+            batch.update(doc(db, `artifacts/${appId}/users/${userId}/cases`, originalCase.id), originalCaseUpdate);
+            await batch.commit();
+            displayModalMessage(`Caso ${newStatus.toLowerCase()} exitosamente. Se ha resuelto el caso original y creado el nuevo.`);
+            handleCloseCaseDetails();
+        } catch (error) {
+            console.error(`Error al gestionar el caso: ${error}`);
+            displayModalMessage(`Error: ${error.message}`);
+        }
+    }
+    
+    // --- LÓGICA DE MODALES Y SELECCIÓN DE CASOS ---
+    const casesByNuip = useMemo(() => {
+        const map = new Map();
+        if (!cases || cases.length === 0) return map;
+        cases.forEach(caseItem => {
+            const nuips = [utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A');
+            nuips.forEach(nuip => {
+                if (!map.has(nuip)) { map.set(nuip, []); }
+                map.get(nuip).push(caseItem);
             });
-            displayModalMessage('Usuario creado (cliente). En producción use Cloud Function con Admin SDK.');
-            return { ok: true, newUser };
-        } catch (e) {
-            console.error('createUserAsAdmin error:', e);
-            displayModalMessage('Error creando usuario: ' + (e.message || e.toString()));
-            return { ok: false, error: e };
-        }
-    }
-
-    const calculateTimePerCaseForDay15 = useCallback((allCases) => {
-        const timeAvailableInMinutes = 9 * 60;
-        const pendingDay15Cases = allCases.filter(c =>
-            ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'].includes(c.Estado_Gestion) &&
-            utils.calculateCaseAge(c, nonBusinessDays) === 15
-        );
-        if (pendingDay15Cases.length === 0) {
-            const resolvedCasesWithTime = allCases.filter(c =>
-                (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') &&
-                utils.calculateCaseAge(c, nonBusinessDays) === 15 &&
-                c.Tiempo_Gestion_Dia15_Congelado
-            );
-            if (resolvedCasesWithTime.length > 0) {
-                return resolvedCasesWithTime[0].Tiempo_Gestion_Dia15_Congelado;
-            }
-            return 'No hay casos en Día 15.';
-        }
-        const timePerCase = timeAvailableInMinutes / pendingDay15Cases.length;
-        return `~${timePerCase.toFixed(2)} minutos por caso`;
-    }, [nonBusinessDays]);
-
-    const checkCancellationAlarms = useCallback(() => {
-        const today = new Date();
-        const todayISO = utils.getColombianDateISO();
-        const casesToAlert = cases.filter(caseItem => {
-            const isCancellationRelated = String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('cancelacion') ||
-                String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('prepago');
-            if (!isCancellationRelated) return false;
-            const cutOffDay = parseInt(caseItem.Corte_Facturacion);
-            if (isNaN(cutOffDay) || cutOffDay < 1 || cutOffDay > 31) return false;
-            const alertShownKey = `cancelAlarmShown_${caseItem.id}_${todayISO}`;
-            if (sessionStorage.getItem(alertShownKey)) return false;
-            let nextCutOffDate = new Date(today.getFullYear(), today.getMonth(), cutOffDay);
-            if (today.getDate() > cutOffDay) {
-                nextCutOffDate = new Date(today.getFullYear(), today.getMonth() + 1, cutOffDay);
-            }
-            const daysToSubtract = 3;
-            let businessDaysCount = 0;
-            let tempDate = new Date(nextCutOffDate);
-            while (businessDaysCount < daysToSubtract) {
-                tempDate.setDate(tempDate.getDate() - 1);
-                const dayOfWeek = tempDate.getDay();
-                const dateStr = tempDate.toISOString().slice(0, 10);
-                const isNonBusinessDay = nonBusinessDays.has(dateStr);
-                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
-                    businessDaysCount++;
-                }
-            }
-            const alertDate = tempDate;
-            const todayWithoutTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            return todayWithoutTime.getTime() === alertDate.getTime();
         });
-        if (casesToAlert.length > 0) {
-            setCancelAlarmCases(casesToAlert);
-            setShowCancelAlarmModal(true);
-        }
-    }, [cases, nonBusinessDays]);
-useEffect(() => {
-    if (cases.length === 0) return;
+        return map;
+    }, [cases]);
 
-    // Usamos un Map para evitar duplicados si un caso coincide con varias palabras clave.
-    const casesToAlertMap = new Map();
-
-    const checkKeywordAlarms = () => {
-        cases.forEach(c => {
-            // --- ¡NUEVO! --- Ignora los casos que ya están finalizados.
-            if (c.Estado_Gestion === 'Finalizado') {
-                return;
-            }
-
-            const alarmKey = `keyword_alarm_dismissed_${c.id}`;
-            // Si la alarma ya fue descartada en esta sesión, la ignoramos.
-            if (sessionStorage.getItem(alarmKey)) {
-                return;
-            }
-
-            const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
-            const allText = `${c.obs || c.OBS || ''} ${historicalObs}`;
-
-            if (!allText.trim()) {
-                return; // No hay texto para revisar.
-            }
-
-            const normalizedText = normalizeTextForSearch(allText);
-
-            // Revisamos si alguna de nuestras palabras clave coincide.
-            for (const trigger of KEYWORD_ALARM_TRIGGERS) {
-                if (trigger.test(normalizedText)) {
-                    // --- ¡MEJORADO! --- Se guarda la palabra clave que activó la alarma.
-                    // Convierte la expresión regular en un texto legible.
-                    const matchedKeyword = trigger.source
-                        .replace(/\\s\+/g, ' ') // convierte \s+ a espacio
-                        .replace(/\(s\)\?/g, '') // quita (s)?
-                        .replace(/\(r\|cion\|ndo\|ciones\)/g, '') // quita terminaciones verbales
-                        .replace(/\(el\\s\+|de\\s\+\)\?/g, '') // quita "el " o "de "
-                        .replace(/\\/g, ''); // quita barras invertidas
-
-                    if (!casesToAlertMap.has(c.id)) {
-                        // Guardamos el caso junto con la palabra clave encontrada.
-                        casesToAlertMap.set(c.id, { ...c, matchedKeyword });
+    async function handleOpenCaseDetails(caseItem) {
+        setSelectedCase(caseItem);
+        const duplicatesMap = new Map();
+        const normalizedCaseNuips = new Set([utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A'));
+        normalizedCaseNuips.forEach(nuip => {
+            if (casesByNuip.has(nuip)) {
+                casesByNuip.get(nuip).forEach(otherCase => {
+                    if (otherCase.id !== caseItem.id) {
+                        duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' });
                     }
-                    break;
-                }
+                });
             }
         });
-
-        const casesToAlert = Array.from(casesToAlertMap.values());
-
-        if (casesToAlert.length > 0) {
-            setKeywordAlarmCases(casesToAlert);
-            setShowKeywordAlarmModal(true);
+        // Lógica de cruce de Reporte (se mantiene en App.jsx)
+        if (reporteCruceData.length > 0 && reporteCruceData[0]) {
+            const nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
+            const snHeader = Object.keys(reporteCruceData[0]).find(h => h.toLowerCase().trim() === 'sn');
+            if (nuipColumns.length > 0 && snHeader) {
+                reporteCruceData.forEach((reportRow, index) => {
+                    const reportSN = String(reportRow[snHeader] || '').trim();
+                    if (!reportSN) return;
+                    const reportRowNuips = new Set(nuipColumns.map(col => utils.normalizeNuip(reportRow[col])).filter(Boolean));
+                    const isMatchFound = [...normalizedCaseNuips].some(caseNuip => reportRowNuips.has(caseNuip));
+                    if (isMatchFound) {
+                        const isAlreadyAssigned = cases.some(c => c.SN === reportSN);
+                        const duplicateId = `report-${reportSN}-${index}`;
+                        if (!duplicatesMap.has(reportSN)) {
+                            duplicatesMap.set(reportSN, { ...reportRow, id: duplicateId, type: 'Reporte Cruce', isAssigned: isAlreadyAssigned, data: reportRow });
+                        }
+                    }
+                });
+            }
         }
-    };
-
-    checkKeywordAlarms();
-
-}, [cases]);
-    const handleReliquidacionChange = (index, e) => {
-        const { name, value } = e.target;
-        setReliquidacionData(prev => {
-            const newForms = [...prev];
-            newForms[index][name] = value;
-            return newForms;
-        });
-    };
-
-    const handleAddForm = () => {
-        const newId = reliquidacionData.length > 0 ? Math.max(...reliquidacionData.map(f => f.id)) + 1 : 1;
-        setReliquidacionData(prev => [...prev, {
-            id: newId, numeroCuenta: '', valorMensual: '', fechaInicioCiclo: '', fechaFinCiclo: '', fechaBaja: '', montoNotaCredito: null,
-        }]);
-    };
-
-    const handleRemoveForm = (idToRemove) => {
-        setReliquidacionData(prev => prev.filter(form => form.id !== idToRemove));
-    };
-
-    async function calcularNotaCredito() {
-        if (!selectedCase) {
-            displayModalMessage("Error: No hay un caso seleccionado para actualizar.");
-            return;
-        }
-        const newForms = reliquidacionData.map(form => {
-            const { numeroCuenta, fechaInicioCiclo, fechaFinCiclo, fechaBaja, valorMensual } = form;
-            if (!numeroCuenta || !fechaInicioCiclo || !fechaFinCiclo || !fechaBaja || !valorMensual) {
-                displayModalMessage(`Por favor, complete todos los campos para la cuenta ${numeroCuenta || 'sin nombre'}.`);
-                return form;
-            }
-            const start = new Date(fechaInicioCiclo + 'T00:00:00-05:00');
-            const end = new Date(fechaFinCiclo + 'T00:00:00-05:00');
-            const baja = new Date(fechaBaja + 'T00:00:00-05:00');
-            if (isNaN(start) || isNaN(end) || isNaN(baja)) {
-                displayModalMessage("Una de las fechas ingresadas no es válida.");
-                return form;
-            }
-            if (baja < start || baja > end) {
-                displayModalMessage(`La fecha de baja debe estar dentro del ciclo de facturación para la cuenta ${numeroCuenta}.`);
-                return form;
-            }
-            const diasTotales = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
-            const diasAReliquidar = (end.getTime() - baja.getTime()) / (1000 * 60 * 60 * 24) + 1;
-            const valorDiario = parseFloat(valorMensual) / diasTotales;
-            const monto = valorDiario * diasAReliquidar;
-            return { ...form, montoNotaCredito: monto.toFixed(2) };
-        });
-        setReliquidacionData(newForms);
-        const newObservationText = newForms.map(form => `Cálculo de nota de crédito para Cuenta ${form.numeroCuenta}:\n- Ciclo: ${form.fechaInicioCiclo} a ${form.fechaFinCiclo}\n- Fecha de baja: ${form.fechaBaja}\n- Valor mensual: $${form.valorMensual}\n- Monto a reliquidar: $${form.montoNotaCredito}`).join('\n\n');
-        const newHistoryEntry = { text: newObservationText, timestamp: new Date().toISOString() };
-        const updatedHistory = [...(selectedCase.Observaciones_Historial || []), newHistoryEntry];
-        await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHistory });
-        setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHistory }));
-        displayModalMessage("Cálculo de nota de crédito completado y guardado en el historial.");
+        setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
     }
 
+    function handleCloseCaseDetails() {
+        setSelectedCase(null);
+        setDuplicateCasesDetails([]);
+    }
+
+    // --- LÓGICA DE CARGA Y EXPORTACIÓN ---
     async function forceRefreshCases() {
         if (!db || !userId) { displayModalMessage("Base de datos no disponible o usuario no autenticado."); return; }
         setRefreshing(true);
@@ -524,7 +426,7 @@ useEffect(() => {
                             Tipo_Aseguramiento: '', Mes_Aseguramiento: '', requiereBaja: false, numeroOrdenBaja: '', requiereAjuste: false,
                             numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '',
                             fechaEfectivaDevolucion: '', areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '', Correo_Electronico_Reclamante: row.Correo_Electronico_Reclamante || 'N/A',
-    Direccion_Reclamante: row.Direccion_Reclamante || 'N/A'
+                            Direccion_Reclamante: row.Direccion_Reclamante || 'N/A'
                         });
                         addedCount++;
                         existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row });
@@ -539,768 +441,7 @@ useEffect(() => {
         reader.readAsText(file, 'ISO-8859-1');
     }
 
-    async function handleContractMarcoUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        setUploading(true);
-        displayModalMessage('Procesando CSV de Contrato Marco para reclasificación...');
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                if (!db || !userId) throw new Error('DB no lista o usuario no autenticado.');
-                const { headers, data: csvDataRows } = utils.parseCSV(e.target.result);
-                if (csvDataRows.length === 0) throw new Error('CSV de Contrato Marco vacío o inválido.');
-                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
-                if (!nuipHeader) { throw new Error("El CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente' o 'NUIP')."); }
-                const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-                const batch = writeBatch(db);
-                let updatedCasesCount = 0, nuipsNotFoundCount = 0, skippedNabisCount = 0;
-                const allCasesSnapshot = await getDocs(collRef);
-                const casesByClienteNuip = new Map(), casesByReclamanteNuip = new Map();
-                allCasesSnapshot.forEach(docSnap => {
-                    const caseData = { id: docSnap.id, ...docSnap.data() };
-                    const clienteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Cliente);
-                    const reclamanteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Reclamante);
-                    if (clienteNuip && clienteNuip !== '0' && clienteNuip !== 'N/A') {
-                        if (!casesByClienteNuip.has(clienteNuip)) { casesByClienteNuip.set(clienteNuip, []); }
-                        casesByClienteNuip.get(clienteNuip).push(caseData);
-                    }
-                    if (reclamanteNuip && reclamanteNuip !== '0' && reclamanteNuip !== 'N/A') {
-                        if (!casesByReclamanteNuip.has(reclamanteNuip)) { casesByReclamanteNuip.set(reclamanteNuip, []); }
-                        casesByReclamanteNuip.get(reclamanteNuip).push(caseData);
-                    }
-                });
-                const processedNuips = new Set();
-                for (const row of csvDataRows) {
-                    const nuipToSearch = utils.normalizeNuip(row[nuipHeader]);
-                    if (!nuipToSearch || processedNuips.has(nuipToSearch)) { continue; }
-                    processedNuips.add(nuipToSearch);
-                    let foundMatch = false;
-                    const potentialMatches = [...(casesByClienteNuip.get(nuipToSearch) || []), ...(casesByReclamanteNuip.get(nuipToSearch) || [])];
-                    const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
-                    if (uniqueMatches.length > 0) {
-                        foundMatch = true;
-                        uniqueMatches.forEach(caseToUpdate => {
-                            if (caseToUpdate.isNabis === true) { skippedNabisCount++; return; }
-                            const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
-                            const updateData = { Tipo_Contrato: 'Contrato Marco' };
-                            if (row.Numero_Contrato_Marco) { updateData.Numero_Contrato_Marco = String(row.Numero_Contrato_Marco).trim(); }
-                            batch.update(docRef, updateData);
-                            updatedCasesCount++;
-                        });
-                    }
-                    if (!foundMatch) { nuipsNotFoundCount++; }
-                }
-                if (updatedCasesCount > 0) { await batch.commit(); }
-                displayModalMessage(`Reclasificación completa. Casos actualizados: ${updatedCasesCount}. Casos omitidos por marca manual "CM Nabis": ${skippedNabisCount}. NUIPs del CSV no encontrados: ${nuipsNotFoundCount}.`);
-            } catch (err) { displayModalMessage(`Error durante reclasificación por Contrato Marco: ${err.message}`); }
-            finally { setUploading(false); if (contractMarcoFileInputRef.current) contractMarcoFileInputRef.current.value = ''; }
-        };
-        reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
-        reader.readAsText(file);
-    }
-
-    async function handleReporteCruceUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        setUploading(true);
-        displayModalMessage('Procesando reporte para cruce de información...');
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const { headers, data: reportData } = utils.parseCSV(e.target.result);
-                if (reportData.length === 0) { throw new Error('El archivo CSV está vacío o tiene un formato no válido.'); }
-                setReporteCruceData(reportData);
-                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
-                if (!nuipHeader) { throw new Error("El archivo CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente')."); }
-                const reportNuips = new Set(reportData.map(row => utils.normalizeNuip(row[nuipHeader])).filter(nuip => nuip));
-                if (reportNuips.size === 0) { throw new Error("No se encontraron Documentos de Identidad (NUIP) válidos en el reporte."); }
-                const casesByNuip = new Map();
-                cases.forEach(caseItem => {
-                    const nuips = [utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
-                    nuips.forEach(nuip => {
-                        if (nuip && nuip !== '0' && nuip !== 'N/A') {
-                            if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
-                            casesByNuip.get(nuip).push(caseItem.SN);
-                        }
-                    });
-                });
-                const matches = new Map();
-                reportNuips.forEach(nuip => {
-                    if (casesByNuip.has(nuip)) { matches.set(nuip, casesByNuip.get(nuip)); }
-                });
-                if (matches.size > 0) {
-                    let message = `Reporte cargado. Se encontraron coincidencias para ${matches.size} documentos en sus casos asignados:\n\n`;
-                    matches.forEach((snList, nuip) => { message += `- Documento ${nuip}:\n  Casos SN: ${[...new Set(snList)].join(', ')}\n`; });
-                    displayModalMessage(message);
-                } else { displayModalMessage('Reporte cargado. No se encontraron coincidencias inmediatas en sus casos asignados.'); }
-            } catch (err) { displayModalMessage(`Error al procesar el reporte: ${err.message}`); }
-            finally { setUploading(false); if (reporteCruceFileInputRef.current) { reporteCruceFileInputRef.current.value = ''; } }
-        };
-        reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
-        reader.readAsText(file, 'ISO-8859-1');
-    }
-
- function handleAssignFromReport(reportRowData) {
-    const nuipHeader = Object.keys(reportRowData).find(h => h.toLowerCase().includes('nuip')) || 'Nro_Nuip_Cliente';
-    const snHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'sn') || 'SN';
-    const cunHeader = Object.keys(reportRowData).find(h => h.toLowerCase().trim() === 'cun') || 'CUN';
-    const fechaRadicadoHeader = Object.keys(reportRowData).find(h => h.toLowerCase().replace(/_/g, ' ').trim() === 'fecha radicado') || 'FechaRadicado';
-    
-    // FIX: Format the date correctly for the input field
-    const formattedDate = utils.formatDateForInput(reportRowData[fechaRadicadoHeader] || '');
-
-    const prefilledData = {
-        ...initialManualFormData,
-        SN: reportRowData[snHeader] || '',
-        CUN: reportRowData[cunHeader] || '',
-        Nro_Nuip_Cliente: reportRowData[nuipHeader] || '',
-        FechaRadicado: formattedDate, // Use the formatted date here
-    };
-    setManualFormData(prefilledData);
-    handleCloseCaseDetails();
-    setShowManualEntryModal(true);
-}
-
-const casesByNuip = useMemo(() => {
-    console.log("Re-calculando el mapa de NUIPs..."); // Para depurar
-    const map = new Map();
-    if (!cases || cases.length === 0) return map;
-
-    cases.forEach(caseItem => {
-        const nuips = [
-            utils.normalizeNuip(caseItem.Nro_Nuip_Cliente),
-            utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)
-        ].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A');
-
-        nuips.forEach(nuip => {
-            if (!map.has(nuip)) {
-                map.set(nuip, []);
-            }
-            map.get(nuip).push(caseItem);
-        });
-    });
-    return map;
-}, [cases]); // Este useMemo solo se re-ejecuta cuando los casos cambian
-
-// Ahora, tu función handleOpenCaseDetails se vuelve súper rápida:
-async function handleOpenCaseDetails(caseItem) {
-    setSelectedCase(caseItem);
-    // ... (resto de tus estados iniciales)
-
-    const duplicatesMap = new Map();
-    const normalizedCaseNuips = new Set(
-        [
-            utils.normalizeNuip(caseItem.Nro_Nuip_Cliente),
-            utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)
-        ].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A')
-    );
-
-    // Búsqueda instantánea usando el mapa pre-calculado
-    normalizedCaseNuips.forEach(nuip => {
-        if (casesByNuip.has(nuip)) {
-            casesByNuip.get(nuip).forEach(otherCase => {
-                if (otherCase.id !== caseItem.id) {
-                    duplicatesMap.set(otherCase.id, { ...otherCase, type: 'Documento Asignado' });
-                }
-            });
-        }
-    });
-        if (reporteCruceData.length > 0 && reporteCruceData[0]) {
-            const nuipColumns = Object.keys(reporteCruceData[0]).filter(h => h.toLowerCase().includes('nuip'));
-            const snHeader = Object.keys(reporteCruceData[0]).find(h => h.toLowerCase().trim() === 'sn');
-            if (nuipColumns.length > 0 && snHeader) {
-                reporteCruceData.forEach((reportRow, index) => {
-                    const reportSN = String(reportRow[snHeader] || '').trim();
-                    if (!reportSN) return;
-                    const reportRowNuips = new Set(nuipColumns.map(col => utils.normalizeNuip(reportRow[col])).filter(Boolean));
-                    const isMatchFound = [...normalizedCaseNuips].some(caseNuip => reportRowNuips.has(caseNuip));
-                    if (isMatchFound) {
-                        const isAlreadyAssigned = cases.some(c => c.SN === reportSN);
-                        const duplicateId = `report-${reportSN}-${index}`;
-                        if (!duplicatesMap.has(reportSN)) {
-                            duplicatesMap.set(reportSN, { ...reportRow, id: duplicateId, type: 'Reporte Cruce', isAssigned: isAlreadyAssigned, data: reportRow });
-                        }
-                    }
-                });
-            }
-        }
-        setDuplicateCasesDetails(Array.from(duplicatesMap.values()));
-    }
-
-    function handleCloseCaseDetails() {
-        setSelectedCase(null);
-        setDuplicateCasesDetails([]);
-        setTieneSNAcumulados(false);
-        setCantidadSNAcumulados(0);
-        setSnAcumuladosData([]);
-        setAseguramientoObs('');
-        setReliquidacionData([{ id: 1, numeroCuenta: '', valorMensual: '', fechaInicioCiclo: '', fechaFinCiclo: '', fechaBaja: '', montoNotaCredito: null }]);
-    }
-
-    async function handleModalFieldChange(fieldName, value) {
-        if (!selectedCase) return;
-        const firestoreUpdateData = { [fieldName]: value };
-        if (fieldName === 'Fecha Radicado') {
-            const tempCaseForCalc = { ...selectedCase, 'Fecha Radicado': value };
-            const newAge = utils.calculateCaseAge(tempCaseForCalc, nonBusinessDays);
-            firestoreUpdateData.Dia = newAge;
-            setSelectedCase(prev => ({ ...prev, 'Fecha Radicado': value, 'Dia': newAge }));
-        }
-        if (fieldName === 'isNabis') {
-            const newContractType = value ? 'Contrato Marco' : 'Condiciones Uniformes';
-            firestoreUpdateData.Tipo_Contrato = newContractType;
-            setSelectedCase(prev => ({ ...prev, isNabis: value, Tipo_Contrato: newContractType }));
-        } else {
-            const isChecked = typeof value === 'boolean' ? value : (value === 'true');
-            if (fieldName === 'Nombre_Cliente') value = value.toUpperCase();
-            else if (fieldName === 'Nro_Nuip_Cliente' && (String(value).startsWith('8') || String(value).startsWith('9')) && String(value).length > 9) value = String(value).substring(0, 9);
-            if (['Requiere_Aseguramiento_Facturas', 'requiereBaja', 'requiereAjuste'].includes(fieldName)) {
-                if (isChecked) { firestoreUpdateData.Despacho_Respuesta_Checked = false; }
-                if (!isChecked) {
-                    if (fieldName === 'Requiere_Aseguramiento_Facturas') Object.assign(firestoreUpdateData, { ID_Aseguramiento: '', Corte_Facturacion: '', Cuenta: '', Operacion_Aseguramiento: '', Tipo_Aseguramiento: '', Mes_Aseguramiento: '', gestionAseguramientoCompletada: false });
-                    else if (fieldName === 'requiereBaja') firestoreUpdateData.numeroOrdenBaja = '';
-                    else if (fieldName === 'requiereAjuste') {
-                        Object.assign(firestoreUpdateData, { numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' });
-                        if (selectedCase.Estado_Gestion === 'Pendiente Ajustes') firestoreUpdateData.Estado_Gestion = 'Pendiente';
-                    }
-                }
-            } else if (fieldName === 'requiereDevolucionDinero' && !isChecked) { Object.assign(firestoreUpdateData, { cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '' }); }
-            if (fieldName === 'gestionAseguramientoCompletada') { firestoreUpdateData.gestionAseguramientoCompletada = value; }
-            if (fieldName === 'estadoTT' && selectedCase.requiereAjuste) {
-                if (value === 'Pendiente' && selectedCase.Estado_Gestion !== 'Pendiente Ajustes') {
-                    firestoreUpdateData.Estado_Gestion = 'Pendiente Ajustes';
-                    displayModalMessage('El estado del caso ha cambiado a "Pendiente Ajustes".');
-                }
-            } else if (fieldName === 'areaEscalada') { firestoreUpdateData.motivoEscalado = ''; }
-            if (fieldName === 'gestionAseguramientoCompletada') { firestoreUpdateData.gestionAseguramientoCompletada = value; }
-            setSelectedCase(prev => ({ ...prev, ...firestoreUpdateData, [fieldName]: value }));
-        }
-        updateCaseInFirestore(selectedCase.id, firestoreUpdateData);
-    }
-
-    function handleContractTypeChange(newContractType) {
-        if (!selectedCase) return;
-        const updateData = { Tipo_Contrato: newContractType };
-        if (newContractType !== 'Contrato Marco') { updateData.isNabis = false; }
-        setSelectedCase(prev => ({ ...prev, ...updateData }));
-        updateCaseInFirestore(selectedCase.id, updateData);
-    }
-
-    async function proceedWithResolve() {
-        if (!selectedCase) return;
-        const batch = writeBatch(db);
-        let local = { ...selectedCase, Estado_Gestion: 'Resuelto' };
-        if (!selectedCase.Despacho_Respuesta_Checked && !selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste) { displayModalMessage('Debe seleccionar "Despacho Respuesta" o una opción de "Gestiones Adicionales" para resolver.'); return; }
-        if (selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.ID_Aseguramiento && (!selectedCase.Corte_Facturacion || isNaN(parseFloat(selectedCase.Corte_Facturacion)) || !selectedCase.Cuenta || !selectedCase.Operacion_Aseguramiento || !selectedCase.Tipo_Aseguramiento || !selectedCase.Mes_Aseguramiento)) { displayModalMessage('Para resolver con Aseguramiento, complete todos los campos requeridos.'); return; }
-        if (selectedCase.requiereBaja && !selectedCase.numeroOrdenBaja) { displayModalMessage('Si requiere baja, debe ingresar el Número de Orden de Baja.'); return; }
-        if (selectedCase.requiereAjuste) {
-            if (!selectedCase.numeroTT) { displayModalMessage('Si requiere ajuste, debe ingresar el Número de TT.'); return; }
-            if (selectedCase.estadoTT !== 'Aplicado') { displayModalMessage('Si requiere ajuste, el Estado TT debe ser "Aplicado".'); return; }
-            if (selectedCase.requiereDevolucionDinero && (!selectedCase.cantidadDevolver || isNaN(parseFloat(selectedCase.cantidadDevolver)) || parseFloat(selectedCase.cantidadDevolver) <= 0 || !selectedCase.idEnvioDevoluciones || !selectedCase.fechaEfectivaDevolucion)) { displayModalMessage('Si requiere devolución, complete todos los campos de devolución.'); return; }
-        }
-        if ((selectedCase.Requiere_Aseguramiento_Facturas || selectedCase.requiereBaja || selectedCase.requiereAjuste) && !selectedCase.gestionAseguramientoCompletada) {
-            displayModalMessage('Error: El caso tiene gestiones adicionales pendientes. Debe marcar la casilla "Marcar gestión de aseguramiento como completada" antes de resolver.');
-            return;
-        }
-        const today = utils.getColombianDateISO();
-        const newObservations = [...(selectedCase.Observaciones_Historial || [])];
-        if (selectedCase.SNAcumulados_Historial && selectedCase.SNAcumulados_Historial.length > 0) {
-            const accumulatedSNs = selectedCase.SNAcumulados_Historial.map(item => item.sn.trim()).filter(Boolean);
-            if (accumulatedSNs.length > 0) {
-                const snListString = accumulatedSNs.join(', ');
-                const mainAnnotationText = `Caso resuelto. Se cerraron también los siguientes SN Acumulados: ${snListString}`;
-                newObservations.push({ text: mainAnnotationText, timestamp: new Date().toISOString() });
-                const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`), where('SN', 'in', accumulatedSNs));
-                const querySnapshot = await getDocs(q);
-                const accumulatedAnnotationText = `Este caso fue resuelto como parte del cierre del caso principal SN: ${selectedCase.SN}`;
-                const accumulatedAnnotation = { text: accumulatedAnnotationText, timestamp: new Date().toISOString() };
-                querySnapshot.forEach(doc => {
-                    const accumulatedCaseData = doc.data();
-                    const newAccumulatedHistory = [...(accumulatedCaseData.Observaciones_Historial || []), accumulatedAnnotation];
-                    batch.update(doc.ref, { Estado_Gestion: 'Resuelto', 'Fecha Cierre': today, Observaciones_Historial: newAccumulatedHistory });
-                });
-            }
-        }
-        const mainCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-        const tiempoGestionDia15 = timePerCaseDay15;
-        const data = {
-            Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
-            Tiempo_Resolucion_Minutos: selectedCase.Fecha_Inicio_Gestion ? utils.getDurationInMinutes(selectedCase.Fecha_Inicio_Gestion, new Date().toISOString()) : 'N/A',
-            Tiempo_Gestion_Dia15_Congelado: tiempoGestionDia15, Observaciones_Historial: newObservations
-        };
-        local['Fecha Cierre'] = today;
-        local.Tiempo_Resolucion_Minutos = data.Tiempo_Resolucion_Minutos;
-        local.Tiempo_Gestion_Dia15_Congelado = data.Tiempo_Gestion_Dia15_Congelado;
-        local.Observaciones_Historial = newObservations;
-        batch.update(mainCaseRef, data);
-        setSelectedCase(local);
-        await batch.commit();
-    }
-
-    async function handleDecretarCaso() {
-        if (!selectedCase) return;
-        if (!selectedCase.Despacho_Respuesta_Checked) { displayModalMessage("Error: Para decretar el caso, primero debe marcar la casilla 'Despacho Respuesta'."); return; }
-        if (!Array.isArray(selectedCase.Escalamiento_Historial) || selectedCase.Escalamiento_Historial.length === 0) { displayModalMessage("Error: Debe guardar un registro de escalación antes de decretar el caso."); return; }
-        if (!selectedCase.Radicado_SIC || !selectedCase.Fecha_Vencimiento_Decreto) { displayModalMessage("Error: Debe completar los campos 'Radicado SIC' y 'Fecha Vencimiento Decreto' para poder decretar."); return; }
-        displayConfirmModal('¿Está seguro de que desea decretar este caso? Esta acción resolverá el caso actual y creará uno nuevo en estado "Decretado".',
-            {
-                onConfirm: async () => {
-                    try {
-                        const batch = writeBatch(db);
-                        const today = utils.getColombianDateISO();
-                        const timestamp = new Date().toISOString();
-                        const provisionalSN = `DECRETO-${Date.now()}`;
-                        const newCaseData = { ...selectedCase };
-                        delete newCaseData.id;
-                        delete newCaseData.SN_Original;
-                        Object.assign(newCaseData, {
-                            SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Decretado', 'Fecha Radicado': today,
-                            'Dia': utils.calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
-                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por decreto del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
-                            Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
-                            areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
-                        });
-                        const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
-                        batch.set(newCaseRef, newCaseData);
-                        const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                        const originalCaseUpdate = {
-                            Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
-                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por decreto. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
-                        };
-                        batch.update(originalCaseRef, originalCaseUpdate);
-                        await batch.commit();
-                        displayModalMessage('Caso decretado exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
-                        handleCloseCaseDetails();
-                    } catch (error) {
-                        console.error("Error al decretar el caso:", error);
-                        displayModalMessage(`Error al decretar el caso: ${error.message}`);
-                    }
-                }, confirmText: 'Sí, decretar', cancelText: 'No, cancelar'
-            });
-    }
-
-    async function handleTrasladoSIC() {
-        if (!selectedCase) return;
-        if (!selectedCase.Despacho_Respuesta_Checked) { displayModalMessage("Error: Para trasladar el caso a SIC, primero debe marcar la casilla 'Despacho Respuesta'."); return; }
-        if (!selectedCase.Radicado_SIC || !selectedCase.Fecha_Vencimiento_Decreto) { displayModalMessage("Error: Debe completar los campos 'Radicado SIC' y 'Fecha Vencimiento Decreto' para poder trasladar a SIC."); return; }
-        displayConfirmModal('¿Está seguro de que desea trasladar este caso a SIC? Esta acción resolverá el caso actual y creará uno nuevo en estado "Traslado SIC".',
-            {
-                onConfirm: async () => {
-                    try {
-                        const batch = writeBatch(db);
-                        const today = utils.getColombianDateISO();
-                        const timestamp = new Date().toISOString();
-                        const provisionalSN = `TRASLADO-${Date.now()}`;
-                        const newCaseData = { ...selectedCase };
-                        delete newCaseData.id;
-                        delete newCaseData.SN_Original;
-                        Object.assign(newCaseData, {
-                            SN: provisionalSN, SN_Original: selectedCase.SN, Estado_Gestion: 'Traslado SIC', 'Fecha Radicado': today,
-                            'Dia': utils.calculateBusinessDays(today, today, nonBusinessDays), 'Fecha Cierre': '', nombre_oficina: userId,
-                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso creado por traslado a SIC del SN original: ${selectedCase.SN}. Radicado SIC: ${selectedCase.Radicado_SIC}`, timestamp }],
-                            Aseguramiento_Historial: [], SNAcumulados_Historial: [], Escalamiento_Historial: [],
-                            areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: ''
-                        });
-                        const newCaseRef = doc(collection(db, `artifacts/${appId}/users/${userId}/cases`));
-                        batch.set(newCaseRef, newCaseData);
-                        const originalCaseRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, selectedCase.id);
-                        const originalCaseUpdate = {
-                            Estado_Gestion: 'Resuelto', 'Fecha Cierre': today,
-                            Observaciones_Historial: [...(selectedCase.Observaciones_Historial || []), { text: `Caso resuelto por traslado a SIC. Se creó un nuevo caso con SN provisional: ${provisionalSN}`, timestamp }]
-                        };
-                        batch.update(originalCaseRef, originalCaseUpdate);
-                        await batch.commit();
-                        displayModalMessage('Caso trasladado a SIC exitosamente. Se ha resuelto el caso actual y se ha creado uno nuevo.');
-                        handleCloseCaseDetails();
-                    } catch (error) {
-                        console.error("Error al trasladar el caso a SIC:", error);
-                        displayModalMessage(`Error al trasladar el caso a SIC: ${error.message}`);
-                    }
-                }, confirmText: 'Sí, trasladar a SIC', cancelText: 'No, cancelar'
-            });
-    }
-
-    async function handleSaveEscalamientoHistory() {
-        if (!selectedCase) return;
-        if (!selectedCase.areaEscalada || !selectedCase.motivoEscalado) { displayModalMessage('Debe seleccionar el área y el motivo de la escalación para guardar.'); return; }
-        const escalamientoData = {
-            timestamp: new Date().toISOString(),
-            areaEscalada: selectedCase.areaEscalada, motivoEscalado: selectedCase.motivoEscalado,
-            idEscalado: selectedCase.idEscalado || '', reqGenerado: selectedCase.reqGenerado || '', descripcionEscalamiento: selectedCase.descripcionEscalamiento || ''
-        };
-        const newHistory = [...(selectedCase.Escalamiento_Historial || []), escalamientoData];
-        try {
-            await updateCaseInFirestore(selectedCase.id, { Escalamiento_Historial: newHistory });
-            setSelectedCase(prev => ({ ...prev, Escalamiento_Historial: newHistory }));
-            displayModalMessage('Historial de escalación guardado.');
-        } catch (e) { displayModalMessage(`Error guardando historial de escalación: ${e.message}`); }
-    }
-
-    async function handleChangeCaseStatus(newStatus) {
-        if (!selectedCase) return;
-        if (newStatus === 'Decretado') { handleDecretarCaso(); return; }
-        if (newStatus === 'Traslado SIC') { handleTrasladoSIC(); return; }
-        if (newStatus === 'Resuelto') {
-            const needsAssuranceCheck = !selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste;
-            if (needsAssuranceCheck) {
-                displayConfirmModal('¿Confirma que el caso NO requiere "Aseguramiento y Gestiones Adicionales"?',
-                    { onConfirm: () => proceedWithResolve(), onCancel: () => { setShowModal(false); setShowGestionesAdicionales(true); }, confirmText: 'No, no requiere', cancelText: 'Sí, requiere gestión' });
-            } else { await proceedWithResolve(); }
-        } else {
-            const oldStatus = selectedCase.Estado_Gestion;
-            const data = { Estado_Gestion: newStatus };
-            if (oldStatus === 'Escalado' && newStatus !== 'Escalado') { Object.assign(data, { areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '' }); }
-            if (newStatus === 'Iniciado') { Object.assign(data, { Fecha_Inicio_Gestion: new Date().toISOString(), Tiempo_Resolucion_Minutos: 'N/A' }); }
-            setSelectedCase(prev => ({ ...prev, ...data }));
-            await updateCaseInFirestore(selectedCase.id, data);
-        }
-    }
-
-    async function handleDespachoRespuestaChange(e) {
-        if (!selectedCase) return;
-        const isChecked = e.target.checked;
-        let updateData = { Despacho_Respuesta_Checked: isChecked };
-        if (isChecked) {
-            updateData = {
-                ...updateData,
-                Requiere_Aseguramiento_Facturas: false, requiereBaja: false, requiereAjuste: false, requiereDevolucionDinero: false,
-                ID_Aseguramiento: '', Corte_Facturacion: '', Cuenta: '', Operacion_Aseguramiento: '', Tipo_Aseguramiento: '', Mes_Aseguramiento: '',
-                numeroOrdenBaja: '', numeroTT: '', estadoTT: '', cantidadDevolver: '', idEnvioDevoluciones: '', fechaEfectivaDevolucion: '',
-            };
-            if (isChecked && selectedCase.Estado_Gestion === 'Pendiente Ajustes') { updateData.Estado_Gestion = 'Pendiente'; }
-        }
-        setSelectedCase(prev => ({ ...prev, ...updateData }));
-        await updateCaseInFirestore(selectedCase.id, updateData);
-    }
-
-    function handleRadicadoSICChange(e) { setSelectedCase(prev => ({ ...prev, Radicado_SIC: e.target.value })); updateCaseInFirestore(selectedCase.id, { Radicado_SIC: e.target.value }); }
-    function handleFechaVencimientoDecretoChange(e) { setSelectedCase(prev => ({ ...prev, Fecha_Vencimiento_Decreto: e.target.value })); updateCaseInFirestore(selectedCase.id, { Fecha_Vencimiento_Decreto: e.target.value }); }
-    async function handleAssignUser() { if (!selectedCase || !userId) return; setSelectedCase(prev => ({ ...prev, user: userId })); await updateCaseInFirestore(selectedCase.id, { user: userId }); displayModalMessage(`Caso asignado a: ${userId}`); }
-    async function generateAIAnalysis() { if (!selectedCase) return; setIsGeneratingAnalysis(true); try { const res = await aiServices.getAIAnalysisAndCategory(selectedCase); setSelectedCase(prev => ({ ...prev, ...res })); await updateCaseInFirestore(selectedCase.id, res); } catch (e) { displayModalMessage(`Error AI Analysis: ${e.message}`); } finally { setIsGeneratingAnalysis(false); } }
-    async function generateAISummaryHandler() { if (!selectedCase) return; setIsGeneratingSummary(true); try { const sum = await aiServices.getAISummary(selectedCase); setSelectedCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); await updateCaseInFirestore(selectedCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); } }
-    async function generateAIResponseProjectionHandler() {
-        if (!selectedCase) return;
-        const lastObs = selectedCase.Observaciones_Historial?.slice(-1)[0]?.text || selectedCase.Observaciones || '';
-        setIsGeneratingResponseProjection(true);
-        try { const proj = await aiServices.getAIResponseProjection(lastObs, selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes'); setSelectedCase(prev => ({ ...prev, Proyeccion_Respuesta_IA: proj })); await updateCaseInFirestore(selectedCase.id, { Proyeccion_Respuesta_IA: proj }); }
-        catch (e) { displayModalMessage(`Error AI Projection: ${e.message}`); }
-        finally { setIsGeneratingResponseProjection(false); }
-    }
-
-    async function generateNextActionsHandler() {
-        if (!selectedCase) return;
-        setIsGeneratingNextActions(true);
-        try {
-            const actions = await aiServices.getAINextActions(selectedCase);
-            setSelectedCase(prev => ({ ...prev, Sugerencias_Accion_IA: actions }));
-            await updateCaseInFirestore(selectedCase.id, { Sugerencias_Accion_IA: actions });
-        } catch (e) { displayModalMessage(`Error generando próximas acciones: ${e.message}`); }
-        finally { setIsGeneratingNextActions(false); }
-    }
-
-    async function generateRootCauseHandler() {
-        if (!selectedCase) return;
-        setIsGeneratingRootCause(true);
-        try {
-            const cause = await aiServices.getAIRootCause(selectedCase);
-            setSelectedCase(prev => ({ ...prev, Causa_Raiz_IA: cause }));
-            await updateCaseInFirestore(selectedCase.id, { Causa_Raiz_IA: cause });
-        } catch (e) { displayModalMessage(`Error generando causa raíz: ${e.message}`); }
-        finally { setIsGeneratingRootCause(false); }
-    }
-
-    async function handleSuggestEscalation() {
-        if (!selectedCase) return;
-        setIsSuggestingEscalation(true);
-        displayModalMessage('La IA está sugiriendo una escalación...');
-        try {
-            const suggestion = await aiServices.getAIEscalationSuggestion(selectedCase);
-            if (suggestion.area && suggestion.motivo) {
-                const firestoreUpdateData = { areaEscalada: suggestion.area, motivoEscalado: suggestion.motivo };
-                setSelectedCase(prev => ({ ...prev, ...firestoreUpdateData }));
-                await updateCaseInFirestore(selectedCase.id, firestoreUpdateData);
-                displayModalMessage('Sugerencia de escalación aplicada.');
-            } else { displayModalMessage('No se pudo obtener una sugerencia válida de la IA.'); }
-        } catch (e) { displayModalMessage(`Error con la IA: ${e.message}`); }
-        finally { setIsSuggestingEscalation(false); }
-    }
-
-    const handleObservationsChange = (e) => setSelectedCase(prev => ({ ...prev, Observaciones: e.target.value }));
-    async function saveObservation() {
-        if (!selectedCase || !selectedCase.Observaciones?.trim()) { displayModalMessage('Escriba observación.'); return; }
-        const newHist = { text: selectedCase.Observaciones.trim(), timestamp: new Date().toISOString() };
-        const updatedHist = [...(selectedCase.Observaciones_Historial || []), newHist];
-        setSelectedCase(prev => ({ ...prev, Observaciones_Historial: updatedHist, Observaciones: '' }));
-        await updateCaseInFirestore(selectedCase.id, { Observaciones_Historial: updatedHist, Observaciones: '' });
-        displayModalMessage('Observación guardada.');
-    }
-    function handleFechaCierreChange(e) { setSelectedCase(prev => ({ ...prev, 'Fecha Cierre': e.target.value })); updateCaseInFirestore(selectedCase.id, { 'Fecha Cierre': e.target.value }); }
-
-    function handleManualFormChange(e) {
-        const { name, value, type, checked } = e.target;
-        let fVal = type === 'checkbox' ? checked : value;
-        if (name === 'Nro_Nuip_Cliente' && (value.startsWith('8') || value.startsWith('9')) && value.length > 9) fVal = value.substring(0, 9);
-        else if (name === 'Nombre_Cliente') fVal = value.toUpperCase();
-        setManualFormData(prev => {
-            const newState = { ...prev, [name]: fVal };
-            if (name === 'Requiere_Aseguramiento_Facturas' && !fVal) { newState.ID_Aseguramiento = ''; newState.Corte_Facturacion = ''; newState.Cuenta = ''; newState.Operacion_Aseguramiento = ''; newState.Tipo_Aseguramiento = ''; newState.Mes_Aseguramiento = ''; }
-            if (name === 'requiereBaja' && !fVal) newState.numeroOrdenBaja = '';
-            if (name === 'requiereAjuste' && !fVal) {
-                newState.numeroTT = ''; newState.estadoTT = ''; newState.requiereDevolucionDinero = false;
-                newState.cantidadDevolver = ''; newState.idEnvioDevoluciones = ''; newState.fechaEfectivaDevolucion = '';
-            }
-            if (name === 'requiereDevolucionDinero' && !fVal) { newState.cantidadDevolver = ''; newState.idEnvioDevoluciones = ''; newState.fechaEfectivaDevolucion = ''; }
-            if (name === 'areaEscalada') { newState.motivoEscalado = ''; }
-            if (name === 'Tipo_Contrato' && value !== 'Contrato Marco') { newState.Numero_Contrato_Marco = ''; }
-            return newState;
-        });
-    }
-
-    function handleManualFormDevolucionChange(e) {
-        const { name, value } = e.target;
-        setManualFormData(prev => ({ ...prev, [name]: value }));
-    }
-
-    async function handleManualSubmit(e) {
-        e.preventDefault(); setUploading(true); displayModalMessage('Procesando manual con IA...');
-        try {
-            if (manualFormData.requiereBaja && !manualFormData.numeroOrdenBaja) { displayModalMessage('Si requiere baja, debe ingresar el Número de Orden de Baja.'); setUploading(false); return; }
-            if (manualFormData.requiereAjuste) {
-                if (!manualFormData.numeroTT) { displayModalMessage('Si requiere ajuste, debe ingresar el Número de TT.'); setUploading(false); return; }
-                if (!manualFormData.estadoTT) { displayModalMessage('Si requiere ajuste, debe seleccionar un Estado para el TT.'); setUploading(false); return; }
-                if (manualFormData.requiereDevolucionDinero) {
-                    if (!manualFormData.cantidadDevolver || isNaN(parseFloat(manualFormData.cantidadDevolver)) || parseFloat(manualFormData.cantidadDevolver) <= 0) { displayModalMessage('Si requiere devolución de dinero, la "Cantidad a Devolver" debe ser un número válido y mayor a cero.'); setUploading(false); return; }
-                    if (!manualFormData.idEnvioDevoluciones) { displayModalMessage('Si requiere devolución de dinero, debe ingresar el "ID Envío Devoluciones".'); setUploading(false); return; }
-                    if (!manualFormData.fechaEfectivaDevolucion) { displayModalMessage('Si requiere devolución de dinero, debe ingresar la "Fecha Efectiva Devolución".'); setUploading(false); return; }
-                }
-            }
-            if (manualFormData.Estado_Gestion === 'Escalado') {
-                if (!manualFormData.areaEscalada) { displayModalMessage('Si el estado es "Escalado", debe seleccionar un Área Escalada.'); setUploading(false); return; }
-                if (!manualFormData.motivoEscalado) { displayModalMessage('Si el estado es "Escalado", debe seleccionar un Motivo de Escalado.'); setUploading(false); return; }
-            }
-            const today = utils.getColombianDateISO();
-            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            const currentSN = String(manualFormData.SN || '').trim();
-            if (currentSN) {
-                const existingDocs = await getDocs(query(collRef, where('SN', '==', currentSN)));
-                if (!existingDocs.empty) { displayModalMessage(`Error: El SN "${currentSN}" ya existe. No se agregó el caso manual.`); setUploading(false); return; }
-            }
-            const aiData = { SN: manualFormData.SN, FechaRadicado: manualFormData.FechaRadicado, Nombre_Cliente: manualFormData.Nombre_Cliente, obs: manualFormData.OBS, type_request: manualFormData.type_request || '' };
-            let aiAnalysisCat = { 'Analisis de la IA': 'N/A', 'Categoria del reclamo': 'N/A' }, aiPrio = 'Media', relNum = 'N/A', aiSentiment = { Sentimiento_IA: 'Neutral' };
-            try {
-                const [analysis, priority, sentiment] = await Promise.all([
-                    aiServices.getAIAnalysisAndCategory(aiData), aiServices.getAIPriority(manualFormData.OBS), aiServices.getAISentiment(manualFormData.OBS)
-                ]);
-                aiAnalysisCat = analysis; aiPrio = priority; aiSentiment = sentiment; relNum = utils.extractRelatedComplaintNumber(manualFormData.OBS);
-            } catch (aiErr) { console.error(`AI Error manual SN ${currentSN || 'N/A'}:`, aiErr); }
-            let estadoGestionInicial = manualFormData.Estado_Gestion || 'Pendiente';
-            if (manualFormData.requiereAjuste && manualFormData.estadoTT === 'Pendiente' && estadoGestionInicial !== 'Escalado') { estadoGestionInicial = 'Pendiente Ajustes'; }
-            const newCase = {
-                ...manualFormData, user: userId, Estado_Gestion: estadoGestionInicial, ...aiAnalysisCat, ...aiSentiment,
-                Prioridad: aiPrio, Numero_Reclamo_Relacionado: relNum, Observaciones_Reclamo_Relacionado: '', Aseguramiento_Historial: [],
-                Escalamiento_Historial: [], Resumen_Hechos_IA: 'No generado', Proyeccion_Respuesta_IA: 'No generada',
-                Sugerencias_Accion_IA: [], Causa_Raiz_IA: '', Correo_Escalacion_IA: '', Riesgo_SIC: {}, fecha_asignacion: today,
-                Observaciones_Historial: [], SNAcumulados_Historial: [], Despacho_Respuesta_Checked: false, Fecha_Inicio_Gestion: '',
-                Tiempo_Resolucion_Minutos: 'N/A', Radicado_SIC: '', Fecha_Vencimiento_Decreto: ''
-            };
-            if (newCase.Estado_Gestion !== 'Escalado') {
-                newCase.areaEscalada = ''; newCase.motivoEscalado = ''; newCase.idEscalado = '';
-                newCase.reqGenerado = ''; newCase.descripcionEscalamiento = '';
-            }
-            await addDoc(collRef, newCase);
-            displayModalMessage('Caso manual agregado con IA.');
-            setShowManualEntryModal(false);
-            setManualFormData(initialManualFormData);
-        } catch (err) { displayModalMessage(`Error manual: ${err.message}`); }
-        finally { setUploading(false); }
-    }
-
-    async function handleObservationFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !selectedCase) return;
-
-    setIsTranscribingObservation(true);
-    displayModalMessage(`Analizando adjunto (${file.type})... Esto puede tardar un momento.`);
-
-    try {
-        let summary = '';
-        const fileType = file.type;
-        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-        
-        // ACTUALIZACIÓN: Se usa el modelo más reciente y adecuado según la documentación.
-        const modelName = "gemini-2.5-flash"; 
-        
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-        if (fileType.startsWith('text/')) {
-            summary = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = (e) => reject(e);
-                reader.readAsText(file);
-            });
-        } else if (fileType === 'application/pdf') {
-            if (!window.pdfjsLib) {
-                throw new Error('La librería PDF.js no está cargada. Intente de nuevo en unos segundos.');
-            }
-            const reader = new FileReader();
-            
-            summary = await new Promise((resolve, reject) => {
-                reader.onload = async (e) => {
-                    try {
-                        const pdfData = new Uint8Array(e.target.result);
-                        const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
-                        let fullText = '';
-                        
-                        for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i);
-                            const textContent = await page.getTextContent();
-                            const pageText = textContent.items.map(item => item.str).join(' ');
-                            fullText += pageText + '\n\n';
-                        }
-                        
-                        if (fullText.trim().length < 50) { 
-                            displayModalMessage('No se encontró texto digital. Procesando como imagen (OCR)...');
-                            const page = await pdf.getPage(1);
-                            const scale = 1.5;
-                            const viewport = page.getViewport({ scale: scale });
-
-                            const canvas = document.createElement('canvas');
-                            const context = canvas.getContext('2d');
-                            canvas.height = viewport.height;
-                            canvas.width = viewport.width;
-
-                            const renderContext = {
-                                canvasContext: context,
-                                viewport: viewport
-                            };
-                            
-                            await page.render(renderContext).promise;
-                            const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
-                            const prompt = 'Analiza la siguiente imagen de un documento y transcribe todo el texto relevante que encuentres de manera estructurada.';
-                            const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Image } };
-                            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-                            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-
-                            if (!response.ok) throw new Error(`Error en la API de visión para PDF: ${response.status}`);
-                            
-                            const result = await response.json();
-                            if (result.candidates && result.candidates[0].content.parts[0].text) {
-                                resolve(result.candidates[0].content.parts[0].text);
-                            } else {
-                                throw new Error('La IA no pudo procesar la imagen del PDF.');
-                            }
-                        } else {
-                            resolve(fullText.trim());
-                        }
-
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                reader.onerror = (e) => reject(new Error("Error al leer el archivo PDF."));
-                reader.readAsArrayBuffer(file);
-            });
-
-        } else if (fileType.startsWith('image/')) {
-            const prompt = 'Analiza la siguiente imagen y transcribe cualquier texto relevante que encuentres.';
-            const base64Image = await fileToBase64(file);
-            const imagePart = { inlineData: { mimeType: file.type, data: base64Image } };
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, imagePart] }] };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`Error en la API de visión: ${response.status}`);
-            const result = await response.json();
-            if (result.candidates && result.candidates[0].content.parts[0].text) {
-                summary = result.candidates[0].content.parts[0].text;
-            } else {
-                throw new Error('La IA no pudo procesar la imagen.');
-            }
-        } else if (fileType.startsWith('audio/')) {
-            const prompt = 'Transcribe el texto que escuches en el siguiente audio.';
-            const base64Audio = await fileToBase64(file);
-            const audioPart = { inlineData: { mimeType: file.type, data: base64Audio } };
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, audioPart] }] };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`Error en la API de audio: ${response.status} - ${errorBody}`);
-            }
-            const result = await response.json();
-            if (result.candidates && result.candidates[0].content.parts[0].text) {
-                summary = result.candidates[0].content.parts[0].text;
-            } else {
-                throw new Error('La IA no pudo procesar el audio.');
-            }
-        } else {
-            throw new Error(`Tipo de archivo no soportado: ${fileType}`);
-        }
-
-        const currentObs = selectedCase.Observaciones || '';
-        const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
-        setSelectedCase(prev => ({ ...prev, Observaciones: newObs }));
-        
-        displayModalMessage('✅ Adjunto analizado y añadido a las observaciones. Haz clic en "Guardar Obs." para confirmar los cambios.');
-
-    } catch (error) {
-        console.error("Error processing observation file:", error);
-        displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`);
-    } finally {
-        setIsTranscribingObservation(false);
-        if (observationFileInputRef.current) {
-            observationFileInputRef.current.value = "";
-        }
-    }
-}
-
-    function downloadCSV(csvContent, filename) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        if (link.download !== undefined) {
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } else {
-            displayModalMessage('La descarga automática no es soportada en tu navegador.');
-        }
-    }
-
-    function exportCasesToCSV(isTodayResolvedOnly = false) {
-        const today = utils.getColombianDateISO();
-        const casesToExport = isTodayResolvedOnly
-            ? cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === today)
-            : cases;
-        if (casesToExport.length === 0) { displayModalMessage(isTodayResolvedOnly ? 'No hay casos resueltos o finalizados hoy.' : 'No hay casos para exportar.'); return; }
-        const ORIGINAL_CSV_HEADERS = ['SN', 'CUN', 'Fecha Radicado', 'Dia', 'Fecha Vencimiento', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion'];
-        const baseHeaders = ['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'Dia', 'Dia_Original_CSV', 'fecha_asignacion', 'Nombre_Cliente', 'Estado', 'Estado_Gestion', 'Nivel_1', 'Nivel_2', 'Nivel_3', 'Nivel_4', 'Nivel_5', 'Analisis de la IA', 'Categoria del reclamo', 'Prioridad', 'Sentimiento_IA', 'Resumen_Hechos_IA', 'Proyeccion_Respuesta_IA', 'Sugerencias_Accion_IA', 'Causa_Raiz_IA', 'Tipo_Contrato', 'Numero_Contrato_Marco', 'Observaciones', 'Observaciones_Historial', 'SNAcumulados_Historial', 'Escalamiento_Historial', 'Numero_Reclamo_Relacionado', 'Observaciones_Reclamo_Relacionado', 'Aseguramiento_Historial', 'Despacho_Respuesta_Checked', 'Requiere_Aseguramiento_Facturas', 'ID_Aseguramiento', 'Corte_Facturacion', 'Cuenta', 'Operacion_Aseguramiento', 'Tipo_Aseguramiento', 'Mes_Aseguramiento', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Tipo_Nuip_Cliente', 'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Tipo_Nuip_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante', 'Depto_Reclamante', 'favorabilidad', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs', 'Despacho_Fisico', 'Despacho_Electronico', 'Contacto_Cliente', 'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion', 'Ultima Modificacion', 'Fecha Cargue Planilla', 'Usuario Cargue Planilla', 'Fecha Pre-cierre Fullstack', 'Fecha Planilla Masivo', 'Novedad Despacho', 'Clasificacion', 'Documento_Adjunto', 'requiereBaja', 'numeroOrdenBaja', 'requiereAjuste', 'numeroTT', 'estadoTT', 'requiereDevolucionDinero', 'cantidadDevolver', 'idEnvioDevoluciones', 'fechaEfectivaDevolucion', 'areaEscalada', 'motivoEscalado', 'idEscalado', 'reqGenerado', 'descripcionEscalamiento', 'Correo_Escalacion_IA', 'Riesgo_SIC', 'Respuesta_Integral_IA'];
-        const dynamicHeaders = Array.from(new Set(casesToExport.flatMap(c => Object.keys(c))));
-        const actualFinalHeaders = Array.from(new Set(baseHeaders.concat(dynamicHeaders)));
-        let csvActual = actualFinalHeaders.map(h => `"${h}"`).join(',') + '\n';
-        casesToExport.forEach(c => {
-            const actualRow = actualFinalHeaders.map(h => {
-                let v = c[h] ?? '';
-                if (h === 'Dia') v = utils.calculateCaseAge(c, nonBusinessDays);
-                if (typeof v === 'object') v = JSON.stringify(v);
-                return `"${String(v).replace(/"/g, '""')}"`;
-            }).join(',');
-            csvActual += actualRow + '\n';
-        });
-        let csvOriginal = ORIGINAL_CSV_HEADERS.map(h => `"${h}"`).join(',') + '\n';
-        casesToExport.forEach(c => {
-            const originalRow = ORIGINAL_CSV_HEADERS.map(h => {
-                let v = (h === 'Dia') ? (c['Dia_Original_CSV'] ?? '') : (c[h] ?? '');
-                if (typeof v === 'object') v = JSON.stringify(v);
-                return `"${String(v).replace(/"/g, '""')}"`;
-            }).join(',');
-            csvOriginal += originalRow + '\n';
-        });
-        const filenameSuffix = isTodayResolvedOnly ? `resueltos_hoy_${today}` : `todos_${today}`;
-        downloadCSV(csvOriginal, `casos_originales_${filenameSuffix}.csv`);
-        setTimeout(() => { downloadCSV(csvActual, `casos_actuales_${filenameSuffix}.csv`); }, 500);
-    }
-
+    // --- LÓGICA DE FILTROS Y RENDERING ---
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
         return cases.filter(c => {
@@ -1331,42 +472,14 @@ async function handleOpenCaseDetails(caseItem) {
     const casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
 
     const sortSN = (a, b) => String(a.SN || '').toLowerCase().localeCompare(String(b.SN || '').toLowerCase());
-const sicDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId)
-            .sort(sortSN);
-    }, [casesForDisplay, userId]);
 
-    const pendAjustesDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId)
-            .sort(sortSN);
-    }, [casesForDisplay, userId]);
-
-    const pendEscDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId)
-            .sort(sortSN);
-    }, [casesForDisplay, userId]);
-
-    const resDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId)
-            .sort(sortSN);
-    }, [casesForDisplay, userId]);
-
-    const finalizadosDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId)
-            .sort(sortSN);
-    }, [casesForDisplay, userId]);
+    const sicDisp = useMemo(() => casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
+    const pendAjustesDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
+    const pendEscDisp = useMemo(() => casesForDisplay.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
+    const resDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
+    const finalizadosDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
+    const aseguramientosDisp = useMemo(() => casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN), [casesForDisplay]);
     
-    const aseguramientosDisp = useMemo(() => {
-        return casesForDisplay
-            .filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0)
-            .sort(sortSN);
-    }, [casesForDisplay]);
-
     const counts = {
         total: cases.length,
         resolved: cases.filter(c => c.Estado_Gestion === 'Resuelto').length,
@@ -1379,10 +492,93 @@ const sicDisp = useMemo(() => {
         resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === utils.getColombianDateISO()).length,
     };
 
+    const renderTable = (data, title) => {
+        return (
+            <PaginatedTable
+                cases={data}
+                title={title}
+                mainTableHeaders={constants.MAIN_TABLE_HEADERS}
+                statusColors={statusColors}
+                priorityColors={constants.priorityColors}
+                selectedCaseIds={selectedCaseIds}
+                handleSelectCase={handleSelectCase}
+                handleOpenCaseDetails={handleOpenCaseDetails}
+                calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
+                onScanClick={handleScanClick}
+                nonBusinessDays={nonBusinessDays}
+            />
+        );
+    };
+
+    // --- LÓGICA DE GRÁFICOS Y TIEMPO ---
+    const asignadosPorDiaData = useMemo(() => {
+        const countsByDate = cases.reduce((acc, curr) => {
+            const date = curr.fecha_asignacion || 'Sin Fecha';
+            acc[date] = (acc[date] || 0) + 1;
+            return acc;
+        }, {});
+        return Object.keys(countsByDate).map(fecha => ({ fecha, cantidad: countsByDate[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    }, [cases]);
+
+    const distribucionPorDiaData = useMemo(() => {
+        const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
+        const countsByDay = cases.filter(c => pendStates.includes(c.Estado_Gestion)).reduce((acc, curr) => {
+            const dia = utils.calculateCaseAge(curr, nonBusinessDays);
+            if (dia !== 'N/A' && !isNaN(dia)) {
+                const key = `Día ${dia}`;
+                acc[key] = (acc[key] || 0) + 1;
+            }
+            return acc;
+        }, {});
+            
+        return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] }))
+            .sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
+    }, [cases, nonBusinessDays]);
+
+    const calculateTimePerCaseForDay15 = useCallback((allCases) => {
+        const timeAvailableInMinutes = 9 * 60;
+        const pendingDay15Cases = allCases.filter(c =>
+            ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'].includes(c.Estado_Gestion) &&
+            utils.calculateCaseAge(c, nonBusinessDays) === 15
+        );
+        if (pendingDay15Cases.length === 0) {
+            const resolvedCasesWithTime = allCases.filter(c =>
+                (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') &&
+                utils.calculateCaseAge(c, nonBusinessDays) === 15 &&
+                c.Tiempo_Gestion_Dia15_Congelado
+            );
+            if (resolvedCasesWithTime.length > 0) {
+                return resolvedCasesWithTime[0].Tiempo_Gestion_Dia15_Congelado;
+            }
+            return 'No hay casos en Día 15.';
+        }
+        const timePerCase = timeAvailableInMinutes / pendingDay15Cases.length;
+        return `~${timePerCase.toFixed(2)} minutos por caso`;
+    }, [nonBusinessDays]);
+    const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
+
+    function getFilterStyles(isActive, color) {
+        if (isActive) {
+            switch (color) {
+                case 'blue': return 'border-blue-500 bg-blue-100';
+                case 'green': return 'border-green-500 bg-green-100';
+                case 'gray': return 'border-gray-500 bg-gray-100';
+                case 'yellow': return 'border-yellow-500 bg-yellow-100';
+                case 'pink': return 'border-pink-500 bg-pink-100';
+                case 'orange': return 'border-orange-500 bg-orange-100';
+                case 'red': return 'border-red-500 bg-red-100';
+                case 'purple': return 'border-purple-500 bg-purple-100';
+                default: return 'border-gray-500 bg-gray-100';
+            }
+        }
+        return 'border-gray-200 bg-gray-50 hover:bg-gray-100';
+    }
+
+    // --- LÓGICA DE ACCIONES MASIVAS ---
     function handleSelectCase(caseId, isMassSelect) {
         setSelectedCaseIds(prevSelectedIds => {
             const newSelectedIds = new Set(prevSelectedIds);
-            if (isMassSelect) { return caseId; }
+            if (isMassSelect) { return caseId; } // Se asume que 'caseId' es un Set en este caso
             if (newSelectedIds.has(caseId)) { newSelectedIds.delete(caseId); }
             else { newSelectedIds.add(caseId); }
             return newSelectedIds;
@@ -1423,34 +619,6 @@ const sicDisp = useMemo(() => {
         } finally {
             setIsMassUpdating(false);
         }
-    }
-
-    async function handleReopenCase(caseItem) {
-        if (!db || !userId || caseItem.Estado_Gestion !== 'Resuelto') { displayModalMessage('Solo los casos resueltos pueden ser reabiertos.'); return; }
-        const caseId = caseItem.id;
-        const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
-        try {
-            const docSnap = await getDoc(docRef);
-            if (!docSnap.exists()) { displayModalMessage('Error: El caso que intenta reabrir no existe en la base de datos.'); return; }
-            const updateData = { Estado_Gestion: 'Pendiente', 'Fecha Cierre': '', Tiempo_Resolucion_Minutos: 'N/A' };
-            await updateDoc(docRef, updateData);
-            displayModalMessage('Caso reabierto exitosamente.');
-        } catch (error) { displayModalMessage(`Error al reabrir el caso: ${error.message}`); }
-    }
-
-    function handleDeleteCase(caseId) {
-        async function onConfirm() {
-            if (!db || !userId) { displayModalMessage('Error: DB no disponible.'); return; }
-            const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseId);
-            try {
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) { displayModalMessage('Error: El caso que intenta eliminar no existe en la base de datos.'); handleCloseCaseDetails(); return; }
-                await deleteDoc(docRef);
-                displayModalMessage('Caso eliminado exitosamente.');
-                handleCloseCaseDetails();
-            } catch (error) { displayModalMessage(`Error al eliminar el caso: ${error.message}`); }
-        }
-        displayConfirmModal('¿Estás seguro de que quieres eliminar este caso de forma permanente? Esta acción no se puede deshacer.', { onConfirm });
     }
 
     function handleMassDelete() {
@@ -1496,155 +664,58 @@ const sicDisp = useMemo(() => {
         displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, { onConfirm });
     }
 
-    function handleDeleteAllCases() {
-        if (cases.length === 0) { displayModalMessage('No hay casos para eliminar.'); return; }
-        async function onConfirm() {
-            if (!db || !userId) { displayModalMessage('Error: La conexión con la base de datos no está disponible.'); return; }
-            setIsMassUpdating(true);
-            displayModalMessage(`Eliminando todos los ${cases.length} casos...`);
-            const batch = writeBatch(db);
-            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            try {
-                const allCasesSnapshot = await getDocs(collRef);
-                if (allCasesSnapshot.empty) { displayModalMessage('No se encontraron casos para eliminar en la base de datos.'); setIsMassUpdating(false); setCases([]); return; }
-                allCasesSnapshot.forEach(doc => { batch.delete(doc.ref); });
-                await batch.commit();
-                displayModalMessage(`Se eliminaron todos los ${allCasesSnapshot.size} casos exitosamente.`);
-                setSelectedCaseIds(new Set());
-            } catch (error) {
-                console.error("Error en la eliminación total:", error);
-                displayModalMessage(`Error al realizar la limpieza total: ${error.message}`);
-            } finally { setIsMassUpdating(false); }
+    // --- LÓGICA DE ALARMAS ---
+    const checkCancellationAlarms = useCallback(() => {
+        const today = new Date();
+        const todayISO = utils.getColombianDateISO();
+        const casesToAlert = cases.filter(caseItem => {
+            const isCancellationRelated = String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('cancelacion') || String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('prepago');
+            if (!isCancellationRelated) return false;
+            const cutOffDay = parseInt(caseItem.Corte_Facturacion);
+            if (isNaN(cutOffDay) || cutOffDay < 1 || cutOffDay > 31) return false;
+            const alertShownKey = `cancelAlarmShown_${caseItem.id}_${todayISO}`;
+            if (sessionStorage.getItem(alertShownKey)) return false;
+            let nextCutOffDate = new Date(today.getFullYear(), today.getMonth(), cutOffDay);
+            if (today.getDate() > cutOffDay) { nextCutOffDate = new Date(today.getFullYear(), today.getMonth() + 1, cutOffDay); }
+            const daysToSubtract = 3;
+            let businessDaysCount = 0;
+            let tempDate = new Date(nextCutOffDate);
+            while (businessDaysCount < daysToSubtract) {
+                tempDate.setDate(tempDate.getDate() - 1);
+                const dayOfWeek = tempDate.getDay();
+                const dateStr = tempDate.toISOString().slice(0, 10);
+                const isNonBusinessDay = nonBusinessDays.has(dateStr);
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) { businessDaysCount++; }
+            }
+            const alertDate = tempDate;
+            const todayWithoutTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            return todayWithoutTime.getTime() === alertDate.getTime();
+        });
+        if (casesToAlert.length > 0) {
+            setCancelAlarmCases(casesToAlert);
+            setShowCancelAlarmModal(true);
         }
-        displayConfirmModal(`¿Está absolutamente seguro de que desea eliminar TODOS los ${cases.length} casos de la base de datos? Esta acción es irreversible.`, { onConfirm, confirmText: 'Sí, Eliminar Todo', cancelText: 'No, Cancelar' });
-    }
+    }, [cases, nonBusinessDays]);
 
-    function handleSNAcumuladoInputChange(index, field, value) {
-        const newData = [...snAcumuladosData];
-        newData[index][field] = value;
-        setSnAcumuladosData(newData);
-    }
-
-    async function handleSaveSNAcumulados() {
-        if (!selectedCase || snAcumuladosData.some(item => !item.sn.trim())) { displayModalMessage('Todos los campos de SN acumulados deben estar llenos antes de guardar.'); return; }
-        const snToCunMap = new Map(cases.map(c => [String(c.SN || '').trim(), c.CUN]));
-        const newHistory = snAcumuladosData.map(item => ({ sn: item.sn.trim(), cun: snToCunMap.get(item.sn.trim()) || 'No encontrado', obs: item.obs, timestamp: new Date().toISOString() }));
-        const updatedHistory = [...(selectedCase.SNAcumulados_Historial || []), ...newHistory];
-        try {
-            await updateCaseInFirestore(selectedCase.id, { SNAcumulados_Historial: updatedHistory });
-            setSelectedCase(prev => ({ ...prev, SNAcumulados_Historial: updatedHistory }));
-            displayModalMessage('SN Acumulados guardados exitosamente.');
-            setCantidadSNAcumulados(0);
-            setSnAcumuladosData([]);
-            setTieneSNAcumulados(false);
-        } catch (error) { displayModalMessage(`Error al guardar SN Acumulados: ${error.message}`); }
-    }
-
-    async function handleSaveAseguramientoHistory() {
-        if (!selectedCase) return;
-        const assuranceData = {
-            timestamp: new Date().toISOString(), observaciones: aseguramientoObs, Requiere_Aseguramiento_Facturas: selectedCase.Requiere_Aseguramiento_Facturas || false,
-            ID_Aseguramiento: selectedCase.ID_Aseguramiento || '', Corte_Facturacion: selectedCase.Corte_Facturacion || '', Cuenta: selectedCase.Cuenta || '',
-            Operacion_Aseguramiento: selectedCase.Operacion_Aseguramiento || '', Tipo_Aseguramiento: selectedCase.Tipo_Aseguramiento || '',
-            Mes_Aseguramiento: selectedCase.Mes_Aseguramiento || '', requiereBaja: selectedCase.requiereBaja || false, numeroOrdenBaja: selectedCase.numeroOrdenBaja || '',
-            requiereAjuste: selectedCase.requiereAjuste || false, numeroTT: selectedCase.numeroTT || '', estadoTT: selectedCase.estadoTT || '',
-            requiereDevolucionDinero: selectedCase.requiereDevolucionDinero || false, cantidadDevolver: selectedCase.cantidadDevolver || '',
-            idEnvioDevoluciones: selectedCase.idEnvioDevoluciones || '', fechaEfectivaDevolucion: selectedCase.fechaEfectivaDevolucion || ''
-        };
-        const newHistory = [...(selectedCase.Aseguramiento_Historial || []), assuranceData];
-        try {
-            await updateCaseInFirestore(selectedCase.id, { Aseguramiento_Historial: newHistory });
-            setSelectedCase(prev => ({ ...prev, Aseguramiento_Historial: newHistory }));
-            displayModalMessage('Historial de aseguramiento guardado.');
-            setAseguramientoObs('');
-        } catch (e) { displayModalMessage(`Error guardando historial: ${e.message}`); }
-    }
-
-    function handleScanClick(caseItem) {
-        setCaseToScan(caseItem);
-        scanFileInputRef.current.click();
-    }
-
-async function handleScanFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !caseToScan) return;
-    setIsScanning(true);
-    displayModalMessage(`Transcribiendo y analizando documento para SN: ${caseToScan.SN}...`);
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-        const base64ImageData = reader.result.split(',')[1];
-        const prompt = "Transcribe el texto de esta imagen del documento.";
-        const payload = {
-            contents: [{
-                role: "user",
-                parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }]
-            }],
-        };
-        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
-        
-        // ACTUALIZACIÓN: Se usa el modelo más reciente y adecuado según la documentación.
-        const modelName = "gemini-2.5-flash";
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const result = await response.json();
-            if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
-                const transcribedText = result.candidates[0].content.parts[0].text;
-                const extractedData = utils.extractAddressesFromText(transcribedText);
-                const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
-                const newHistoryEntry = { timestamp: new Date().toISOString(), emails: extractedData.emails, addresses: extractedData.addresses };
-                const updatedHistory = [...(caseToScan.Direcciones_Extraidas || []), newHistoryEntry];
-                await updateCaseInFirestore(caseToScan.id, {
-                    obs: updatedObs, Documento_Adjunto: 'Transcrito', Direcciones_Extraidas: updatedHistory
-                });
-                displayModalMessage('Transcripción y extracción de direcciones completada.');
-            } else { throw new Error(result.error?.message || 'No se pudo transcribir el documento.'); }
-        } catch (error) {
-            console.error("Error transcribing document:", error);
-            displayModalMessage(`Error en la transcripción: ${error.message}`);
-        } finally {
-            setIsScanning(false);
-            setCaseToScan(null);
-            if (scanFileInputRef.current) { scanFileInputRef.current.value = ""; }
-        }
-    };
-    reader.onerror = (error) => { console.error("Error reading file:", error); displayModalMessage("Error al leer el archivo."); setIsScanning(false); };
-}
-async function handleMarkAsEscalatedFromAlarm(caseToUpdate) {
+    async function handleMarkAsEscalatedFromAlarm(caseToUpdate) {
         if (!caseToUpdate) return;
-        
         const newObservation = { text: `(Gestión Alarma) Marcado como Escalado desde la alarma de palabras clave.`, timestamp: new Date().toISOString() };
         const updatedHistory = [...(caseToUpdate.Observaciones_Historial || []), newObservation];
-        const updateData = {
-            Estado_Gestion: 'Escalado',
-            Observaciones_Historial: updatedHistory
-        };
-
+        const updateData = { Estado_Gestion: 'Escalado', Observaciones_Historial: updatedHistory };
         try {
             await updateCaseInFirestore(caseToUpdate.id, updateData);
-            
-            // Marcar como gestionado para la sesión actual
             sessionStorage.setItem(`keyword_alarm_dismissed_${caseToUpdate.id}`, 'true');
-            
-            // Remover de la lista visible en el modal
             setKeywordAlarmCases(prev => {
                 const updatedCases = prev.filter(c => c.id !== caseToUpdate.id);
-                if (updatedCases.length === 0) {
-                    setShowKeywordAlarmModal(false); // Cierra el modal si no quedan casos
-                }
+                if (updatedCases.length === 0) { setShowKeywordAlarmModal(false); }
                 return updatedCases;
             });
-            
             displayModalMessage(`El caso SN ${caseToUpdate.SN} se ha marcado como 'Escalado'.`);
-
         } catch (error) {
             displayModalMessage(`Error al actualizar el caso: ${error.message}`);
         }
     }
 
-    // --- ¡NUEVO! --- Función para copiar todos los SNs de la alarma al portapapeles.
     function handleCopyAllAlarmSNs() {
         if (keywordAlarmCases.length === 0) {
             displayModalMessage('No hay SNs para copiar.');
@@ -1653,134 +724,137 @@ async function handleMarkAsEscalatedFromAlarm(caseToUpdate) {
         const allSNs = keywordAlarmCases.map(c => c.SN).join('\n');
         utils.copyToClipboard(allSNs, 'SNs de Casos en Alarma', displayModalMessage);
     }
-    async function generateEscalationEmailHandler() {
-        if (!selectedCase) return;
-        setIsGeneratingEscalationEmail(true);
-        try {
-            const emailBody = await aiServices.getAIEscalationEmail(selectedCase);
-            setSelectedCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody }));
-            await updateCaseInFirestore(selectedCase.id, { Correo_Escalacion_IA: emailBody });
-        } catch (e) { displayModalMessage(`Error generando correo de escalación: ${e.message}`); }
-        finally { setIsGeneratingEscalationEmail(false); }
+
+    // --- LÓGICA DE ESCANEO DE DOCUMENTOS ---
+    function handleScanClick(caseItem) {
+        setCaseToScan(caseItem);
+        scanFileInputRef.current.click();
     }
-
-    async function generateRiskAnalysisHandler() {
-        if (!selectedCase) return;
-        setIsGeneratingRiskAnalysis(true);
-        try {
-            const risk = await aiServices.getAIRiskAnalysis(selectedCase);
-            setSelectedCase(prev => ({ ...prev, Riesgo_SIC: risk }));
-            await updateCaseInFirestore(selectedCase.id, { Riesgo_SIC: risk });
-        } catch (e) { displayModalMessage(`Error generando análisis de riesgo: ${e.message}`); }
-        finally { setIsGeneratingRiskAnalysis(false); }
-    }
-
-    async function generateAIComprehensiveResponseHandler() {
-        if (!selectedCase) return;
-        setIsGeneratingComprehensiveResponse(true);
-        try {
-            const res = await aiServices.getAIComprehensiveResponse(selectedCase, selectedCase.Tipo_Contrato || 'Condiciones Uniformes');
-            const validation = await aiServices.getAIValidation({ ...selectedCase, Respuesta_Integral_IA: res });
-            setSelectedCase(prev => ({ ...prev, Respuesta_Integral_IA: res, Validacion_IA: validation }));
-            await updateCaseInFirestore(selectedCase.id, { Respuesta_Integral_IA: res, Validacion_IA: validation });
-            displayModalMessage('Respuesta integral generada y validada exitosamente.');
-        } catch (e) { displayModalMessage(`Error AI Comprehensive Response: ${e.message}`); }
-        finally { setIsGeneratingComprehensiveResponse(false); }
-    }
-
-    async function handleDismissAlarm() {
-        if (!selectedAlarmCase || !alarmObservation.trim()) { displayModalMessage('Por favor, escriba una observación para gestionar la alarma.'); return; }
-        const todayISO = utils.getColombianDateISO();
-        const alarmKey = `alarm_dismissed_${selectedAlarmCase.id}_${todayISO}`;
-        const newObservation = { text: `(Gestión Alarma Diaria) ${alarmObservation.trim()}`, timestamp: new Date().toISOString() };
-        const existingHistory = selectedAlarmCase.Observaciones_Historial || [];
-        const updatedHistory = [...existingHistory, newObservation];
-        try {
-            await updateCaseInFirestore(selectedAlarmCase.id, { Observaciones_Historial: updatedHistory });
-            sessionStorage.setItem(alarmKey, 'true');
-            setAlarmCases(prev => prev.filter(c => c.id !== selectedAlarmCase.id));
-            setSelectedAlarmCase(null);
-            setAlarmObservation('');
-            if (alarmCases.length - 1 === 0) { setShowAlarmModal(false); }
-            displayModalMessage(`Alarma para SN ${selectedAlarmCase.SN} gestionada.`);
-        } catch (error) { displayModalMessage(`Error al guardar la observación: ${error.message}`); }
-    }
-
-    const renderTable = (data, title) => {
-        return (
-            <PaginatedTable
-                cases={data}
-                title={title}
-                mainTableHeaders={constants.MAIN_TABLE_HEADERS}
-                statusColors={statusColors}
-                priorityColors={priorityColors}
-                selectedCaseIds={selectedCaseIds}
-                handleSelectCase={handleSelectCase}
-                handleOpenCaseDetails={handleOpenCaseDetails}
-                calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
-                onScanClick={handleScanClick}
-                nonBusinessDays={nonBusinessDays}
-            />
-        );
-    };
-
-    const asignadosPorDiaData = useMemo(() => {
-        const countsByDate = cases.reduce((acc, curr) => {
-            const date = curr.fecha_asignacion || 'Sin Fecha';
-            acc[date] = (acc[date] || 0) + 1;
-            return acc;
-        }, {});
-        return Object.keys(countsByDate).map(fecha => ({ fecha, cantidad: countsByDate[fecha] })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-    }, [cases]);
-
-const distribucionPorDiaData = useMemo(() => {
-    const pendStates = ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Traslado SIC', 'Decretado', 'Pendiente Ajustes'];
-    const countsByDay = cases
-        .filter(c => pendStates.includes(c.Estado_Gestion))
-        .reduce((acc, curr) => {
-            // This is the correct way to do it for real-time data
-            const dia = utils.calculateCaseAge(curr, nonBusinessDays);
-            if (dia !== 'N/A' && !isNaN(dia)) {
-                const key = `Día ${dia}`;
-                acc[key] = (acc[key] || 0) + 1;
+    
+    async function handleScanFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file || !caseToScan) return;
+        setIsScanning(true);
+        displayModalMessage(`Transcribiendo y analizando documento para SN: ${caseToScan.SN}...`);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            const base64ImageData = reader.result.split(',')[1];
+            const prompt = "Transcribe el texto de esta imagen del documento y extrae las direcciones y correos electrónicos.";
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64ImageData } }]
+                }],
+            };
+            const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+            const modelName = "gemini-2.5-flash";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                if (response.ok && result.candidates && result.candidates[0].content.parts.length > 0) {
+                    const transcribedText = result.candidates[0].content.parts[0].text;
+                    const extractedData = utils.extractAddressesFromText(transcribedText);
+                    const updatedObs = `${caseToScan.obs || ''}\n\n--- INICIO TRANSCRIPCIÓN ---\n${transcribedText}\n--- FIN TRANSCRIPCIÓN ---`;
+                    const newHistoryEntry = { timestamp: new Date().toISOString(), emails: extractedData.emails, addresses: extractedData.addresses };
+                    const updatedHistory = [...(caseToScan.Direcciones_Extraidas || []), newHistoryEntry];
+                    await updateCaseInFirestore(caseToScan.id, {
+                        obs: updatedObs, Documento_Adjunto: 'Transcrito', Direcciones_Extraidas: updatedHistory
+                    });
+                    displayModalMessage('Transcripción y extracción de direcciones completada.');
+                } else { throw new Error(result.error?.message || 'No se pudo transcribir el documento.'); }
+            } catch (error) {
+                console.error("Error transcribing document:", error);
+                displayModalMessage(`Error en la transcripción: ${error.message}`);
+            } finally {
+                setIsScanning(false);
+                setCaseToScan(null);
+                if (scanFileInputRef.current) { scanFileInputRef.current.value = ""; }
             }
-            return acc;
-        }, {});
-        
-    return Object.keys(countsByDay).map(dia => ({ dia, cantidad: countsByDay[dia] }))
-        .sort((a, b) => (parseInt(a.dia.split(' ')[1]) || 0) - (parseInt(b.dia.split(' ')[1]) || 0));
-}, [cases, nonBusinessDays]);
-
-    const timePerCaseDay15 = useMemo(() => calculateTimePerCaseForDay15(cases), [cases, calculateTimePerCaseForDay15]);
-    function getFilterStyles(isActive, color) {
-        if (isActive) {
-            switch (color) {
-                case 'blue': return 'border-blue-500 bg-blue-100';
-                case 'green': return 'border-green-500 bg-green-100';
-                case 'gray': return 'border-gray-500 bg-gray-100';
-                case 'yellow': return 'border-yellow-500 bg-yellow-100';
-                case 'pink': return 'border-pink-500 bg-pink-100';
-                case 'orange': return 'border-orange-500 bg-orange-100';
-                case 'red': return 'border-red-500 bg-red-100';
-                case 'purple': return 'border-purple-500 bg-purple-100';
-                default: return 'border-gray-500 bg-gray-100';
-            }
-        }
-        return 'border-gray-200 bg-gray-50 hover:bg-gray-100';
-    }
-    useEffect(() => {
-        if (document.getElementById('pdfjs-script')) return;
-        const script = document.createElement('script');
-        script.id = 'pdfjs-script';
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js';
-        script.onload = () => { if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js'; };
-        document.body.appendChild(script);
-        return () => {
-            const scriptTag = document.getElementById('pdfjs-script');
-            if (scriptTag) { document.body.removeChild(scriptTag); }
         };
-    }, []);
+        reader.onerror = (error) => { console.error("Error reading file:", error); displayModalMessage("Error al leer el archivo."); setIsScanning(false); };
+    }
+async function handleObservationFileChange(event) {
+    const file = event.target.files[0];
+    if (!file || !selectedCase) return;
 
+    // Se asume que el modal ya ha llamado a setIsTranscribingObservation(true)
+    // Se necesita actualizar el estado de carga si la llamada viene directamente del input.
+    // Aunque el modal maneja su propio estado de `isTranscribingObservation`,
+    // podemos establecer una referencia global si fuera necesario, pero por ahora solo ejecutamos la lógica.
+
+    displayModalMessage(`Analizando adjunto (${file.type}) para caso ${selectedCase.SN}...`);
+
+    try {
+        let summary = '';
+        const fileType = file.type;
+        const apiKey = (typeof __gemini_api_key !== "undefined") ? __gemini_api_key : (import.meta.env.VITE_GEMINI_API_KEY || "");
+        const modelName = "gemini-2.5-flash"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        
+        const processFile = async (base64Content, mimeType, prompt) => {
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Content } }] }] };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`Error en la API: ${response.status}`);
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || 'La IA no pudo extraer el texto.';
+        };
+
+        if (fileType.startsWith('text/') || fileType === 'application/json') {
+            summary = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+            summary = `Contenido del archivo de texto:\n${summary}`;
+        } else if (fileType === 'application/pdf') {
+            if (!window.pdfjsLib) throw new Error('La librería PDF.js no está cargada.');
+            const pdfData = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+
+            const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+            }
+            summary = fullText.trim();
+        } else if (fileType.startsWith('image/') || fileType.startsWith('audio/')) {
+            const base64Content = await fileToBase64(file);
+            const prompt = fileType.startsWith('image/')
+                ? 'Analiza esta imagen y transcribe todo el texto relevante.'
+                : 'Transcribe el texto que escuches en el audio.';
+            summary = await processFile(base64Content, file.type, prompt);
+        } else {
+            throw new Error(`Tipo de archivo no soportado para análisis: ${fileType}`);
+        }
+        
+        // Formatear y actualizar el caso
+        const currentObs = selectedCase.Observaciones || '';
+        const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
+        
+        // Actualizar el caso localmente y en Firestore
+        await handleUpdateCase(selectedCase.id, { Observaciones: newObs });
+        
+        displayModalMessage('✅ Adjunto analizado y añadido a las observaciones. Haz clic en "Guardar Obs." para confirmar los cambios.');
+
+    } catch (error) {
+        console.error("Error processing observation file:", error);
+        displayModalMessage(`❌ Error al analizar el adjunto: ${error.message || 'Error desconocido'}`);
+    } finally {
+        // Asumiendo que el modal maneja su propio estado de carga, 
+        // pero reseteamos el input file para permitir la subida de otro archivo.
+        if (event.target) event.target.value = null; 
+    }
+}
+    // --- USE EFFECTS (LÓGICA DE CONTROL Y SINCRONIZACIÓN) ---
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -1828,6 +902,33 @@ const distribucionPorDiaData = useMemo(() => {
         }, e => { console.error("Fetch cases error (onSnapshot):", e); displayModalMessage(`Error cargando los casos: ${e.message}`); setRefreshing(false); });
         return () => unsub();
     }, [db, userId, displayModalMessage]);
+    
+    useEffect(() => {
+        if (cases.length === 0) return;
+        // Lógica de Alarma de Palabras Clave
+        const casesToAlertMap = new Map();
+        cases.forEach(c => {
+            if (c.Estado_Gestion === 'Finalizado') { return; }
+            const alarmKey = `keyword_alarm_dismissed_${c.id}`;
+            if (sessionStorage.getItem(alarmKey)) { return; }
+            const historicalObs = (c.Observaciones_Historial || []).map(h => h.text).join(' ');
+            const allText = `${c.obs || c.OBS || ''} ${historicalObs}`;
+            if (!allText.trim()) { return; }
+            const normalizedText = normalizeTextForSearch(allText);
+            for (const trigger of KEYWORD_ALARM_TRIGGERS) {
+                if (trigger.test(normalizedText)) {
+                    const matchedKeyword = trigger.source.replace(/\\s\+/g, ' ').replace(/\(s\)\?/g, '').replace(/\(r\|cion\|ndo\|ciones\)/g, '').replace(/\(el\\s\+|de\\s\+\)\?/g, '').replace(/\\/g, '');
+                    if (!casesToAlertMap.has(c.id)) { casesToAlertMap.set(c.id, { ...c, matchedKeyword }); }
+                    break;
+                }
+            }
+        });
+        const casesToAlert = Array.from(casesToAlertMap.values());
+        if (casesToAlert.length > 0) {
+            setKeywordAlarmCases(casesToAlert);
+            setShowKeywordAlarmModal(true);
+        }
+    }, [cases]);
 
     useEffect(() => {
         if (!db || !userId || cases.length === 0) return;
@@ -1883,51 +984,28 @@ const distribucionPorDiaData = useMemo(() => {
     }, [cases, checkCancellationAlarms]);
 
     useEffect(() => {
-        if (cantidadSNAcumulados > 0) {
-            setSnAcumuladosData(Array.from({ length: cantidadSNAcumulados }, () => ({ sn: '', obs: '' })));
-        } else {
-            setSnAcumuladosData([]);
-        }
-    }, [cantidadSNAcumulados]);
-useEffect(() => {
-    // Si no hay casos, no hagas nada.
-    if (cases.length === 0) return;
-
-    // La lógica se ejecuta inmediatamente, no después de un retraso.
-    const checkAlarms = () => {
-        const todayISO = utils.getColombianDateISO();
-        const casesToAlert = cases.filter(c => {
-            const caseId = c.id;
-            const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
-
-            // 1. Si la alarma para este caso ya fue gestionada y cerrada hoy, no se muestra.
-            if (sessionStorage.getItem(alarmKey)) {
-                return false;
+        if (cases.length === 0) return;
+        const checkAlarms = () => {
+            const todayISO = utils.getColombianDateISO();
+            const casesToAlert = cases.filter(c => {
+                const caseId = c.id;
+                const alarmKey = `alarm_dismissed_${caseId}_${todayISO}`;
+                if (sessionStorage.getItem(alarmKey)) { return false; }
+                const dia = utils.calculateCaseAge(c, nonBusinessDays);
+                if (isNaN(dia)) return false;
+                const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
+                const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
+                return isTrasladoSIC || isDecretado;
+            });
+            if (casesToAlert.length > 0) {
+                setAlarmCases(casesToAlert);
+                setShowAlarmModal(true);
             }
+        };
+        checkAlarms();
+    }, [cases, nonBusinessDays]);
 
-            // 2. Se calcula la antigüedad real del caso.
-            const dia = utils.calculateCaseAge(c, nonBusinessDays);
-            if (isNaN(dia)) return false;
-
-            // 3. Se verifican las condiciones de la alarma.
-            const isTrasladoSIC = c.Estado_Gestion === 'Traslado SIC' && dia >= 3;
-            const isDecretado = c.Estado_Gestion === 'Decretado' && dia >= 7;
-
-            return isTrasladoSIC || isDecretado;
-        });
-
-        // 4. Si se encontraron casos que cumplen la condición, se muestra la alarma.
-        if (casesToAlert.length > 0) {
-            setAlarmCases(casesToAlert);
-            setShowAlarmModal(true);
-        }
-    };
-
-    // Llama a la función de verificación directamente.
-    checkAlarms();
-
-    // La dependencia [cases] asegura que esto se ejecute cada vez que los casos cambien.
-}, [cases, nonBusinessDays]); // Se añade nonBusinessDays como dependencia explícita
+    // --- RENDERIZADO DEL COMPONENTE ---
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Cargando y autenticando...</div></div>;
 
     return (
@@ -1969,9 +1047,15 @@ useEffect(() => {
             )}
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
-            <input type="file" ref={observationFileInputRef} onChange={handleObservationFileUpload} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} />
+            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} /* onChange={handleContractMarcoUpload} */ style={{ display: 'none' }} />
+            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} /* onChange={handleReporteCruceUpload} */ style={{ display: 'none' }} />
+            <input
+    type="file"
+    ref={observationFileInputRef}
+    onChange={handleObservationFileChange} // <--- Corregido al handler real
+    accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
+    style={{ display: 'none' }}
+/>
 
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
@@ -2020,9 +1104,9 @@ useEffect(() => {
                                 <button onClick={() => contractMarcoFileInputRef.current.click()} className="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75">Cargar CSV Contrato Marco</button>
                                 <button onClick={() => reporteCruceFileInputRef.current.click()} className="px-5 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75" disabled={uploading}>Cargar Reporte Cruce</button>
                                 <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
-                                <button onClick={() => exportCasesToCSV(false)} className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
-                                <button onClick={() => exportCasesToCSV(true)} className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
-                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
+                                <button /* onClick={() => exportCasesToCSV(false)} */ className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
+                                <button /* onClick={() => exportCasesToCSV(true)} */ className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
+                                <button /* onClick={handleDeleteAllCases} */ className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
                             </div>
                         </div>
                     </>
@@ -2093,6 +1177,30 @@ useEffect(() => {
                 {activeModule === 'aseguramientos' && (<>{renderTable(aseguramientosDisp, 'Casos Resueltos con Aseguramiento')}</>)}
             </div>
 
+            {/* --- RENDERIZADO DEL MODAL DE DETALLES --- */}
+            {selectedCase && (
+                <CaseDetailModal 
+                    caseData={selectedCase}
+                    onClose={handleCloseCaseDetails}
+                    onUpdateCase={handleUpdateCase}
+                    onCreateNewCase={handleCreateNewCase}
+                    onDeleteCase={handleDeleteCase}
+                    onReopenCase={handleReopenCase}
+                    onAssignFromReport={handleAssignFromReport}
+                    duplicateCasesDetails={duplicateCasesDetails}
+                    displayModalMessage={displayModalMessage}
+                    displayConfirmModal={displayConfirmModal}
+                    nonBusinessDays={nonBusinessDays}
+                    timePerCaseDay15={timePerCaseDay15}
+                    userId={userId}
+                    utils={utils}
+                    aiServices={aiServices}
+                    constants={constants}
+                    allCases={cases} // Necesario para la lógica de SN Acumulados
+                    scanFileRef={scanFileInputRef} // Necesario para el escaneo de documentos
+                />
+            )}
+
             {showModal && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[150]"><div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
                     <h3 className="text-lg font-semibold mb-4">Mensaje del Sistema</h3>
@@ -2103,150 +1211,8 @@ useEffect(() => {
                     </div>
                 </div></div>
             )}
-
-            {selectedCase && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[120] p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {selectedCase.SN}</h3>
-                        {duplicateCasesDetails.length > 0 && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <strong className="font-bold">¡Alerta!</strong><span className="block sm:inline ml-2">{duplicateCasesDetails.length} caso(s) relacionado(s) encontrado(s).</span>
-                            <ul className="mt-2 list-disc list-inside">
-                                {duplicateCasesDetails.map(d => (<li key={d.id} className="text-sm flex justify-between items-center">
-                                    <span>SN: {d.SN}, CUN: {d.CUN || 'N/A'}, Cliente: {d.Nombre_Cliente} (Match por {d.type})</span>
-                                    {d.type === 'Reporte Cruce' && !d.isAssigned && (<button onClick={() => handleAssignFromReport(d.data)} className="ml-4 px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600">Asignar</button>)}
-                                </li>))}
-                            </ul>
-                        </div>)}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                            {['SN', 'CUN', 'Fecha Radicado', 'Fecha Cierre', 'fecha_asignacion', 'user',
-        'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos',
-        'Radicado_SIC', 'Fecha_Vencimiento_Decreto', 'Dia', 'Fecha Vencimiento',
-        'Tipo_Contrato', 'Numero_Contrato_Marco', 'isNabis', 'Nombre_Cliente',
-        'Nro_Nuip_Cliente', 'Correo_Electronico_Cliente', 'Direccion_Cliente',
-        'Ciudad_Cliente', 'Depto_Cliente', 'Nombre_Reclamante', 'Nro_Nuip_Reclamante',
-        'Correo_Electronico_Reclamante', 'Direccion_Reclamante', 'Ciudad_Reclamante',
-        'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request',
-        'obs', 'Numero_Reclamo_Relacionado', 'nombre_oficina', 'Tipopago',
-        'date_add', 'Tipo_Operacion', 'Prioridad', 'Analisis de la IA',
-        'Categoria del reclamo', 'Resumen_Hechos_IA', 'Documento_Adjunto'].map(header => {
-                                const nonEditableFields = ['CUN', 'fecha_asignacion', 'user', 'Estado_Gestion', 'Fecha_Inicio_Gestion', 'Tiempo_Resolucion_Minutos', 'Resumen_Hechos_IA', 'date_add'];
-const dateFields = ['Fecha Radicado', 'Fecha Cierre', 'Fecha_Vencimiento_Decreto', 'Fecha Vencimiento'];
-const textAreaFields = ['obs', 'Analisis de la IA']; // 'Analisis de la IA' ahora es un área de texto
-
-let isEditable = !nonEditableFields.includes(header);
-if (header === 'SN' && selectedCase.Estado_Gestion !== 'Decretado') { isEditable = false; }
-
-// --- LÓGICA EXISTENTE PARA CAMPOS ESPECIALES (NO CAMBIA) ---
-if (header === 'isNabis') { /* ...código existente... */ }
-if (header === 'Tipo_Contrato') { /* ...código existente... */ }
-
-// --- NUEVA LÓGICA PARA LOS CAMPOS RESTAURADOS ---
-if (header === 'Prioridad') {
-    return (
-        <div key={header} className="bg-gray-50 p-3 rounded-md">
-            <label htmlFor="modal-Prioridad" className="block text-sm font-semibold text-gray-700 mb-1">Prioridad:</label>
-            <select
-                id="modal-Prioridad"
-                value={selectedCase.Prioridad || ''}
-                onChange={(e) => handleModalFieldChange('Prioridad', e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm p-2"
-            >
-                <option value="">Seleccione...</option>
-                {constants.ALL_PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-        </div>
-    );
-}
-
-// Lógica para Radicado SIC y Fecha Vencimiento Decreto
-if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
-    return (
-        <div key={header} className="bg-gray-50 p-3 rounded-md">
-            <label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>
-            <input
-                type={header === 'Fecha_Vencimiento_Decreto' ? 'date' : 'text'}
-                id={`modal-${header}`}
-                value={selectedCase[header] || ''}
-                onChange={header === 'Radicado_SIC' ? handleRadicadoSICChange : handleFechaVencimientoDecretoChange}
-                className="block w-full rounded-md p-2"
-            />
-        </div>
-    );
-}
-                                const isDate = dateFields.includes(header);
-                                const isTextArea = textAreaFields.includes(header);
-                                return (<React.Fragment key={header}><div className={`bg-gray-50 p-3 rounded-md ${isTextArea || header === 'Resumen_Hechos_IA' || header === 'Observaciones_Reclamo_Relacionado' ? 'lg:col-span-3 md:col-span-2' : ''}`}><label htmlFor={`modal-${header}`} className="block text-sm font-semibold text-gray-700 mb-1">{header.replace(/_/g, ' ')}:</label>{isEditable ? (<><div className="relative">{isTextArea ? (<textarea id={`modal-${header}`} rows={3} className="block w-full rounded-md p-2 pr-10" value={selectedCase[header] || ''} onChange={e => handleModalFieldChange(header, e.target.value)} />) : (<input type={isDate ? 'date' : header === 'Dia' ? 'number' : 'text'} id={`modal-${header}`} className="block w-full rounded-md p-2 pr-10" value={header === 'Dia' ? utils.calculateCaseAge(selectedCase, nonBusinessDays) : (selectedCase[header] || '')} onChange={e => handleModalFieldChange(header, e.target.value)} />)}
-                                    {['obs', 'Analisis de la IA'].includes(header) && (<button onClick={() => utils.copyToClipboard(selectedCase[header] || '', header.replace(/_/g, ' '), displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title={`Copiar ${header.replace(/_/g, ' ')}`}>Copiar</button>)}</div>{(header === 'obs' || header === 'Analisis de la IA') && (<button onClick={generateAIAnalysis} className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isGeneratingAnalysis}>{isGeneratingAnalysis ? 'Regenerando...' : 'Regenerar Análisis y Categoría'}</button>)}</>) : header === 'user' ? (<div className="flex items-center gap-2"><input type="text" id="caseUser" value={selectedCase.user || ''} readOnly className="block w-full rounded-md p-2 bg-gray-100" /><button onClick={handleAssignUser} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Asignar</button></div>) : header === 'Resumen_Hechos_IA' ? (<div className="relative"><textarea rows="3" className="block w-full rounded-md p-2 pr-10 bg-gray-100" value={selectedCase.Resumen_Hechos_IA || 'No generado'} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Resumen_Hechos_IA || '', 'Resumen Hechos IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Resumen Hechos IA">Copiar</button><button onClick={generateAISummaryHandler} className="mt-2 px-3 py-1.5 bg-teal-600 text-white rounded-md text-sm" disabled={isGeneratingSummary}>{isGeneratingSummary ? 'Generando...' : 'Generar Resumen IA'}</button></div>) : <p className={`text-base break-words`}>{selectedCase[header] || 'N/A'}</p>}</div>{header === 'Numero_Reclamo_Relacionado' && selectedCase.Numero_Reclamo_Relacionado && selectedCase.Numero_Reclamo_Relacionado !== 'N/A' && (<div className="bg-gray-50 p-3 rounded-md lg:col-span-2 md:col-span-2"><label htmlFor="Observaciones_Reclamo_Relacionado" className="block text-sm font-semibold text-gray-700 mb-1">Observaciones del Reclamo Relacionado:</label><textarea id="Observaciones_Reclamo_Relacionado" rows="3" className="block w-full rounded-md p-2" value={selectedCase.Observaciones_Reclamo_Relacionado || ''} onChange={e => handleModalFieldChange('Observaciones_Reclamo_Relacionado', e.target.value)} placeholder="Añadir observaciones sobre el reclamo relacionado..." /></div>)}</React.Fragment>);
-                            })}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div className="p-4 border rounded-lg bg-indigo-50">
-                                <h4 className="text-lg font-semibold text-indigo-800 mb-3">Sugerencias de Próxima Acción (IA)</h4>
-                                {isGeneratingNextActions ? (<p className="text-sm text-indigo-700">Generando sugerencias...</p>) : (<>{(!selectedCase.Sugerencias_Accion_IA || selectedCase.Sugerencias_Accion_IA.length === 0) ? (<button onClick={generateNextActionsHandler} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">✨ Generar Próximas Acciones</button>) : (<div><ul className="list-disc list-inside space-y-2 text-sm text-gray-800">{(Array.isArray(selectedCase.Sugerencias_Accion_IA) ? selectedCase.Sugerencias_Accion_IA : []).map((action, index) => <li key={index}>{action}</li>)}</ul><button onClick={generateNextActionsHandler} className="mt-3 px-3 py-1 bg-indigo-200 text-indigo-800 rounded-md hover:bg-indigo-300 text-xs">✨ Regenerar</button></div>)}</>)}
-                            </div>
-                            {(selectedCase.Estado_Gestion === 'Resuelto' || selectedCase.Estado_Gestion === 'Finalizado') && (<div className="p-4 border rounded-lg bg-green-50">
-                                <h4 className="text-lg font-semibold text-green-800 mb-3">Análisis de Causa Raíz (IA)</h4>
-                                {isGeneratingRootCause ? (<p className="text-sm text-green-700">Generando análisis...</p>) : (<>{!selectedCase.Causa_Raiz_IA ? (<button onClick={generateRootCauseHandler} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">✨ Analizar Causa Raíz</button>) : (<div><p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.Causa_Raiz_IA}</p><button onClick={generateRootCauseHandler} className="mt-3 px-3 py-1 bg-green-200 text-green-800 rounded-md hover:bg-green-300 text-xs">✨ Regenerar Análisis</button></div>)}</>)}
-                            </div>)}
-                            <div className="p-4 border rounded-lg bg-red-50 md:col-span-2">
-                                <h4 className="text-lg font-semibold text-red-800 mb-3">Análisis de Riesgo de Escalación a SIC (IA)</h4>
-                                {isGeneratingRiskAnalysis ? (<p className="text-sm text-red-700">Calculando riesgo...</p>) : (<>{(!selectedCase.Riesgo_SIC || !selectedCase.Riesgo_SIC.riesgo) ? (<button onClick={generateRiskAnalysisHandler} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm">✨ Calcular Riesgo</button>) : (<div><p className="text-base"><span className="font-bold">Nivel de Riesgo:</span><span className={`font-semibold ml-2 px-2 py-1 rounded-full ${selectedCase.Riesgo_SIC.riesgo === 'Bajo' ? 'bg-green-200 text-green-800' : selectedCase.Riesgo_SIC.riesgo === 'Medio' ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>{selectedCase.Riesgo_SIC.riesgo}</span></p><p className="text-sm text-gray-800 mt-2"><strong>Justificación:</strong> {selectedCase.Riesgo_SIC.justificacion}</p><button onClick={generateRiskAnalysisHandler} className="mt-3 px-3 py-1 bg-red-200 text-red-800 rounded-md hover:bg-red-300 text-xs">✨ Recalcular</button></div>)}</>)}
-                            </div>
-                        </div>
-                        <div className="mt-4 mb-6 p-4 border border-orange-200 rounded-md bg-orange-50">
-                            <h4 className="text-lg font-semibold text-orange-800 mb-3">Gestión de SN Acumulados</h4>
-                            <div className="mb-3"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-orange-600" checked={tieneSNAcumulados} onChange={(e) => { setTieneSNAcumulados(e.target.checked); if (!e.target.checked) setCantidadSNAcumulados(0); }} /><span className="ml-2 text-gray-700 font-medium">¿Tiene SN Acumulados?</span></label></div>
-                            {tieneSNAcumulados && (<div className="mb-4"><label htmlFor="cantidadSNAcumulados" className="block text-sm font-medium text-gray-700 mb-1">Cantidad de SN a acumular:</label><select id="cantidadSNAcumulados" value={cantidadSNAcumulados} onChange={(e) => setCantidadSNAcumulados(Number(e.target.value))} className="block w-full max-w-xs input-form"><option value="0">Seleccione...</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>)}
-                            {snAcumuladosData.map((item, index) => (<div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-3 border rounded-md bg-white"><div><label htmlFor={`sn-acumulado-${index}`} className="block text-sm font-medium text-gray-700 mb-1">SN Acumulado {index + 1}:</label><input type="text" id={`sn-acumulado-${index}`} value={item.sn} onChange={(e) => handleSNAcumuladoInputChange(index, 'sn', e.target.value)} className="block w-full input-form" placeholder="Ingrese el SN" required /></div><div><label htmlFor={`obs-acumulado-${index}`} className="block text-sm font-medium text-gray-700 mb-1">Observaciones SN {index + 1}:</label><textarea id={`obs-acumulado-${index}`} value={item.obs} onChange={(e) => handleSNAcumuladoInputChange(index, 'obs', e.target.value)} className="block w-full input-form" rows="2" placeholder="Observaciones del SN acumulado" /></div></div>))}
-                            {cantidadSNAcumulados > 0 && (<button onClick={handleSaveSNAcumulados} className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700" disabled={snAcumuladosData.some(item => !item.sn.trim())}>Guardar SN Acumulados</button>)}
-                            <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de SN Acumulados:</h5>
-                                {Array.isArray(selectedCase.SNAcumulados_Historial) && selectedCase.SNAcumulados_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.SNAcumulados_Historial.map((item, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-semibold">SN: {item.sn} <span className="font-normal text-gray-500">({new Date(item.timestamp).toLocaleString()})</span></p><p className="whitespace-pre-wrap pl-2">Obs: {item.obs}</p></li>))}</ul>) : (<p className="text-sm text-gray-500">No hay SN acumulados guardados.</p>)}
-                            </div>
-                        </div>
-                        {selectedCase.Estado_Gestion === 'Escalado' && (<div className="mt-4 mb-6 p-4 border border-red-200 rounded-md bg-red-50">
-                            <h4 className="text-lg font-semibold text-red-800 mb-3">Detalles de Escalación</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label htmlFor="areaEscalada" className="block text-sm font-medium text-gray-700 mb-1">Área Escalada:</label><select id="areaEscalada" name="areaEscalada" value={selectedCase.areaEscalada || ''} onChange={(e) => handleModalFieldChange('areaEscalada', e.target.value)} className="block w-full input-form"><option value="">Seleccione Área...</option>{constants.AREAS_ESCALAMIENTO.map(area => <option key={area} value={area}>{area}</option>)}</select></div>
-                                <div><label htmlFor="motivoEscalado" className="block text-sm font-medium text-gray-700 mb-1">Motivo/Acción Escalado:</label><select id="motivoEscalado" name="motivoEscalado" value={selectedCase.motivoEscalado || ''} onChange={(e) => handleModalFieldChange('motivoEscalado', e.target.value)} className="block w-full input-form" disabled={!selectedCase.areaEscalada}><option value="">Seleccione Motivo/Acción...</option>{(constants.MOTIVOS_ESCALAMIENTO_POR_AREA[selectedCase.areaEscalada] || []).map(motivo => <option key={motivo} value={motivo}>{motivo}</option>)}</select></div>
-                                <div className="md:col-span-2"><button onClick={handleSuggestEscalation} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50" disabled={isSuggestingEscalation}>✨ {isSuggestingEscalation ? 'Sugiriendo...' : 'Sugerir Escalación (IA)'}</button><button onClick={generateEscalationEmailHandler} className="ml-3 px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 disabled:opacity-50" disabled={isGeneratingEscalationEmail || !selectedCase.areaEscalada}>✨ {isGeneratingEscalationEmail ? 'Redactando...' : 'Redactar Correo (IA)'}</button></div>
-                                <div><label htmlFor="idEscalado" className="block text-sm font-medium text-gray-700 mb-1">ID Escalado:</label><input type="text" id="idEscalado" name="idEscalado" value={selectedCase.idEscalado || ''} onChange={(e) => handleModalFieldChange('idEscalado', e.target.value)} className="block w-full input-form" placeholder="ID del escalamiento" /></div>
-                                <div><label htmlFor="reqGenerado" className="block text-sm font-medium text-gray-700 mb-1">REQ Generado:</label><input type="text" id="reqGenerado" name="reqGenerado" value={selectedCase.reqGenerado || ''} onChange={(e) => handleModalFieldChange('reqGenerado', e.target.value)} className="block w-full input-form" placeholder="REQ o ticket generado" /></div>
-                                <div className="md:col-span-2"><label htmlFor="descripcionEscalamiento" className="block text-sm font-medium text-gray-700 mb-1">Descripción Breve del Escalamiento:</label><textarea id="descripcionEscalamiento" name="descripcionEscalamiento" rows="3" value={selectedCase.descripcionEscalamiento || ''} onChange={(e) => handleModalFieldChange('descripcionEscalamiento', e.target.value)} className="block w-full input-form" placeholder="Añada una descripción del escalamiento..." /></div>
-                            </div>
-                            {selectedCase.Correo_Escalacion_IA && (<div className="mt-4"><h5 className="text-md font-semibold mb-2">Correo de Escalación (IA):</h5><div className="relative"><textarea rows="6" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border" value={selectedCase.Correo_Escalacion_IA} readOnly /><button onClick={() => utils.copyToClipboard(selectedCase.Correo_Escalacion_IA, 'Correo de Escalación', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Correo">Copiar</button></div></div>)}
-                            <div className="mt-4 border-t pt-4"><button onClick={handleSaveEscalamientoHistory} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Guardar Escalación</button></div>
-                            <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de Escalaciones:</h5>{Array.isArray(selectedCase.Escalamiento_Historial) && selectedCase.Escalamiento_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Escalamiento_Historial.map((item, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-semibold text-gray-700">Escalado: {new Date(item.timestamp).toLocaleString()}</p><p><strong>Área:</strong> {item.areaEscalada}, <strong>Motivo:</strong> {item.motivoEscalado}</p><p><strong>ID:</strong> {item.idEscalado || 'N/A'}, <strong>REQ:</strong> {item.reqGenerado || 'N/A'}</p>{item.descripcionEscalamiento && <p><strong>Desc:</strong> {item.descripcionEscalamiento}</p>}</li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial de escalación.</p>)}</div>
-                        </div>)}
-                        <div className="mt-4 mb-6 p-4 border border-blue-200 rounded-md bg-blue-50">
-                            <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowGestionesAdicionales(prev => !prev)}><h4 className="text-lg font-semibold text-blue-800">Aseguramiento y Gestiones Adicionales</h4><span className="text-blue-600 font-bold text-xl">{showGestionesAdicionales ? '-' : '+'}</span></div>
-                            {showGestionesAdicionales && (<div className="mt-3">
-                                <div className="mb-3"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-blue-600" name="Requiere_Aseguramiento_Facturas" checked={selectedCase.Requiere_Aseguramiento_Facturas || false} onChange={(e) => handleModalFieldChange('Requiere_Aseguramiento_Facturas', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Aseguramiento Próximas Facturas?</span></label></div>
-                                {selectedCase.Requiere_Aseguramiento_Facturas && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-5 mb-4 border-l-2 border-blue-300"><div><label htmlFor="ID_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">ID Aseguramiento:</label><input type="text" id="ID_Aseguramiento" name="ID_Aseguramiento" className="block w-full input-form" value={selectedCase.ID_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('ID_Aseguramiento', e.target.value)} placeholder="ID" /></div><div><label htmlFor="Corte_Facturacion_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Corte Facturación:</label><input type="text" id="Corte_Facturacion_Aseguramiento" name="Corte_Facturacion" className="block w-full input-form" value={selectedCase.Corte_Facturacion || ''} onChange={(e) => handleModalFieldChange('Corte_Facturacion', e.target.value)} placeholder="Ej: 15" disabled={!!selectedCase.ID_Aseguramiento} /></div><div><label htmlFor="Cuenta_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Cuenta:</label><input type="text" id="Cuenta_Aseguramiento" name="Cuenta" className="block w-full input-form" value={selectedCase.Cuenta || ''} onChange={(e) => handleModalFieldChange('Cuenta', e.target.value)} placeholder="Número cuenta" disabled={!!selectedCase.ID_Aseguramiento} /></div><div><label htmlFor="Operacion_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Operación Aseguramiento:</label><select id="Operacion_Aseguramiento" name="Operacion_Aseguramiento" value={selectedCase.Operacion_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Operacion_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_OPERACION_ASEGURAMIENTO.map(op => <option key={op} value={op}>{op}</option>)}</select></div><div><label htmlFor="Mes_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Mes Aseguramiento:</label><select id="Mes_Aseguramiento" name="Mes_Aseguramiento" value={selectedCase.Mes_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Mes_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.MESES_ASEGURAMIENTO.map(mes => <option key={mes} value={mes}>{mes.charAt(0).toUpperCase() + mes.slice(1)}</option>)}</select></div><div className="md:col-span-2"><label htmlFor="Tipo_Aseguramiento" className="block text-sm font-medium text-gray-700 mb-1">Tipo Aseguramiento:</label><select id="Tipo_Aseguramiento" name="Tipo_Aseguramiento" value={selectedCase.Tipo_Aseguramiento || ''} onChange={(e) => handleModalFieldChange('Tipo_Aseguramiento', e.target.value)} className="block w-full input-form" disabled={!!selectedCase.ID_Aseguramiento}><option value="">Seleccione...</option>{constants.TIPOS_ASEGURAMIENTO.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</select></div></div>)}
-                                <div className="mb-3 mt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-red-600" name="requiereBaja" checked={selectedCase.requiereBaja || false} onChange={(e) => handleModalFieldChange('requiereBaja', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Baja?</span></label></div>
-                                {selectedCase.requiereBaja && (<div className="pl-5 mb-4 border-l-2 border-red-300"><label htmlFor="numeroOrdenBaja" className="block text-sm font-medium text-gray-700 mb-1">Número de Orden de Baja:</label><input type="text" id="numeroOrdenBaja" name="numeroOrdenBaja" className="block w-full input-form" value={selectedCase.numeroOrdenBaja || ''} onChange={(e) => handleModalFieldChange('numeroOrdenBaja', e.target.value)} placeholder="Número de Orden" /></div>)}
-                                <div className="mb-3 mt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-green-600" name="requiereAjuste" checked={selectedCase.requiereAjuste || false} onChange={(e) => handleModalFieldChange('requiereAjuste', e.target.checked)} /><span className="ml-2 text-gray-700 font-medium">¿Requiere Ajuste?</span></label></div>
-                                {selectedCase.requiereAjuste && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-5 mb-4 border-l-2 border-green-300"><div><label htmlFor="numeroTT" className="block text-sm font-medium text-gray-700 mb-1">Número de TT:</label><input type="text" id="numeroTT" name="numeroTT" className="block w-full input-form" value={selectedCase.numeroTT || ''} onChange={(e) => handleModalFieldChange('numeroTT', e.target.value)} placeholder="Número TT" /></div><div><label htmlFor="estadoTT" className="block text-sm font-medium text-gray-700 mb-1">Estado TT:</label><select id="estadoTT" name="estadoTT" value={selectedCase.estadoTT || ''} onChange={(e) => handleModalFieldChange('estadoTT', e.target.value)} className="block w-full input-form"><option value="">Seleccione Estado...</option>{constants.ESTADOS_TT.map(estado => <option key={estado} value={estado}>{estado}</option>)}</select></div><div className="md:col-span-2"><label className="inline-flex items-center mt-2"><input type="checkbox" className="form-checkbox h-5 w-5 text-green-600" name="requiereDevolucionDinero" checked={selectedCase.requiereDevolucionDinero || false} onChange={(e) => handleModalFieldChange('requiereDevolucionDinero', e.target.checked)} disabled={!selectedCase.requiereAjuste} /><span className="ml-2 text-gray-700">¿Requiere Devolución Dinero?</span></label></div>{selectedCase.requiereDevolucionDinero && (<div className="contents"><div><label htmlFor="cantidadDevolver" className="block text-sm font-medium text-gray-700 mb-1">Cantidad a Devolver:</label><input type="number" step="0.01" id="cantidadDevolver" name="cantidadDevolver" className="block w-full input-form" value={selectedCase.cantidadDevolver || ''} onChange={(e) => handleModalFieldChange('cantidadDevolver', e.target.value)} placeholder="0.00" disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div><div><label htmlFor="idEnvioDevoluciones" className="block text-sm font-medium text-gray-700 mb-1">ID Envío Devoluciones:</label><input type="text" id="idEnvioDevoluciones" name="idEnvioDevoluciones" className="block w-full input-form" value={selectedCase.idEnvioDevoluciones || ''} onChange={(e) => handleModalFieldChange('idEnvioDevoluciones', e.target.value)} placeholder="ID" disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div><div><label htmlFor="fechaEfectivaDevolucion" className="block text-sm font-medium text-gray-700 mb-1">Fecha Efectiva Devolución:</label><input type="date" id="fechaEfectivaDevolucion" name="fechaEfectivaDevolucion" value={selectedCase.fechaEfectivaDevolucion || ''} onChange={(e) => handleModalFieldChange('fechaEfectivaDevolucion', e.target.value)} disabled={!selectedCase.requiereAjuste || !selectedCase.requiereDevolucionDinero} /></div></div>)}</div>)}
-                                <div className="mt-4"><label htmlFor="aseguramientoObs" className="block text-sm font-medium text-gray-700 mb-1">Observaciones de la Gestión:</label><textarea id="aseguramientoObs" rows="3" className="block w-full input-form" value={aseguramientoObs} onChange={(e) => setAseguramientoObs(e.target.value)} placeholder="Añadir observaciones sobre la gestión de aseguramiento, baja o ajuste..." /></div>
-                                <div className="mt-4 border-t pt-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5 text-blue-600" name="gestionAseguramientoCompletada" checked={selectedCase.gestionAseguramientoCompletada || false} onChange={(e) => handleModalFieldChange('gestionAseguramientoCompletada', e.target.checked)} /><span className="ml-2 font-medium text-gray-700">Marcar gestión de aseguramiento como completada</span></label></div>
-                                <div className="mt-4 border-t pt-4"><button onClick={handleSaveAseguramientoHistory} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={!selectedCase.Requiere_Aseguramiento_Facturas && !selectedCase.requiereBaja && !selectedCase.requiereAjuste}>Guardar Gestión de Aseguramiento</button></div>
-                                <div className="mt-4"><h5 className="text-md font-semibold mb-2">Historial de Aseguramientos:</h5>{Array.isArray(selectedCase.Aseguramiento_Historial) && selectedCase.Aseguramiento_Historial.length > 0 ? (<ul className="space-y-3 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Aseguramiento_Historial.map((item, idx) => (<li key={idx} className="border-b pb-2 last:border-b-0"><p className="font-semibold text-gray-700">Guardado: {new Date(item.timestamp).toLocaleString()}</p>{item.Requiere_Aseguramiento_Facturas && <div><p className="font-medium text-gray-600">Aseguramiento Facturas:</p><p className="pl-2">ID: {item.ID_Aseguramiento}, Corte: {item.Corte_Facturacion}, Cuenta: {item.Cuenta}, Op: {item.Operacion_Aseguramiento}, Tipo: {item.Tipo_Aseguramiento}, Mes: {item.Mes_Aseguramiento}</p></div>}{item.requiereBaja && <div><p className="font-medium text-gray-600">Baja:</p><p className="pl-2">Orden: {item.numeroOrdenBaja}</p></div>}{item.requiereAjuste && <div><p className="font-medium text-gray-600">Ajuste:</p><p className="pl-2">TT: {item.numeroTT}, Estado: {item.estadoTT}</p></div>}{item.observaciones && <p className="mt-1"><strong>Obs:</strong> {item.observaciones}</p>}</li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial de aseguramiento.</p>)}</div>
-                            </div>)}
-                        </div>
-                        <div className="mt-4 mb-6 p-4 border border-teal-200 rounded-md bg-teal-50">
-                            <h4 className="text-lg font-semibold text-teal-800">Cálculo de Nota de Crédito</h4>
-                            <p className="text-sm text-gray-600 mb-4">Calcula el valor a reliquidar por días no utilizados en el ciclo de facturación.</p>
-                            {reliquidacionData.map((form, index) => (<div key={form.id} className="p-4 mb-4 border rounded-md bg-teal-100 relative">{reliquidacionData.length > 1 && (<button onClick={() => handleRemoveForm(form.id)} className="absolute top-2 right-2 text-gray-500 hover:text-red-700 font-bold">&times;</button>)}<h5 className="text-md font-semibold text-teal-900 mb-3">Cálculo para Cuenta #{index + 1}</h5><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label htmlFor={`numeroCuenta-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta:</label><input type="text" id={`numeroCuenta-${form.id}`} name="numeroCuenta" value={form.numeroCuenta} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`valorMensual-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Valor Mensual de Factura ($):</label><input type="number" id={`valorMensual-${form.id}`} name="valorMensual" value={form.valorMensual} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaInicioCiclo-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio del Ciclo:</label><input type="date" id={`fechaInicioCiclo-${form.id}`} name="fechaInicioCiclo" value={form.fechaInicioCiclo} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaFinCiclo-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha Fin del Ciclo:</label><input type="date" id={`fechaFinCiclo-${form.id}`} name="fechaFinCiclo" value={form.fechaFinCiclo} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div><div><label htmlFor={`fechaBaja-${form.id}`} className="block text-sm font-medium text-gray-700 mb-1">Fecha de Baja/Portación:</label><input type="date" id={`fechaBaja-${form.id}`} name="fechaBaja" value={form.fechaBaja} onChange={(e) => handleReliquidacionChange(index, e)} className="block w-full input-form" /></div></div>{form.montoNotaCredito !== null && (<div className="mt-4 p-3 bg-teal-200 rounded-md border border-teal-400"><p className="font-semibold text-teal-800">Resultado:</p><p className="text-sm">El monto de la nota de crédito para la cuenta **{form.numeroCuenta}** es de **${form.montoNotaCredito} COP**.</p></div>)}</div>))}
-                            <div className="flex gap-2 mt-4"><button type="button" onClick={handleAddForm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Añadir Cuenta</button><button type="button" onClick={calcularNotaCredito} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">Calcular Nota de Crédito</button></div>
-                        </div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Análisis y Observaciones</h4><div className="mb-4"><label htmlFor="observations-input" className="block text-sm font-medium mb-1">Observaciones (Gestión):</label><div className="flex flex-col gap-2 mb-2"><textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={selectedCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." /><div className="flex gap-2 self-end"><button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>{isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}</button><button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button></div></div><h5 className="text-md font-semibold mb-2">Historial Observaciones:</h5>{Array.isArray(selectedCase.Observaciones_Historial) && selectedCase.Observaciones_Historial.length > 0 ? (<ul className="space-y-2 text-sm bg-gray-100 p-3 rounded-md max-h-40 overflow-y-auto border">{selectedCase.Observaciones_Historial.map((en, idx) => (<li key={idx} className="border-b pb-1 last:border-b-0"><p className="font-medium">{new Date(en.timestamp).toLocaleString()}</p><p className="whitespace-pre-wrap">{en.text}</p></li>))}</ul>) : (<p className="text-sm text-gray-500">No hay historial.</p>)}</div></div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Proyección de Respuesta IA</h4><div className="relative"><textarea id="proyeccionRespuestaIA" rows="8" className="block w-full rounded-md p-2 pr-10 bg-gray-50 border whitespace-pre-wrap" value={selectedCase.Respuesta_Integral_IA || 'No generada'} readOnly placeholder="Respuesta Integral IA aparecerá aquí..." /><button onClick={() => utils.copyToClipboard(selectedCase.Respuesta_Integral_IA || '', 'Respuesta Integral IA', displayModalMessage)} className="absolute top-1 right-1 p-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded" title="Copiar Respuesta Integral IA">Copiar</button></div><button onClick={generateAIComprehensiveResponseHandler} className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" disabled={isGeneratingComprehensiveResponse}>✨ {isGeneratingComprehensiveResponse ? 'Generando...' : 'Generar Respuesta Integral (IA)'}</button><button onClick={() => { const textContext = utils.generateAITextContext(selectedCase); utils.copyToClipboard(textContext, 'Contexto para Gemini', displayModalMessage); }} className="mt-3 ml-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">Copiar Contexto para Gemini</button></div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-2">Validación de la Respuesta (IA)</h4>{selectedCase.Validacion_IA ? (<div className={`p-4 rounded-md ${selectedCase.Validacion_IA.completa ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'}`}><p className="font-bold">Estatus de Validación: {selectedCase.Validacion_IA.completa ? '✅ Completa' : '❌ Incompleta'}</p><p className="text-sm mt-2"><span className="font-semibold">Justificación:</span> {selectedCase.Validacion_IA.justificacion}</p></div>) : (<p className="text-sm text-gray-500">No hay validación de la IA disponible. Genere una respuesta integral primero.</p>)}</div>
-                        <div className="mt-6 border-t pt-6"><h4 className="text-xl font-semibold mb-4">Gestión del Caso</h4><div className="flex flex-wrap gap-3 mb-6">{[{ l: 'Iniciado', s: 'Iniciado', cl: 'indigo' }, { l: 'Lectura', s: 'Lectura', cl: 'blue' }, { l: 'Decretado', s: 'Decretado', cl: 'purple' }, { l: 'Traslado SIC', s: 'Traslado SIC', cl: 'orange' }, { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes', cl: 'pink' }, { l: 'Resuelto', s: 'Resuelto', cl: 'green' }, { l: 'Pendiente', s: 'Pendiente', cl: 'yellow' }, { l: 'Escalado', s: 'Escalado', cl: 'red' }].map(b => (<button key={b.s} onClick={() => handleChangeCaseStatus(b.s)} className={`px-4 py-2 rounded-md font-semibold ${selectedCase.Estado_Gestion === b.s ? `bg-${b.cl}-600 text-white` : `bg-${b.cl}-200 text-${b.cl}-800 hover:bg-${b.cl}-300`} `}>{b.l}</button>))}</div><div className="mb-4"><label className="inline-flex items-center"><input type="checkbox" className="form-checkbox h-5 w-5" checked={selectedCase.Despacho_Respuesta_Checked || false} onChange={handleDespachoRespuestaChange} /><span className="ml-2 font-semibold">Despacho Respuesta</span></label></div></div>
-                        <div className="flex justify-end mt-6 gap-4">{selectedCase.Estado_Gestion === 'Resuelto' && (<button onClick={() => handleReopenCase(selectedCase)} className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 mr-auto">Reabrir Caso</button>)}<button onClick={() => handleDeleteCase(selectedCase.id)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Eliminar</button><button onClick={handleCloseCaseDetails} className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700">Cerrar</button></div>
-                    </div>
-                </div>
-            )}
-{showCancelAlarmModal && (
+            
+            {showCancelAlarmModal && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]">
                         <div className="flex items-center justify-between pb-3 border-b-2 border-red-500">
@@ -2262,32 +1228,7 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                         </div>
                     </div>
                 </div>)}
-            {showManualEntryModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
-                        <form onSubmit={handleManualSubmit}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} onChange={handleManualFormChange} required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}
-                                <div className="md:col-span-2"><label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label><textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} onChange={handleManualFormChange} className="block w-full input-form" /></div>
-                                <div className="md:col-span-2"><label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label><select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} onChange={handleManualFormChange} className="block w-full input-form"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label>
-                                    <select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} onChange={handleManualFormChange} className="block w-full input-form">
-                                        <option value="Pendiente">Pendiente</option>
-                                        <option value="Iniciado">Iniciado</option>
-                                        <option value="Lectura">Lectura</option>
-                                        <option value="Escalado">Escalado</option>
-                                        <option value="Pendiente Ajustes">Pendiente Ajustes</option>
-                                    </select>
-                                </div>
-                            </div>
-                            {/* ... el resto del código del formulario ... */}
-                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div>
-                        </form>
-                    </div>
-                </div>
-            )}
+
             {showKeywordAlarmModal && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]">
@@ -2313,12 +1254,10 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                                                 <p className="text-sm text-gray-700 mt-1">
                                                     Cliente: {c.Nombre_Cliente || 'N/A'}
                                                 </p>
-                                                {/* --- ¡NUEVO! --- Muestra la palabra clave detectada */}
                                                 <p className="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full inline-block mt-2">
                                                     Motivo: {c.matchedKeyword}
                                                 </p>
                                             </div>
-                                            {/* --- ¡NUEVO! --- Botones de acción por caso */}
                                             <div className="flex flex-col items-end space-y-2">
                                                 <button
                                                     onClick={() => handleOpenCaseDetails(c)}
@@ -2337,7 +1276,6 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                                     </div>
                                 ))}
                             </div>
-                            {/* --- ¡NUEVO! --- Botones en el pie del modal */}
                             <div className="flex justify-between items-center mt-4">
                                 <button
                                     onClick={handleCopyAllAlarmSNs}
@@ -2361,7 +1299,33 @@ if (header === 'Radicado_SIC' || header === 'Fecha_Vencimiento_Decreto') {
                     </div>
                 </div>
             )}
-        </div> // Cierre del <div className="min-h-screen...">
+
+            {showManualEntryModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
+                        <form /* onSubmit={handleManualSubmit} */>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} /* onChange={handleManualFormChange} */ required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}
+                                <div className="md:col-span-2"><label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label><textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} /* onChange={handleManualFormChange} */ className="block w-full input-form" /></div>
+                                <div className="md:col-span-2"><label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label><select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} /* onChange={handleManualFormChange} */ className="block w-full input-form"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div>
+                                <div className="md:col-span-2">
+                                    <label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label>
+                                    <select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} /* onChange={handleManualFormChange} */ className="block w-full input-form">
+                                        <option value="Pendiente">Pendiente</option>
+                                        <option value="Iniciado">Iniciado</option>
+                                        <option value="Lectura">Lectura</option>
+                                        <option value="Escalado">Escalado</option>
+                                        <option value="Pendiente Ajustes">Pendiente Ajustes</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
