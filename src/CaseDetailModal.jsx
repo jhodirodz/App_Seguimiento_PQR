@@ -376,11 +376,7 @@ export default function CaseDetailModal({
     }
 
 
-    // --- Estilos de ayuda (copiados de App.jsx) ---
-    const statusColors = constants.statusColors;
-    const priorityColors = constants.priorityColors;
-
-    return (
+      return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[120] p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {localCase.SN}</h3>
