@@ -440,191 +440,7 @@ function App() {
         reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
         reader.readAsText(file, 'ISO-8859-1');
     }
-const handleContractMarcoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    setUploading(true);
-    displayModalMessage('Procesando CSV de Contrato Marco para reclasificación...');
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            if (!db || !userId) throw new Error('DB no lista o usuario no autenticado.');
-            const { headers, data: csvDataRows } = utils.parseCSV(e.target.result);
-            if (csvDataRows.length === 0) throw new Error('CSV de Contrato Marco vacío o inválido.');
-            
-            // Encuentra la columna NUIP
-            const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
-            if (!nuipHeader) {
-                throw new Error("El CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente' o 'NUIP').");
-            }
-
-            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            const batch = writeBatch(db);
-            let updatedCasesCount = 0;
-            let nuipsNotFoundCount = 0;
-            let skippedNabisCount = 0;
-            
-            // Mapeo de casos existentes por NUIP (para reclasificación)
-            const allCasesSnapshot = await getDocs(collRef);
-            const casesByClienteNuip = new Map();
-            const casesByReclamanteNuip = new Map();
-            
-            allCasesSnapshot.forEach(docSnap => {
-                const caseData = { id: docSnap.id, ...docSnap.data() };
-                const clienteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Cliente);
-                const reclamanteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Reclamante);
-
-                if (clienteNuip && clienteNuip !== '0' && clienteNuip !== 'N/A') {
-                    if (!casesByClienteNuip.has(clienteNuip)) {
-                        casesByClienteNuip.set(clienteNuip, []);
-                    }
-                    casesByClienteNuip.get(clienteNuip).push(caseData);
-                }
-                if (reclamanteNuip && reclamanteNuip !== '0' && reclamanteNuip !== 'N/A') {
-                    if (!casesByReclamanteNuip.has(reclamanteNuip)) {
-                        casesByReclamanteNuip.set(reclamanteNuip, []);
-                    }
-                    casesByReclamanteNuip.get(reclamanteNuip).push(caseData);
-                }
-            });
-            
-            const processedNuips = new Set();
-            for (const row of csvDataRows) {
-                const nuipToSearch = utils.normalizeNuip(row[nuipHeader]);
-                if (!nuipToSearch || processedNuips.has(nuipToSearch)) {
-                    continue;
-                }
-                processedNuips.add(nuipToSearch);
-                
-                let foundMatch = false;
-                const potentialMatches = [
-                    ...(casesByClienteNuip.get(nuipToSearch) || []),
-                    ...(casesByReclamanteNuip.get(nuipToSearch) || [])
-                ];
-                const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
-
-                if (uniqueMatches.length > 0) {
-                    foundMatch = true;
-                    uniqueMatches.forEach(caseToUpdate => {
-                        // Lógica de reclasificación: Solo actualiza si no está ya marcado como Nabis (manual)
-                        if (caseToUpdate.isNabis === true) {
-                            skippedNabisCount++;
-                            return;
-                        }
-
-                        const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
-                        const updateData = {
-                            Tipo_Contrato: 'Contrato Marco'
-                        };
-                        if (row.Numero_Contrato_Marco) {
-                            updateData.Numero_Contrato_Marco = String(row.Numero_Contrato_Marco).trim();
-                        }
-                        batch.update(docRef, updateData);
-                        updatedCasesCount++;
-                    });
-                }
-
-                if (!foundMatch) {
-                    nuipsNotFoundCount++;
-                }
-            }
-
-            if (updatedCasesCount > 0) {
-                await batch.commit();
-            }
-
-            displayModalMessage(`Reclasificación completa. Casos actualizados: ${updatedCasesCount}. Casos omitidos por marca manual "CM Nabis": ${skippedNabisCount}. NUIPs del CSV no encontrados: ${nuipsNotFoundCount}.`);
-        } catch (err) {
-            console.error("Error durante reclasificación por Contrato Marco:", err);
-            displayModalMessage(`Error durante reclasificación por Contrato Marco: ${err.message}`);
-        } finally {
-            setUploading(false);
-            if (event.target) event.target.value = '';
-        }
-    };
-    reader.onerror = (err) => {
-        displayModalMessage(`Error leyendo el archivo: ${err.message}`);
-        setUploading(false);
-    };
-    reader.readAsText(file, 'ISO-8859-1'); // Leer como texto
-
-};
-
-// --- LÓGICA DE CARGA DE REPORTE CRUCE (ORIGINAL) ---
-const handleReporteCruceUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setUploading(true);
-    displayModalMessage('Procesando reporte para cruce de información...');
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const { headers, data: reportData } = utils.parseCSV(e.target.result);
-            if (reportData.length === 0) {
-                throw new Error('El archivo CSV está vacío o tiene un formato no válido.');
-            }
-            
-            // 🚨 CLAVE: Almacenar los datos en el estado para el cruce en el modal
-            setReporteCruceData(reportData);
-
-            const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
-            if (!nuipHeader) {
-                throw new Error("El archivo CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente').");
-            }
-
-            const reportNuips = new Set(
-                reportData.map(row => utils.normalizeNuip(row[nuipHeader])).filter(nuip => nuip)
-            );
-            if (reportNuips.size === 0) {
-                throw new Error("No se encontraron Documentos de Identidad (NUIP) válidos en el reporte.");
-            }
-            
-            // Lógica para contar coincidencias (para el mensaje de feedback)
-            const casesByNuip = new Map();
-            cases.forEach(caseItem => {
-                const nuips = [utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
-                nuips.forEach(nuip => {
-                    if (nuip && nuip !== '0' && nuip !== 'N/A') {
-                        if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
-                        casesByNuip.get(nuip).push(caseItem.SN);
-                    }
-                });
-            });
-            
-            const matches = new Map();
-            reportNuips.forEach(nuip => {
-                if (casesByNuip.has(nuip)) {
-                    matches.set(nuip, casesByNuip.get(nuip));
-                }
-            });
-
-            if (matches.size > 0) {
-                let message = `Reporte cargado. Se encontraron coincidencias para ${matches.size} documentos en sus casos asignados:\n\n`;
-                matches.forEach((snList, nuip) => {
-                    message += `- Documento ${nuip}:\n  Casos SN: ${[...new Set(snList)].join(', ')}\n`;
-                });
-                displayModalMessage(message);
-            } else {
-                displayModalMessage(`Reporte cargado (${reportData.length} filas). No se encontraron coincidencias inmediatas en sus casos asignados.`);
-            }
-
-        } catch (err) {
-            console.error("Error al procesar el reporte:", err);
-            displayModalMessage(`Error al procesar el reporte: ${err.message}`);
-        } finally {
-            setUploading(false);
-            if (event.target) event.target.value = '';
-        }
-    };
-    reader.onerror = (err) => {
-        displayModalMessage(`Error leyendo el archivo: ${err.message}`);
-        setUploading(false);
-    };
-    reader.readAsText(file, 'ISO-8859-1');
-};
     // --- LÓGICA DE FILTROS Y RENDERING ---
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
@@ -1231,19 +1047,15 @@ async function handleObservationFileChange(event) {
             )}
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
-            
-            {/* 🚨 CORRECCIÓN FINAL: Descomentar y asignar los handlers originales */}
-            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
-            
-            {/* 🚨 CORRECCIÓN: Dejar vacío el handler de observación, la lógica está en el Modal */}
+            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} /* onChange={handleContractMarcoUpload} */ style={{ display: 'none' }} />
+            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} /* onChange={handleReporteCruceUpload} */ style={{ display: 'none' }} />
             <input
-                type="file"
-                ref={observationFileInputRef}
-                onChange={() => {}} 
-                accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
-                style={{ display: 'none' }}
-            />
+    type="file"
+    ref={observationFileInputRef}
+    onChange={handleObservationFileChange} // <--- Corregido al handler real
+    accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
+    style={{ display: 'none' }}
+/>
 
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
