@@ -7,15 +7,16 @@
     
     <script>
       window.addEventListener('load', function() {
-        if (typeof pdfjsLib !== 'undefined') {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
-        } else {
-          // Si esto sucede, es un error de red/CDN, no de código.
-          console.error("PDF.js no cargó la variable global pdfjsLib a tiempo."); 
-        }
+        setTimeout(function() {
+          if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+          } else {
+            console.error("PDF.js no cargó la variable global pdfjsLib a tiempo."); 
+          }
+        }, 50); // 50ms de retraso adicional para asegurar la definición de pdfjsLib
       });
     </script>
-    </head>
+  </head>
 
   <body>
     <div id="root"></div>
