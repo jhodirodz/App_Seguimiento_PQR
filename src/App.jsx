@@ -440,106 +440,191 @@ function App() {
         reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
         reader.readAsText(file, 'ISO-8859-1');
     }
-async function handleContractMarcoUpload(event) {
+const handleContractMarcoUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
     setUploading(true);
-    cancelUpload.current = false;
+    displayModalMessage('Procesando CSV de Contrato Marco para reclasificación...');
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            const { data: csvDataRows } = utils.parseCSV(e.target.result);
-            if (csvDataRows.length === 0) { displayModalMessage('CSV vacío o inválido.'); setUploading(false); return; }
-            if (!db || !userId) { displayModalMessage('DB no lista o usuario no auth.'); setUploading(false); return; }
-            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
-            const today = utils.getColombianDateISO();
-            const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
-            const existingDocsSnapshot = await getDocs(collRef);
-            const existingCasesMap = new Map(existingDocsSnapshot.docs.map(d => [String(d.data().SN || '').trim(), { id: d.id, ...d.data() }]));
-            let addedCount = 0, updatedCount = 0, skippedCount = 0;
+            if (!db || !userId) throw new Error('DB no lista o usuario no autenticado.');
+            const { headers, data: csvDataRows } = utils.parseCSV(e.target.result);
+            if (csvDataRows.length === 0) throw new Error('CSV de Contrato Marco vacío o inválido.');
             
-            for (let i = 0; i < csvDataRows.length; i++) {
-                if (cancelUpload.current) { console.log("Carga cancelada por el usuario."); break; }
-                const row = csvDataRows[i];
-                const currentSN = String(row.SN || '').trim();
-                if (!currentSN) { skippedCount++; continue; }
-                displayModalMessage(`Procesando Contrato Marco ${i + 1}/${csvDataRows.length}...`);
-                const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
-                let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
-                // ... (lógica de cálculo de día similar a handleFileUpload)
+            // Encuentra la columna NUIP
+            const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+            if (!nuipHeader) {
+                throw new Error("El CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente' o 'NUIP').");
+            }
+
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const batch = writeBatch(db);
+            let updatedCasesCount = 0;
+            let nuipsNotFoundCount = 0;
+            let skippedNabisCount = 0;
+            
+            // Mapeo de casos existentes por NUIP (para reclasificación)
+            const allCasesSnapshot = await getDocs(collRef);
+            const casesByClienteNuip = new Map();
+            const casesByReclamanteNuip = new Map();
+            
+            allCasesSnapshot.forEach(docSnap => {
+                const caseData = { id: docSnap.id, ...docSnap.data() };
+                const clienteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Cliente);
+                const reclamanteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Reclamante);
+
+                if (clienteNuip && clienteNuip !== '0' && clienteNuip !== 'N/A') {
+                    if (!casesByClienteNuip.has(clienteNuip)) {
+                        casesByClienteNuip.set(clienteNuip, []);
+                    }
+                    casesByClienteNuip.get(clienteNuip).push(caseData);
+                }
+                if (reclamanteNuip && reclamanteNuip !== '0' && reclamanteNuip !== 'N/A') {
+                    if (!casesByReclamanteNuip.has(reclamanteNuip)) {
+                        casesByReclamanteNuip.set(reclamanteNuip, []);
+                    }
+                    casesByReclamanteNuip.get(reclamanteNuip).push(caseData);
+                }
+            });
+            
+            const processedNuips = new Set();
+            for (const row of csvDataRows) {
+                const nuipToSearch = utils.normalizeNuip(row[nuipHeader]);
+                if (!nuipToSearch || processedNuips.has(nuipToSearch)) {
+                    continue;
+                }
+                processedNuips.add(nuipToSearch);
                 
-                if (existingCasesMap.has(currentSN)) {
-                    const existingCaseData = existingCasesMap.get(currentSN);
-                    const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
-                    const updatedData = { ...row, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Tipo_Contrato: 'Contrato Marco', isNabis: true };
-                    await updateDoc(docRef, updatedData);
-                    updatedCount++;
-                } else {
-                    let aiAnalysisCat = { 'Analisis de la IA': 'N/A', 'Categoria del reclamo': 'N/A' }, aiPrio = 'Media', relNum = 'N/A', aiSentiment = { Sentimiento_IA: 'N/A' };
-                    try {
-                        const [analysis, priority, sentiment] = await Promise.all([
-                            aiServices.getAIAnalysisAndCategory(row), aiServices.getAIPriority(row['obs']), aiServices.getAISentiment(row['obs'])
-                        ]);
-                        aiAnalysisCat = analysis; aiPrio = priority; aiSentiment = sentiment; relNum = utils.extractRelatedComplaintNumber(row['obs']);
-                    } catch (aiErr) { console.error(`AI Error for new CM SN ${currentSN}:`, aiErr); }
-                    
-                    await addDoc(collRef, {
-                        ...row, user: userId, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Estado_Gestion: row.Estado_Gestion || 'Pendiente',
-                        ...aiAnalysisCat, ...aiSentiment, Prioridad: aiPrio, Numero_Reclamo_Relacionado: relNum, Observaciones_Reclamo_Relacionado: '',
-                        // 🚨 CLAVE: Forzar a Contrato Marco y isNabis=true
-                        Tipo_Contrato: 'Contrato Marco', Numero_Contrato_Marco: row.Numero_Contrato_Marco || '', isNabis: true, 
-                        // ... (resto de campos por defecto similares a handleFileUpload)
-                        Aseguramiento_Historial: [], Escalamiento_Historial: [], Resumen_Hechos_IA: 'No generado', Proyeccion_Respuesta_IA: 'No generada',
-                        Sugerencias_Accion_IA: [], Causa_Raiz_IA: '', Correo_Escalacion_IA: '', Riesgo_SIC: {},
-                        fecha_asignacion: today, Observaciones_Historial: [],
-                        SNAcumulados_Historial: Array.isArray(row.SNAcumulados_Historial) ? row.SNAcumulados_Historial : [],
-                        Dia_Original_CSV: row['Dia'] ?? 'N/A', Despacho_Respuesta_Checked: false, Fecha_Inicio_Gestion: '',
-                        Tiempo_Resolucion_Minutos: 'N/A', Radicado_SIC: '', Fecha_Vencimiento_Decreto: '', Requiere_Aseguramiento_Facturas: false,
-                        ID_Aseguramiento: '', Corte_Facturacion: row['Corte_Facturacion'] || '', Cuenta: row['Cuenta'] || '', Operacion_Aseguramiento: '',
-                        Tipo_Aseguramiento: '', Mes_Aseguramiento: '', requiereBaja: false, numeroOrdenBaja: '', requiereAjuste: false,
-                        numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '',
-                        fechaEfectivaDevolucion: '', areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '',
-                        Correo_Electronico_Reclamante: row.Correo_Electronico_Reclamante || 'N/A', Direccion_Reclamante: row.Direccion_Reclamante || 'N/A'
+                let foundMatch = false;
+                const potentialMatches = [
+                    ...(casesByClienteNuip.get(nuipToSearch) || []),
+                    ...(casesByReclamanteNuip.get(nuipToSearch) || [])
+                ];
+                const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
+
+                if (uniqueMatches.length > 0) {
+                    foundMatch = true;
+                    uniqueMatches.forEach(caseToUpdate => {
+                        // Lógica de reclasificación: Solo actualiza si no está ya marcado como Nabis (manual)
+                        if (caseToUpdate.isNabis === true) {
+                            skippedNabisCount++;
+                            return;
+                        }
+
+                        const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
+                        const updateData = {
+                            Tipo_Contrato: 'Contrato Marco'
+                        };
+                        if (row.Numero_Contrato_Marco) {
+                            updateData.Numero_Contrato_Marco = String(row.Numero_Contrato_Marco).trim();
+                        }
+                        batch.update(docRef, updateData);
+                        updatedCasesCount++;
                     });
-                    addedCount++;
-                    existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row });
+                }
+
+                if (!foundMatch) {
+                    nuipsNotFoundCount++;
                 }
             }
-            if (cancelUpload.current) { displayModalMessage(`Carga de Contrato Marco cancelada. ${addedCount} casos nuevos agregados, ${updatedCount} actualizados.`); }
-            else { displayModalMessage(`Carga Contrato Marco Completa: ${addedCount} casos nuevos agregados. ${updatedCount} casos existentes actualizados. ${skippedCount} casos omitidos.`); }
-        } catch (err) { displayModalMessage(`Error durante la carga del CSV de Contrato Marco: ${err.message}`); }
-        finally { setUploading(false); if (event.target) event.target.value = ''; }
-    };
-    reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
-    reader.readAsText(file, 'ISO-8859-1');
-}
 
-async function handleReporteCruceUpload(event) {
+            if (updatedCasesCount > 0) {
+                await batch.commit();
+            }
+
+            displayModalMessage(`Reclasificación completa. Casos actualizados: ${updatedCasesCount}. Casos omitidos por marca manual "CM Nabis": ${skippedNabisCount}. NUIPs del CSV no encontrados: ${nuipsNotFoundCount}.`);
+        } catch (err) {
+            console.error("Error durante reclasificación por Contrato Marco:", err);
+            displayModalMessage(`Error durante reclasificación por Contrato Marco: ${err.message}`);
+        } finally {
+            setUploading(false);
+            if (event.target) event.target.value = '';
+        }
+    };
+    reader.onerror = (err) => {
+        displayModalMessage(`Error leyendo el archivo: ${err.message}`);
+        setUploading(false);
+    };
+    reader.readAsText(file, 'ISO-8859-1'); // Leer como texto
+
+};
+
+// --- LÓGICA DE CARGA DE REPORTE CRUCE (ORIGINAL) ---
+const handleReporteCruceUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    setUploading(true); // Activa el mensaje de gestión
-    displayModalMessage(`Cargando Reporte Cruce (${file.name})...`);
-    
+
+    setUploading(true);
+    displayModalMessage('Procesando reporte para cruce de información...');
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            const { data: csvDataRows } = utils.parseCSV(e.target.result);
-            if (csvDataRows.length === 0) { displayModalMessage('Reporte Cruce vacío o inválido.'); setUploading(false); return; }
+            const { headers, data: reportData } = utils.parseCSV(e.target.result);
+            if (reportData.length === 0) {
+                throw new Error('El archivo CSV está vacío o tiene un formato no válido.');
+            }
             
-            // 🚨 CLAVE: Solo almacenar los datos en el estado, sin subir a Firebase.
-            setReporteCruceData(csvDataRows);
+            // 🚨 CLAVE: Almacenar los datos en el estado para el cruce en el modal
+            setReporteCruceData(reportData);
+
+            const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+            if (!nuipHeader) {
+                throw new Error("El archivo CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente').");
+            }
+
+            const reportNuips = new Set(
+                reportData.map(row => utils.normalizeNuip(row[nuipHeader])).filter(nuip => nuip)
+            );
+            if (reportNuips.size === 0) {
+                throw new Error("No se encontraron Documentos de Identidad (NUIP) válidos en el reporte.");
+            }
             
-            displayModalMessage(`Carga Reporte Cruce Completa: ${csvDataRows.length} filas cargadas para cruce.`);
-        } catch (err) { 
-            displayModalMessage(`Error durante la carga del Reporte Cruce: ${err.message}`); 
-        } finally { 
-            setUploading(false); 
-            if (event.target) event.target.value = ''; 
+            // Lógica para contar coincidencias (para el mensaje de feedback)
+            const casesByNuip = new Map();
+            cases.forEach(caseItem => {
+                const nuips = [utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
+                nuips.forEach(nuip => {
+                    if (nuip && nuip !== '0' && nuip !== 'N/A') {
+                        if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
+                        casesByNuip.get(nuip).push(caseItem.SN);
+                    }
+                });
+            });
+            
+            const matches = new Map();
+            reportNuips.forEach(nuip => {
+                if (casesByNuip.has(nuip)) {
+                    matches.set(nuip, casesByNuip.get(nuip));
+                }
+            });
+
+            if (matches.size > 0) {
+                let message = `Reporte cargado. Se encontraron coincidencias para ${matches.size} documentos en sus casos asignados:\n\n`;
+                matches.forEach((snList, nuip) => {
+                    message += `- Documento ${nuip}:\n  Casos SN: ${[...new Set(snList)].join(', ')}\n`;
+                });
+                displayModalMessage(message);
+            } else {
+                displayModalMessage(`Reporte cargado (${reportData.length} filas). No se encontraron coincidencias inmediatas en sus casos asignados.`);
+            }
+
+        } catch (err) {
+            console.error("Error al procesar el reporte:", err);
+            displayModalMessage(`Error al procesar el reporte: ${err.message}`);
+        } finally {
+            setUploading(false);
+            if (event.target) event.target.value = '';
         }
     };
-    reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
+    reader.onerror = (err) => {
+        displayModalMessage(`Error leyendo el archivo: ${err.message}`);
+        setUploading(false);
+    };
     reader.readAsText(file, 'ISO-8859-1');
-}
+};
     // --- LÓGICA DE FILTROS Y RENDERING ---
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
