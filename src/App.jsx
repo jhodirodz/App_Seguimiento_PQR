@@ -88,7 +88,7 @@ function App() {
     const [keywordAlarmCases, setKeywordAlarmCases] = useState([]);
     
     const nonBusinessDays = new Set(constants.COLOMBIAN_HOLIDAYS);
-    const statusColors = constants.statusColors;
+    // const statusColors = constants.statusColors; // <-- Línea eliminada
     
     // --- FUNCIONES DE UTILIDAD Y MODALES ---
     const displayModalMessage = useCallback((message) => {
@@ -498,8 +498,8 @@ function App() {
                 cases={data}
                 title={title}
                 mainTableHeaders={constants.MAIN_TABLE_HEADERS}
-                statusColors={statusColors}
-                priorityColors={constants.priorityColors}
+                statusColors={constants.statusColors} // <-- Usa la constante importada
+                priorityColors={constants.priorityColors} // <-- Usa la constante importada
                 selectedCaseIds={selectedCaseIds}
                 handleSelectCase={handleSelectCase}
                 handleOpenCaseDetails={handleOpenCaseDetails}
@@ -1221,7 +1221,7 @@ async function handleObservationFileChange(event) {
                         </div>
                         <div className="mt-4">
                             <p className="text-sm text-gray-600 mb-4">Los siguientes casos de **cancelación de servicio o cambio a prepago** requieren tu atención. Se activó la alarma por estar a 3 días hábiles de la fecha de corte.</p>
-                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">{cancelAlarmCases.map(c => (<div key={c.id} className="p-3 rounded-md border bg-red-50 border-red-200"><div className="flex justify-between items-center"><div><p className="font-bold text-red-800">SN: {c.SN}</p><p className="text-sm"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${constants.statusColors[c.Estado_Gestion]}`}>{c.Estado_Gestion}</span></p><p className="text-sm text-gray-700 mt-1">Categoría: {c['Categoria del reclamo'] || 'N/A'}</p><p className="text-sm text-gray-700">Corte Facturación: Día {c.Corte_Facturacion}</p></div></div></div>))}</div>
                             <div className="flex justify-end mt-4">
                                 <button onClick={() => { cancelAlarmCases.forEach(c => { sessionStorage.setItem(`cancelAlarmShown_${c.id}_${utils.getColombianDateISO()}`, 'true'); }); setShowCancelAlarmModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Cerrar Alertas</button>
                             </div>
@@ -1247,7 +1247,7 @@ async function handleObservationFileChange(event) {
                                             <div>
                                                 <p className="font-bold text-yellow-800">SN: {c.SN}</p>
                                                 <p className="text-sm">
-                                                    <span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[c.Estado_Gestion]}`}>
+                                                    <span className={`px-2 inline-flex text-xs font-semibold rounded-full ${constants.statusColors[c.Estado_Gestion]}`}>
                                                         {c.Estado_Gestion}
                                                     </span>
                                                 </p>
