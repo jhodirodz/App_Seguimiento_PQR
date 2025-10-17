@@ -311,7 +311,26 @@ function App() {
     }, [cases]);
 
     async function handleOpenCaseDetails(caseItem) {
-        setSelectedCase(caseItem);
+        // --- INICIO DE LA CORRECCIÓN DE FORMATO DE FECHAS (CRUCIAL) ---
+        const formattedCaseItem = { ...caseItem };
+        
+        // Aplica el formato 'YYYY-MM-DD' a las fechas clave para el input type="date"
+        if (caseItem['Fecha Radicado']) {
+            formattedCaseItem['Fecha Radicado'] = utils.formatDateForInput(caseItem['Fecha Radicado']);
+        }
+        if (caseItem['Fecha Cierre']) {
+            formattedCaseItem['Fecha Cierre'] = utils.formatDateForInput(caseItem['Fecha Cierre']);
+        }
+        if (caseItem['Fecha Vencimiento']) {
+            formattedCaseItem['Fecha Vencimiento'] = utils.formatDateForInput(caseItem['Fecha Vencimiento']);
+        }
+        if (caseItem['Fecha_Vencimiento_Decreto']) {
+            formattedCaseItem['Fecha_Vencimiento_Decreto'] = utils.formatDateForInput(caseItem['Fecha_Vencimiento_Decreto']);
+        }
+        
+        setSelectedCase(formattedCaseItem);
+        // --- FIN DE LA CORRECCIÓN DE FORMATO DE FECHAS ---
+
         const duplicatesMap = new Map();
         const normalizedCaseNuips = new Set([utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)].filter(nuip => nuip && nuip !== '0' && nuip !== 'N/A'));
         normalizedCaseNuips.forEach(nuip => {
