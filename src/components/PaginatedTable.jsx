@@ -1,7 +1,21 @@
+// PaginatedTable (2).jsx
 import React, { useState } from 'react';
 import { FaRegEye } from 'react-icons/fa';
 
-const PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, priorityColors, selectedCaseIds, handleSelectCase, handleOpenCaseDetails, onScanClick, nonBusinessDays, calculateCaseAge }) => {
+const PaginatedTable = ({ 
+    cases, 
+    title, 
+    mainTableHeaders, 
+    // Añade valores por defecto para evitar errores si son undefined
+    statusColors = {}, 
+    priorityColors = {}, 
+    selectedCaseIds, 
+    handleSelectCase, 
+    handleOpenCaseDetails, 
+    onScanClick, 
+    nonBusinessDays, 
+    calculateCaseAge 
+}) => {
     const [currentPage, setCurrentPage] = useState(1);
     const casesPerPage = 10;
 
@@ -62,6 +76,7 @@ const PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, priority
                                     if (h === 'Dia') v = calculateCaseAge(c, nonBusinessDays);
                                     // -------------------------
 
+                                    // Uso de statusColors y priorityColors (ahora definidos como {} por defecto)
                                     if (h === 'Estado_Gestion') return <td key={h} className="px-6 py-4"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${statusColors[v] || statusColors['N/A']}`}>{v}</span></td>;
                                     if (h === 'Prioridad') return <td key={h} className="px-6 py-4"><span className={`px-2 inline-flex text-xs font-semibold rounded-full ${priorityColors[v] || priorityColors['N/A']}`}>{v}</span></td>;
                                     return <td key={h} className="px-6 py-4 whitespace-nowrap text-sm">{v}</td>
@@ -91,7 +106,7 @@ const PaginatedTable = ({ cases, title, mainTableHeaders, statusColors, priority
                         {[...Array(totalPages).keys()].map(number => (
                             <li key={number + 1}><button onClick={() => paginate(number + 1)} className={`px-3 py-2 leading-tight border border-gray-300 ${currentPage === number + 1 ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' : 'text-gray-500 bg-white hover:bg-gray-100 hover:text-gray-700'}`}>{number + 1}</button></li>
                         ))}
-                        <li><button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50">Siguiente</button></li>
+                        <li><button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:hover:text-gray-700 disabled:opacity-50">Siguiente</button></li>
                     </ul>
                 </nav>
             )}
