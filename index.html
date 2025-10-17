@@ -1,20 +1,19 @@
 <!doctype html>
 <html lang="es">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>App Seguimiento PQR</title>
-
-    <link rel="manifest" href="/manifest.json" />
-
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-
     <meta name="theme-color" content="#1e40af" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js" defer></script>
     
     <script>
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+      window.addEventListener('load', function() {
+        if (typeof pdfjsLib !== 'undefined') {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+        } else {
+          // Si esto sucede, es un error de red/CDN, no de código.
+          console.error("PDF.js no cargó la variable global pdfjsLib a tiempo."); 
+        }
+      });
     </script>
     </head>
 
