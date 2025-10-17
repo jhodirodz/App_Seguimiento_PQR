@@ -43,7 +43,8 @@ function App() {
     const [showModal, setShowModal] = useState(false);
     const [modalContent, setModalContent] = useState({ message: '', isConfirm: false, onConfirm: () => { }, confirmText: 'Confirmar', cancelText: 'Cancelar' });
     const [activeModule, setActiveModule] = useState('casos');
-    const [currentDateTime, setCurrentDateTime] = useState(new Date());
+    // Usamos 'America/Bogota' para la hora de Colombia
+    const [currentDateTime, setCurrentDateTime] = useState(new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }));
 
     // --- ESTADOS RELACIONADOS CON EL MODAL ---
     const [selectedCase, setSelectedCase] = useState(null);
@@ -88,7 +89,6 @@ function App() {
     const [keywordAlarmCases, setKeywordAlarmCases] = useState([]);
     
     const nonBusinessDays = new Set(constants.COLOMBIAN_HOLIDAYS);
-    // const statusColors = constants.statusColors; // <-- Línea eliminada
     
     // --- FUNCIONES DE UTILIDAD Y MODALES ---
     const displayModalMessage = useCallback((message) => {
@@ -371,6 +371,93 @@ function App() {
         }
     }
 
+    // Función de Exportación (Reincorporada)
+    const exportCasesToCSV = (isTodayResolvedOnly = false) => {
+        const today = utils.getColombianDateISO();
+        const casesToExport = isTodayResolvedOnly
+            ? cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === today)
+            : cases;
+
+        if (casesToExport.length === 0) {
+            displayModalMessage(isTodayResolvedOnly ? 'No hay casos resueltos o finalizados hoy.' : 'No hay casos para exportar.');
+            return;
+        }
+
+        const downloadCSV = (csvContent, filename) => {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                displayModalMessage('La descarga automática no es soportada en tu navegador.');
+            }
+        };
+
+        const ORIGINAL_CSV_HEADERS = [
+            'SN', 'CUN', 'Fecha Radicado', 'Dia', 'Fecha Vencimiento', 'Nombre_Cliente', 'Nro_Nuip_Cliente', 
+            'Correo_Electronico_Cliente', 'Direccion_Cliente', 'Ciudad_Cliente', 'Depto_Cliente', 
+            'Nombre_Reclamante', 'Nro_Nuip_Reclamante', 'Correo_Electronico_Reclamante', 'Direccion_Reclamante',
+            'Ciudad_Reclamante', 'Depto_Reclamante', 'HandleNumber', 'AcceptStaffNo', 'type_request', 'obs',
+            'nombre_oficina', 'Tipopago', 'date_add', 'Tipo_Operacion'
+        ];
+
+        const baseHeaders = [
+            ...ORIGINAL_CSV_HEADERS,
+            'Fecha Cierre','Estado_Gestion','Prioridad','Analisis de la IA','Categoria del reclamo', 'Sentimiento_IA',
+            'Resumen_Hechos_IA','Proyeccion_Respuesta_IA', 'Sugerencias_Accion_IA', 'Causa_Raiz_IA', 'Riesgo_SIC',
+            'Tipo_Contrato', 'Numero_Contrato_Marco', 'isNabis', 'Observaciones', 'Observaciones_Historial', 
+            'SNAcumulados_Historial', 'Escalamiento_Historial', 'Aseguramiento_Historial',
+            'Despacho_Respuesta_Checked', 'Fecha_Inicio_Gestion','Tiempo_Resolucion_Minutos',
+            'Radicado_SIC','Fecha_Vencimiento_Decreto', 'Requiere_Aseguramiento_Facturas', 'ID_Aseguramiento',
+            'Corte_Facturacion', 'Cuenta', 'Operacion_Aseguramiento', 'Tipo_Aseguramiento', 'Mes_Aseguramiento',
+            'requiereBaja', 'numeroOrdenBaja', 'requiereAjuste', 'numeroTT', 'estadoTT', 
+            'requiereDevolucionDinero', 'cantidadDevolver', 'idEnvioDevoluciones', 'fechaEfectivaDevolucion',
+        ];
+        
+        const dynamicHeaders = Array.from(new Set(casesToExport.flatMap(c => Object.keys(c))));
+        const actualFinalHeaders = Array.from(new Set(baseHeaders.concat(dynamicHeaders)));
+
+        // --- GENERACIÓN DEL ARCHIVO ACTUALIZADO ---
+        let csvActual = actualFinalHeaders.map(h => `"${h}"`).join(',') + '\n';
+        casesToExport.forEach(c => {
+            const actualRow = actualFinalHeaders.map(h => {
+                let v = c[h] ?? '';
+                if (h === 'Dia') v = utils.calculateCaseAge(c, nonBusinessDays);
+                if (typeof v === 'object') v = JSON.stringify(v);
+                return `"${String(v).replace(/"/g, '""')}"`;
+            }).join(',');
+            csvActual += actualRow + '\n';
+        });
+
+        // --- GENERACIÓN DEL ARCHIVO ORIGINAL (con la columna 'Dia_Original_CSV' si existe) ---
+        let csvOriginal = ORIGINAL_CSV_HEADERS.map(h => `"${h}"`).join(',') + '\n';
+        casesToExport.forEach(c => {
+            const originalRow = ORIGINAL_CSV_HEADERS.map(h => {
+                let v = '';
+                // Usamos 'Dia_Original_CSV' para la columna 'Dia' si está disponible
+                if (h === 'Dia') {
+                    v = c['Dia_Original_CSV'] ?? '';
+                } else {
+                    v = c[h] ?? '';
+                }
+                if (typeof v === 'object') v = JSON.stringify(v);
+                return `"${String(v).replace(/"/g, '""')}"`;
+            }).join(',');
+            csvOriginal += originalRow + '\n';
+        });
+
+        const filenameSuffix = isTodayResolvedOnly ? `resueltos_hoy_${today}` : `todos_${today}`;
+        downloadCSV(csvOriginal, `casos_originales_${filenameSuffix}.csv`);
+        
+        setTimeout(() => {
+            downloadCSV(csvActual, `casos_actuales_${filenameSuffix}.csv`);
+        }, 500);
+    };
+
     async function handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -440,6 +527,188 @@ function App() {
         reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
         reader.readAsText(file, 'ISO-8859-1');
     }
+
+    // --- FUNCIONES FALTANTES PARA BOTONES DE CARGA ---
+
+    const handleContractMarcoUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        displayModalMessage('Procesando CSV de Contrato Marco para reclasificación...');
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                if (!db || !userId) throw new Error('DB no lista o usuario no autenticado.');
+                const { headers, data: csvDataRows } = utils.parseCSV(e.target.result);
+                if (csvDataRows.length === 0) throw new Error('CSV de Contrato Marco vacío o inválido.');
+                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+                if (!nuipHeader) {
+                    throw new Error("El CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente' o 'NUIP').");
+                }
+
+                const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+                const batch = writeBatch(db);
+                let updatedCasesCount = 0;
+                let nuipsNotFoundCount = 0;
+                let skippedNabisCount = 0;
+
+                // Fetch all cases to check the 'isNabis' flag before updating
+                const allCasesSnapshot = await getDocs(collRef);
+                const casesByClienteNuip = new Map();
+                const casesByReclamanteNuip = new Map();
+
+                allCasesSnapshot.forEach(docSnap => {
+                    const caseData = { id: docSnap.id, ...docSnap.data() };
+                    const clienteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Cliente);
+                    const reclamanteNuip = utils.normalizeNuip(caseData.Nro_Nuip_Reclamante);
+
+                    if (clienteNuip && clienteNuip !== '0' && clienteNuip !== 'N/A') {
+                        if (!casesByClienteNuip.has(clienteNuip)) {
+                            casesByClienteNuip.set(clienteNuip, []);
+                        }
+                        casesByClienteNuip.get(clienteNuip).push(caseData);
+                    }
+                    if (reclamanteNuip && reclamanteNuip !== '0' && reclamanteNuip !== 'N/A') {
+                        if (!casesByReclamanteNuip.has(reclamanteNuip)) {
+                            casesByReclamanteNuip.set(reclamanteNuip, []);
+                        }
+                        casesByReclamanteNuip.get(reclamanteNuip).push(caseData);
+                   }
+                });
+
+                const processedNuips = new Set();
+                for (const row of csvDataRows) {
+                    const nuipToSearch = utils.normalizeNuip(row[nuipHeader]);
+                    if (!nuipToSearch || processedNuips.has(nuipToSearch)) {
+                        continue;
+                    }
+                    processedNuips.add(nuipToSearch);
+                    
+                    let foundMatch = false;
+                    const potentialMatches = [
+                        ...(casesByClienteNuip.get(nuipToSearch) || []),
+                        ...(casesByReclamanteNuip.get(nuipToSearch) || [])
+                    ];
+                    const uniqueMatches = Array.from(new Map(potentialMatches.map(item => [item.id, item])).values());
+
+                    if (uniqueMatches.length > 0) {
+                        foundMatch = true;
+                        uniqueMatches.forEach(caseToUpdate => {
+                            if (caseToUpdate.isNabis === true) {
+                                skippedNabisCount++;
+                                return; // Skip this case, it was manually marked
+                            }
+
+                            const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseToUpdate.id);
+                            const updateData = {
+                                Tipo_Contrato: 'Contrato Marco'
+                            };
+                            if (row.Numero_Contrato_Marco) {
+                                updateData.Numero_Contrato_Marco = String(row.Numero_Contrato_Marco).trim();
+                            }
+                            batch.update(docRef, updateData);
+                            updatedCasesCount++;
+                        });
+                    }
+
+                    if (!foundMatch) {
+                        nuipsNotFoundCount++;
+                    }
+                }
+
+                if (updatedCasesCount > 0) {
+                    await batch.commit();
+                }
+
+                displayModalMessage(`Reclasificación completa. Casos actualizados: ${updatedCasesCount}. Casos omitidos por marca manual "CM Nabis": ${skippedNabisCount}. NUIPs del CSV no encontrados: ${nuipsNotFoundCount}.`);
+            } catch (err) {
+                displayModalMessage(`Error durante reclasificación por Contrato Marco: ${err.message}`);
+            } finally {
+                setUploading(false);
+                if (contractMarcoFileInputRef.current) contractMarcoFileInputRef.current.value = '';
+            }
+        };
+        reader.onerror = (err) => {
+            displayModalMessage(`Error leyendo el archivo: ${err.message}`);
+            setUploading(false);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleReporteCruceUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        displayModalMessage('Procesando reporte para cruce de información...');
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const { headers, data: reportData } = utils.parseCSV(e.target.result);
+                if (reportData.length === 0) {
+                    throw new Error('El archivo CSV está vacío o tiene un formato no válido.');
+                }
+                
+                setReporteCruceData(reportData);
+
+                const nuipHeader = headers.find(h => h.toLowerCase().includes('nuip'));
+                if (!nuipHeader) {
+                    throw new Error("El archivo CSV debe contener una columna con 'nuip' en el encabezado (ej: 'Nro_Nuip_Cliente').");
+                }
+
+                const reportNuips = new Set(
+                    reportData.map(row => utils.normalizeNuip(row[nuipHeader])).filter(nuip => nuip)
+                );
+                if (reportNuips.size === 0) {
+                    throw new Error("No se encontraron Documentos de Identidad (NUIP) válidos en el reporte.");
+                }
+                
+                const casesByNuip = new Map();
+                cases.forEach(caseItem => {
+                    const nuips = [utils.normalizeNuip(caseItem.Nro_Nuip_Cliente), utils.normalizeNuip(caseItem.Nro_Nuip_Reclamante)];
+                    nuips.forEach(nuip => {
+                        if (nuip && nuip !== '0' && nuip !== 'N/A') {
+                            if (!casesByNuip.has(nuip)) casesByNuip.set(nuip, []);
+                            casesByNuip.get(nuip).push(caseItem.SN);
+                        }
+                    });
+                });
+                
+                const matches = new Map();
+                reportNuips.forEach(nuip => {
+                    if (casesByNuip.has(nuip)) {
+                        matches.set(nuip, casesByNuip.get(nuip));
+                    }
+                });
+                if (matches.size > 0) {
+                    let message = `Reporte cargado. Se encontraron coincidencias para ${matches.size} documentos en sus casos asignados:\n\n`;
+                    matches.forEach((snList, nuip) => {
+                        message += `- Documento ${nuip}:\n  Casos SN: ${[...new Set(snList)].join(', ')}\n`;
+                    });
+                    displayModalMessage(message);
+                } else {
+                    displayModalMessage('Reporte cargado. No se encontraron coincidencias inmediatas en sus casos asignados.');
+                }
+
+            } catch (err) {
+                displayModalMessage(`Error al procesar el reporte: ${err.message}`);
+            } finally {
+                setUploading(false);
+                if (reporteCruceFileInputRef.current) {
+                    reporteCruceFileInputRef.current.value = '';
+                }
+            }
+        };
+        reader.onerror = (err) => {
+            displayModalMessage(`Error leyendo el archivo: ${err.message}`);
+            setUploading(false);
+        };
+        reader.readAsText(file, 'ISO-8859-1');
+    };
+
+    // --- FIN FUNCIONES FALTANTES PARA BOTONES DE CARGA ---
 
     // --- LÓGICA DE FILTROS Y RENDERING ---
     const filteredAndSearchedCases = useMemo(() => {
@@ -718,6 +987,7 @@ function App() {
     // --- LÓGICA DE ALARMAS ---
     const checkCancellationAlarms = useCallback(() => {
         const today = new Date();
+        // Aseguramos que la fecha de hoy sea en zona horaria colombiana para la clave de sesión.
         const todayISO = utils.getColombianDateISO();
         const casesToAlert = cases.filter(caseItem => {
             const isCancellationRelated = String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('cancelacion') || String(caseItem['Categoria del reclamo'] || '').toLowerCase().includes('prepago');
@@ -830,10 +1100,7 @@ async function handleObservationFileChange(event) {
     const file = event.target.files[0];
     if (!file || !selectedCase) return;
 
-    // Se asume que el modal ya ha llamado a setIsTranscribingObservation(true)
-    // Se necesita actualizar el estado de carga si la llamada viene directamente del input.
-    // Aunque el modal maneja su propio estado de `isTranscribingObservation`,
-    // podemos establecer una referencia global si fuera necesario, pero por ahora solo ejecutamos la lógica.
+    // Nota: Esta función es invocada por el input file asociado a observationFileInputRef
 
     displayModalMessage(`Analizando adjunto (${file.type}) para caso ${selectedCase.SN}...`);
 
@@ -900,8 +1167,7 @@ async function handleObservationFileChange(event) {
         console.error("Error processing observation file:", error);
         displayModalMessage(`❌ Error al analizar el adjunto: ${error.message || 'Error desconocido'}`);
     } finally {
-        // Asumiendo que el modal maneja su propio estado de carga, 
-        // pero reseteamos el input file para permitir la subida de otro archivo.
+        // Reseteamos el input file para permitir la subida de otro archivo.
         if (event.target) event.target.value = null; 
     }
 }
@@ -1035,6 +1301,17 @@ async function handleObservationFileChange(event) {
     }, [cases, checkCancellationAlarms]);
 
     useEffect(() => {
+        if (cases.length > 0) {
+            // Actualizar la fecha y hora cada segundo
+            const timer = setInterval(() => {
+                // Usamos 'America/Bogota' para la hora de Colombia
+                setCurrentDateTime(new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }));
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [cases]);
+
+    useEffect(() => {
         if (cases.length === 0) return;
         const checkAlarms = () => {
             const todayISO = utils.getColombianDateISO();
@@ -1098,27 +1375,16 @@ async function handleObservationFileChange(event) {
             )}
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
-            <input 
-    type="file" 
-    accept=".csv" 
-    ref={contractMarcoFileInputRef} 
-    onChange={handleContractMarcoUpload} // <-- Restaurar onChange
-    style={{ display: 'none' }} 
-/>
-            <input 
-    type="file" 
-    accept=".csv" 
-    ref={reporteCruceFileInputRef} 
-    onChange={handleReporteCruceUpload} // <-- Restaurar onChange
-    style={{ display: 'none' }} 
-/>
+            {/* CORRECCIÓN: Se restauran los handlers onChange para los botones de carga */}
+            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
+            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
             <input
-    type="file"
-    ref={observationFileInputRef}
-    onChange={handleObservationFileChange} // <--- Corregido al handler real
-    accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
-    style={{ display: 'none' }}
-/>
+                type="file"
+                ref={observationFileInputRef}
+                onChange={handleObservationFileChange}
+                accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
+                style={{ display: 'none' }}
+            />
 
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
@@ -1127,7 +1393,7 @@ async function handleObservationFileChange(event) {
                     <button onClick={() => setActiveModule('aseguramientos')} className={`px-6 py-2 rounded-lg font-semibold ${activeModule === 'aseguramientos' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Aseguramientos</button>
                 </div>
                 {userId && <p className="text-sm text-center mb-4">User ID: <span className="font-mono bg-gray-200 px-1 rounded">{userId}</span></p>}
-                <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</p>
+                <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime}</p>
                 <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
                 {activeModule === 'casos' && (
                     <>
@@ -1166,25 +1432,11 @@ async function handleObservationFileChange(event) {
                                 <button onClick={() => setShowManualEntryModal(true)} className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Ingresar Manual</button>
                                 <button onClick={() => contractMarcoFileInputRef.current.click()} className="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75">Cargar CSV Contrato Marco</button>
                                 <button onClick={() => reporteCruceFileInputRef.current.click()} className="px-5 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75" disabled={uploading}>Cargar Reporte Cruce</button>
-                                <button 
-    onClick={forceRefreshCases} 
-    className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" 
-    disabled={refreshing}
->
-    {refreshing ? 'Actualizando...' : 'Refrescar Casos'}
-</button>
-                                <button 
-    onClick={() => exportCasesToCSV(false)} 
-    className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
->
-    Exportar Todos
-</button>
-<button 
-    onClick={() => exportCasesToCSV(true)} 
-    className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75"
->
-    Exportar Resueltos Hoy
-</button>                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
+                                <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
+                                {/* CORRECCIÓN: Se restauran los handlers onClick para los botones de exportación */}
+                                <button onClick={() => exportCasesToCSV(false)} className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
+                                <button onClick={() => exportCasesToCSV(true)} className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
+                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
                             </div>
                         </div>
                     </>
@@ -1382,6 +1634,7 @@ async function handleObservationFileChange(event) {
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
                         <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
+                        {/* CORRECCIÓN: Se asume que handleManualSubmit, handleManualFormChange y sus utilidades están definidas en otro lugar para que este formulario funcione */}
                         <form /* onSubmit={handleManualSubmit} */>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} /* onChange={handleManualFormChange} */ required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}
