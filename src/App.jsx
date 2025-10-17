@@ -663,6 +663,57 @@ function App() {
         }
         displayConfirmModal(`Se reabrirán ${casesToReopen.length} de los ${selectedCaseIds.size} casos seleccionados (solo los que están en estado "Resuelto"). ¿Continuar?`, { onConfirm });
     }
+    
+    // Función para el botón de Limpieza Total (handleDeleteAllCases)
+    const handleDeleteAllCases = () => {
+        if (cases.length === 0) {
+            displayModalMessage('No hay casos para eliminar.');
+            return;
+        }
+
+        const onConfirm = async () => {
+            if (!db || !userId) {
+                displayModalMessage('Error: La conexión con la base de datos no está disponible.');
+                return;
+            }
+
+            setIsMassUpdating(true);
+            displayModalMessage(`Eliminando todos los ${cases.length} casos...`);
+            const batch = writeBatch(db);
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+
+            try {
+                const allCasesSnapshot = await getDocs(collRef);
+                if (allCasesSnapshot.empty) {
+                     displayModalMessage('No se encontraron casos para eliminar en la base de datos.');
+                     setIsMassUpdating(false);
+                     setCases([]);
+                     return;
+                }
+
+                allCasesSnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                displayModalMessage(`Se eliminaron todos los ${allCasesSnapshot.size} casos exitosamente.`);
+                setSelectedCaseIds(new Set());
+            } catch (error) {
+                console.error("Error en la eliminación total:", error);
+                displayModalMessage(`Error al realizar la limpieza total: ${error.message}`);
+            } finally {
+                setIsMassUpdating(false);
+            }
+        };
+
+        displayConfirmModal(
+            `¿Está absolutamente seguro de que desea eliminar TODOS los ${cases.length} casos de la base de datos? Esta acción es irreversible.`,
+            {
+                onConfirm,
+                confirmText: 'Sí, Eliminar Todo',
+                cancelText: 'No, Cancelar'
+            }
+        );
+    };
 
     // --- LÓGICA DE ALARMAS ---
     const checkCancellationAlarms = useCallback(() => {
@@ -1106,7 +1157,7 @@ async function handleObservationFileChange(event) {
                                 <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
                                 <button /* onClick={() => exportCasesToCSV(false)} */ className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
                                 <button /* onClick={() => exportCasesToCSV(true)} */ className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
-                                <button /* onClick={handleDeleteAllCases} */ className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
+                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
                             </div>
                         </div>
                     </>
