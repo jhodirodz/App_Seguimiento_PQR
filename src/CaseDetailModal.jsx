@@ -666,17 +666,21 @@ export default function CaseDetailModal({
                 <div className="mt-6 border-t pt-6">
                     <h4 className="text-xl font-semibold mb-4">Gestión del Caso</h4>
                     <div className="flex flex-wrap gap-3 mb-6">
-                        {[{ l: 'Iniciado', s: 'Iniciado', cl: 'indigo' }, { l: 'Lectura', s: 'Lectura', cl: 'blue' }, 
-                          { l: 'Decretado', s: 'Decretado', cl: 'purple' }, { l: 'Traslado SIC', s: 'Traslado SIC', cl: 'orange' }, 
-                          { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes', cl: 'pink' }, { l: 'Resuelto', s: 'Resuelto', cl: 'green' }, 
-                          { l: 'Pendiente', s: 'Pendiente', cl: 'yellow' }, { l: 'Escalado', s: 'Escalado', cl: 'red' }
-                        ].map(b => (
-                            <button key={b.s} onClick={() => handleChangeCaseStatus(b.s)} 
-                                className={`px-4 py-2 rounded-md font-semibold ${localCase.Estado_Gestion === b.s ? `bg-${b.cl}-600 text-white` : `bg-${b.cl}-200 text-${b.cl}-800 hover:bg-${b.cl}-300`} `}>
-                                {b.l}
-                            </button>
-                        ))}
-                    </div>
+    {constants.STATUS_BUTTONS.map(b => {
+        const classes = constants.BUTTON_STATUS_CLASSES[b.s];
+        if (!classes) return null; // Prevenir errores si falta una clase
+
+        return (
+            <button 
+                key={b.s} 
+                onClick={() => handleChangeCaseStatus(b.s)} 
+                className={`px-4 py-2 rounded-md font-semibold transition-colors duration-150 ${localCase.Estado_Gestion === b.s ? classes.active : classes.inactive}`}
+            >
+                {b.l}
+            </button>
+        );
+    })}
+</div>
                     <div className="mb-4">
                         <label className="inline-flex items-center">
                             <input type="checkbox" className="form-checkbox h-5 w-5" checked={localCase.Despacho_Respuesta_Checked || false} onChange={handleDespachoRespuestaChange} />
