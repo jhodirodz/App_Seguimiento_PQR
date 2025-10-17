@@ -1098,8 +1098,20 @@ async function handleObservationFileChange(event) {
             )}
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} /* onChange={handleContractMarcoUpload} */ style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} /* onChange={handleReporteCruceUpload} */ style={{ display: 'none' }} />
+            <input 
+    type="file" 
+    accept=".csv" 
+    ref={contractMarcoFileInputRef} 
+    onChange={handleContractMarcoUpload} // <-- Restaurar onChange
+    style={{ display: 'none' }} 
+/>
+            <input 
+    type="file" 
+    accept=".csv" 
+    ref={reporteCruceFileInputRef} 
+    onChange={handleReporteCruceUpload} // <-- Restaurar onChange
+    style={{ display: 'none' }} 
+/>
             <input
     type="file"
     ref={observationFileInputRef}
@@ -1154,10 +1166,25 @@ async function handleObservationFileChange(event) {
                                 <button onClick={() => setShowManualEntryModal(true)} className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">Ingresar Manual</button>
                                 <button onClick={() => contractMarcoFileInputRef.current.click()} className="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75">Cargar CSV Contrato Marco</button>
                                 <button onClick={() => reporteCruceFileInputRef.current.click()} className="px-5 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75" disabled={uploading}>Cargar Reporte Cruce</button>
-                                <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
-                                <button /* onClick={() => exportCasesToCSV(false)} */ className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
-                                <button /* onClick={() => exportCasesToCSV(true)} */ className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
-                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
+                                <button 
+    onClick={forceRefreshCases} 
+    className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" 
+    disabled={refreshing}
+>
+    {refreshing ? 'Actualizando...' : 'Refrescar Casos'}
+</button>
+                                <button 
+    onClick={() => exportCasesToCSV(false)} 
+    className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+>
+    Exportar Todos
+</button>
+<button 
+    onClick={() => exportCasesToCSV(true)} 
+    className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75"
+>
+    Exportar Resueltos Hoy
+</button>                                <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
                             </div>
                         </div>
                     </>
