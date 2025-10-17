@@ -14,42 +14,73 @@ export const getColombianDateISO = () => {
         day: '2-digit'
     }).format(new Date());
 };
+
 /**
  * Formats a date string into 'YYYY-MM-DD' for HTML date inputs.
- * Handles various formats like MM/DD/YYYY.
+ * Handles various formats like MM/DD/YYYY, DD/MM/YYYY.
  * @param {string} dateString - The date string to format.
  * @returns {string} The formatted date string or original if parsing fails.
  */
 export const formatDateForInput = (dateString) => {
     if (!dateString || typeof dateString !== 'string') return '';
-    // Handles formats like MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
     try {
-        const date = new Date(dateString.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2'));
-        if (isNaN(date.getTime())) return dateString; // Return original if parsing fails
+        // 1. Intenta parsear directamente, reemplazando '-' por '/' para mejor compatibilidad con new Date()
+        // Esto asume el formato MM/DD/YYYY si no se especifica explícitamente.
+        const cleanDateString = dateString.replace(/-/g, '/');
+        let date = new Date(cleanDateString);
+
+        // 2. Si el parseo directo falla o produce un resultado incoherente, intenta forzar DD/MM/YYYY
+        if (isNaN(date.getTime())) {
+            const parts = dateString.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+            if (parts) {
+                // Forzar DD/MM/YYYY -> MM/DD/YYYY para parsear correctamente.
+                date = new Date(`${parts[2]}/${parts[1]}/${parts[3]}`);
+            }
+        }
         
+        // 3. Verifica el resultado final del parseo
+        if (isNaN(date.getTime())) {
+            return dateString; // Devuelve el original si es inválido
+        }
+        
+        // 4. Formatea al estándar YYYY-MM-DD
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         
         return `${year}-${month}-${day}`;
     } catch (e) {
-        return dateString; // Return original on error
+        // En caso de error inesperado, devuelve la cadena original.
+        return dateString;
     }
 };
+
 /**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
+ * Esta función es principalmente utilizada para la carga inicial del CSV.
  * @param {string} dateStr - La cadena de fecha a parsear.
  * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
  */
 export const parseDate = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return '';
-    let parts = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    
+    // Intenta capturar DD/MM/YYYY o MM/DD/YYYY (con / o -)
+    let parts = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (parts) {
-        const month = parts[1].padStart(2, '0');
-        const day = parts[2].padStart(2, '0');
+        // Asumiendo DD/MM/YYYY (típico formato en Colombia) en la carga del CSV
+        const day = parts[1].padStart(2, '0');
+        const month = parts[2].padStart(2, '0');
         const year = parts[3];
+
+        // Retorna el formato estándar YYYY-MM-DD
         return `${year}-${month}-${day}`;
     }
+    
+    // Intenta parsear si ya viene en formato ISO (YYYY-MM-DD)
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return dateStr;
+    }
+    
     return dateStr;
 };
 
