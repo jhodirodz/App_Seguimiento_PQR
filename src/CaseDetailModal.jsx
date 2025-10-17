@@ -1,4 +1,3 @@
-// src/CaseDetailModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 
 // ===================================================================================
@@ -624,22 +623,9 @@ export default function CaseDetailModal({
                         <div className="flex flex-col gap-2 mb-2">
                             <textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={localCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." />
                             <div className="flex gap-2 self-end">
-                                {/* Botón: Transcribir Adjunto (ya corregido con la verificación de nulidad) */}
-                                <button 
-                                    onClick={() => {
-                                        if (observationFileInputRef.current) { 
-                                            observationFileInputRef.current.click();
-                                        } else {
-                                            displayModalMessage("Error: El input para transcribir el adjunto no está listo.");
-                                        }
-                                    }}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" 
-                                    disabled={isTranscribingObservation}
-                                >
+                                <button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>
                                     {isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}
                                 </button>
-                                
-
                                 <button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button>
                             </div>
                         </div>
