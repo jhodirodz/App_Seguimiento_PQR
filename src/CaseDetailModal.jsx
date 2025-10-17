@@ -639,21 +639,7 @@ export default function CaseDetailModal({
                                     {isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}
                                 </button>
                                 
-                                {/* NUEVO BOTÓN AÑADIDO: Escanear Adjunto (Solo se muestra si hay adjunto) */}
-                                {(localCase.Documento_Adjunto === 'Si_Adjunto' || localCase.Documento_Adjunto === 'Transcrito') && (
-                                     <button 
-                                        onClick={() => {
-                                            if (scanFileRef.current) {
-                                                scanFileRef.current.click(); // Llama al input del componente padre (App.jsx)
-                                            } else {
-                                                displayModalMessage("Error: La herramienta de escaneo no está disponible.");
-                                            }
-                                        }}
-                                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" 
-                                    >
-                                        ✨ Escanear Adjunto
-                                    </button>
-                                )}
+
                                 <button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button>
                             </div>
                         </div>
