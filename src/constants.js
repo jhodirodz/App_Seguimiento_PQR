@@ -170,3 +170,30 @@ export const COLOMBIAN_HOLIDAYS = [
   "2026-12-08", // Inmaculada Concepción
   "2026-12-25"  // Navidad
 ];
+
+// --- CONSTANTES DE ESTILO REQUERIDAS POR App.jsx y PaginatedTable para evitar TypeError ---
+// Se añaden estas constantes que faltaban para definir los colores de los estados y prioridades.
+
+export const statusColors = {
+    'Pendiente': 'bg-red-200 text-red-800 border-red-400',
+    'Iniciado': 'bg-blue-100 text-blue-800 border-blue-400',
+    'Lectura': 'bg-cyan-100 text-cyan-800 border-cyan-400',
+    'Resuelto': 'bg-green-100 text-green-800 border-green-400',
+    'Finalizado': 'bg-gray-200 text-gray-800 border-gray-400',
+    'Escalado': 'bg-orange-100 text-orange-800 border-orange-400',
+    'Decretado': 'bg-pink-100 text-pink-800 border-pink-400',
+    'Traslado SIC': 'bg-purple-100 text-purple-800 border-purple-400',
+    'Pendiente Ajustes': 'bg-yellow-100 text-yellow-800 border-yellow-400',
+    // Valor por defecto para asegurar que no falle
+    'N/A': 'bg-gray-400 text-white border-gray-600',
+};
+
+export const priorityColors = {
+    'Alta': 'bg-red-500 text-white',
+    'Media': 'bg-yellow-400 text-gray-900',
+    'Baja': 'bg-green-500 text-white',
+    // Valor por defecto para asegurar que no falle
+    'N/A': 'bg-gray-400 text-white',
+};
+
+// --- FIN CONSTANTES DE ESTILO ---
