@@ -11,8 +11,22 @@
 
     <meta name="theme-color" content="#1e40af" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js" defer></script>
+    
+    <script>
+      // Usamos DOMContentLoaded para que la configuración se dispare tan pronto como el HTML esté listo.
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          if (typeof pdfjsLib !== 'undefined') {
+            // Éxito: La librería cargó, ahora configuramos el worker.
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+          } else {
+            // Si sigue fallando, es un problema de red externo muy lento.
+            console.error("PDF.js no cargó la variable global pdfjsLib a tiempo. Revisa la conexión o el CDN."); 
+          }
+        }, 500); // Retraso de 500ms para asegurar la definición.
+      });
+    </script>
 
   </head>
 
