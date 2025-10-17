@@ -727,16 +727,9 @@ function App() {
 
     // --- LÓGICA DE ESCANEO DE DOCUMENTOS ---
     function handleScanClick(caseItem) {
-    setCaseToScan(caseItem);
-    // APLICAR LA VERIFICACIÓN DE NULIDAD AQUÍ
-    if (scanFileInputRef.current) { //
-        scanFileInputRef.current.click(); //
-    } else {
-        // Manejar error o simplemente ignorar si la ref no está lista
-        console.error("Error: scanFileInputRef.current is null.");
-        displayModalMessage("Error interno: La herramienta de escaneo no se cargó correctamente.");
+        setCaseToScan(caseItem);
+        scanFileInputRef.current.click();
     }
-}
     
     async function handleScanFileUpload(event) {
         const file = event.target.files[0];
@@ -896,12 +889,8 @@ async function handleObservationFileChange(event) {
         else { setShowAuthModal(false); }
     }, [loading, userId]);
 
-useEffect(() => {
-        if (!db || !userId) return; 
-
-        const currentUser = auth.currentUser;
-        if (!currentUser) return; 
-
+    useEffect(() => {
+        if (!db || !userId) return;
         const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`));
         const unsub = onSnapshot(q, async snapshot => {
             let fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
