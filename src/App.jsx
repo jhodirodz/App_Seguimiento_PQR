@@ -440,7 +440,106 @@ function App() {
         reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
         reader.readAsText(file, 'ISO-8859-1');
     }
+async function handleContractMarcoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    cancelUpload.current = false;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const { data: csvDataRows } = utils.parseCSV(e.target.result);
+            if (csvDataRows.length === 0) { displayModalMessage('CSV vacío o inválido.'); setUploading(false); return; }
+            if (!db || !userId) { displayModalMessage('DB no lista o usuario no auth.'); setUploading(false); return; }
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            const today = utils.getColombianDateISO();
+            const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
+            const existingDocsSnapshot = await getDocs(collRef);
+            const existingCasesMap = new Map(existingDocsSnapshot.docs.map(d => [String(d.data().SN || '').trim(), { id: d.id, ...d.data() }]));
+            let addedCount = 0, updatedCount = 0, skippedCount = 0;
+            
+            for (let i = 0; i < csvDataRows.length; i++) {
+                if (cancelUpload.current) { console.log("Carga cancelada por el usuario."); break; }
+                const row = csvDataRows[i];
+                const currentSN = String(row.SN || '').trim();
+                if (!currentSN) { skippedCount++; continue; }
+                displayModalMessage(`Procesando Contrato Marco ${i + 1}/${csvDataRows.length}...`);
+                const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
+                let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
+                // ... (lógica de cálculo de día similar a handleFileUpload)
+                
+                if (existingCasesMap.has(currentSN)) {
+                    const existingCaseData = existingCasesMap.get(currentSN);
+                    const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
+                    const updatedData = { ...row, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Tipo_Contrato: 'Contrato Marco', isNabis: true };
+                    await updateDoc(docRef, updatedData);
+                    updatedCount++;
+                } else {
+                    let aiAnalysisCat = { 'Analisis de la IA': 'N/A', 'Categoria del reclamo': 'N/A' }, aiPrio = 'Media', relNum = 'N/A', aiSentiment = { Sentimiento_IA: 'N/A' };
+                    try {
+                        const [analysis, priority, sentiment] = await Promise.all([
+                            aiServices.getAIAnalysisAndCategory(row), aiServices.getAIPriority(row['obs']), aiServices.getAISentiment(row['obs'])
+                        ]);
+                        aiAnalysisCat = analysis; aiPrio = priority; aiSentiment = sentiment; relNum = utils.extractRelatedComplaintNumber(row['obs']);
+                    } catch (aiErr) { console.error(`AI Error for new CM SN ${currentSN}:`, aiErr); }
+                    
+                    await addDoc(collRef, {
+                        ...row, user: userId, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Estado_Gestion: row.Estado_Gestion || 'Pendiente',
+                        ...aiAnalysisCat, ...aiSentiment, Prioridad: aiPrio, Numero_Reclamo_Relacionado: relNum, Observaciones_Reclamo_Relacionado: '',
+                        // 🚨 CLAVE: Forzar a Contrato Marco y isNabis=true
+                        Tipo_Contrato: 'Contrato Marco', Numero_Contrato_Marco: row.Numero_Contrato_Marco || '', isNabis: true, 
+                        // ... (resto de campos por defecto similares a handleFileUpload)
+                        Aseguramiento_Historial: [], Escalamiento_Historial: [], Resumen_Hechos_IA: 'No generado', Proyeccion_Respuesta_IA: 'No generada',
+                        Sugerencias_Accion_IA: [], Causa_Raiz_IA: '', Correo_Escalacion_IA: '', Riesgo_SIC: {},
+                        fecha_asignacion: today, Observaciones_Historial: [],
+                        SNAcumulados_Historial: Array.isArray(row.SNAcumulados_Historial) ? row.SNAcumulados_Historial : [],
+                        Dia_Original_CSV: row['Dia'] ?? 'N/A', Despacho_Respuesta_Checked: false, Fecha_Inicio_Gestion: '',
+                        Tiempo_Resolucion_Minutos: 'N/A', Radicado_SIC: '', Fecha_Vencimiento_Decreto: '', Requiere_Aseguramiento_Facturas: false,
+                        ID_Aseguramiento: '', Corte_Facturacion: row['Corte_Facturacion'] || '', Cuenta: row['Cuenta'] || '', Operacion_Aseguramiento: '',
+                        Tipo_Aseguramiento: '', Mes_Aseguramiento: '', requiereBaja: false, numeroOrdenBaja: '', requiereAjuste: false,
+                        numeroTT: '', estadoTT: '', requiereDevolucionDinero: false, cantidadDevolver: '', idEnvioDevoluciones: '',
+                        fechaEfectivaDevolucion: '', areaEscalada: '', motivoEscalado: '', idEscalado: '', reqGenerado: '', descripcionEscalamiento: '',
+                        Correo_Electronico_Reclamante: row.Correo_Electronico_Reclamante || 'N/A', Direccion_Reclamante: row.Direccion_Reclamante || 'N/A'
+                    });
+                    addedCount++;
+                    existingCasesMap.set(currentSN, { id: 'temp_new_id', SN: currentSN, ...row });
+                }
+            }
+            if (cancelUpload.current) { displayModalMessage(`Carga de Contrato Marco cancelada. ${addedCount} casos nuevos agregados, ${updatedCount} actualizados.`); }
+            else { displayModalMessage(`Carga Contrato Marco Completa: ${addedCount} casos nuevos agregados. ${updatedCount} casos existentes actualizados. ${skippedCount} casos omitidos.`); }
+        } catch (err) { displayModalMessage(`Error durante la carga del CSV de Contrato Marco: ${err.message}`); }
+        finally { setUploading(false); if (event.target) event.target.value = ''; }
+    };
+    reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
+    reader.readAsText(file, 'ISO-8859-1');
+}
 
+async function handleReporteCruceUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    setUploading(true); // Activa el mensaje de gestión
+    displayModalMessage(`Cargando Reporte Cruce (${file.name})...`);
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const { data: csvDataRows } = utils.parseCSV(e.target.result);
+            if (csvDataRows.length === 0) { displayModalMessage('Reporte Cruce vacío o inválido.'); setUploading(false); return; }
+            
+            // 🚨 CLAVE: Solo almacenar los datos en el estado, sin subir a Firebase.
+            setReporteCruceData(csvDataRows);
+            
+            displayModalMessage(`Carga Reporte Cruce Completa: ${csvDataRows.length} filas cargadas para cruce.`);
+        } catch (err) { 
+            displayModalMessage(`Error durante la carga del Reporte Cruce: ${err.message}`); 
+        } finally { 
+            setUploading(false); 
+            if (event.target) event.target.value = ''; 
+        }
+    };
+    reader.onerror = (err) => { displayModalMessage(`Error leyendo el archivo: ${err.message}`); setUploading(false); };
+    reader.readAsText(file, 'ISO-8859-1');
+}
     // --- LÓGICA DE FILTROS Y RENDERING ---
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
@@ -1047,15 +1146,19 @@ async function handleObservationFileChange(event) {
             )}
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} /* onChange={handleContractMarcoUpload} */ style={{ display: 'none' }} />
-            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} /* onChange={handleReporteCruceUpload} */ style={{ display: 'none' }} />
+            
+            {/* 🚨 CORRECCIÓN 1: Descomentar y asignar los handlers de carga */}
+            <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
+            <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
+            
+            {/* 🚨 CORRECCIÓN 3: Quitar el onChange. La lógica se maneja en CaseDetailModal.jsx. */}
             <input
-    type="file"
-    ref={observationFileInputRef}
-    onChange={handleObservationFileChange} // <--- Corregido al handler real
-    accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
-    style={{ display: 'none' }}
-/>
+                type="file"
+                ref={observationFileInputRef}
+                onChange={() => {}} // Dejar vacío. La función está en el Modal.
+                accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
+                style={{ display: 'none' }}
+            />
 
             <div className="w-full max-w-7xl bg-white shadow-lg rounded-lg p-6">
                 <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Seguimiento de Casos Asignados</h1>
