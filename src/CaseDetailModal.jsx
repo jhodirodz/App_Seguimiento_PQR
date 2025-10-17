@@ -21,7 +21,8 @@ export default function CaseDetailModal({
     aiServices, // Recibimos los servicios de IA como props
     constants,  // Recibimos las constantes como props
     allCases,   // Necesario para el cálculo de nota de crédito (snToCunMap)
-    scanFileRef // Ref para el input de escaneo de documentos
+    scanFileRef, // Ref para el input de escaneo de documentos
+    onObsFileClick, // <--- NUEVA PROP: Función que hace click en el input de archivo de observación del padre
 }) {
 
     // --- Estado Interno del Modal (Inicializado con caseData) ---
@@ -33,7 +34,7 @@ export default function CaseDetailModal({
     const [snAcumuladosData, setSnAcumuladosData] = useState([]);
     const [showGestionesAdicionales, setShowGestionesAdicionales] = useState(true);
     const [aseguramientoObs, setAseguramientoObs] = useState('');
-    const observationFileInputRef = useRef(null);
+    // const observationFileInputRef = useRef(null); <--- ELIMINADO: La ref está ahora en App.jsx
 
     // Estados de carga para los botones de IA
     const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
@@ -44,7 +45,7 @@ export default function CaseDetailModal({
     const [isGeneratingEscalationEmail, setIsGeneratingEscalationEmail] = useState(false);
     const [isGeneratingRiskAnalysis, setIsGeneratingRiskAnalysis] = useState(false);
     const [isGeneratingComprehensiveResponse, setIsGeneratingComprehensiveResponse] = useState(false);
-    const [isTranscribingObservation, setIsTranscribingObservation] = useState(false);
+    const [isTranscribingObservation, setIsTranscribingObservation] = useState(false); // Mantener si el padre maneja el estado de carga
 
     // --- Effects para Sincronización y Configuración Inicial ---
 
@@ -142,8 +143,17 @@ export default function CaseDetailModal({
         displayModalMessage('Historial de escalación guardado.');
     }
 
+    const handleSNAcumuladoInputChange = (index, field, value) => {
+        setSnAcumuladosData(prev => {
+            const newForms = [...prev];
+            newForms[index][field] = value;
+            return newForms;
+        });
+    };
+
     async function handleSaveSNAcumulados() {
         if (snAcumuladosData.some(item => !item.sn.trim())) { displayModalMessage('Todos los campos de SN acumulados deben estar llenos antes de guardar.'); return; }
+        // Asegúrate de que allCases se pase correctamente y tenga la estructura SN/CUN
         const snToCunMap = new Map(allCases.map(c => [String(c.SN || '').trim(), c.CUN]));
         const newHistory = snAcumuladosData.map(item => ({ sn: item.sn.trim(), cun: snToCunMap.get(item.sn.trim()) || 'No encontrado', obs: item.obs, timestamp: new Date().toISOString() }));
         const updatedHistory = [...(localCase.SNAcumulados_Historial || []), ...newHistory];
@@ -341,38 +351,14 @@ export default function CaseDetailModal({
         displayModalMessage('Observación guardada.');
     }
     
-    async function handleObservationFileUpload() {
-        // La lógica de `handleObservationFileUpload` es compleja e involucra `fileToBase64` y el fetch a la API.
-        // Se recomienda mantener esta función en `App.jsx` y pasarla como prop (handleTranscribeFile) 
-        // o, en su defecto, reescribirla con todas las dependencias necesarias.
-        // Dado que se pidió revisar el componente *con* esa lógica dentro, la recreamos aquí con un placeholder.
-        // NOTA: Para que esto funcione, *necesitarías* pasar `fileToBase64` y la lógica de la API de App.jsx como props, o copiarlas aquí.
-
-        // Por ahora, solo se activa el input file, la lógica real debe estar en App.jsx para la transcripción y el fetch.
-        // El input ref debe pasarse al padre para ejecutar la lógica de IA y archivos.
-        if (observationFileInputRef.current) {
-            observationFileInputRef.current.click();
+    // Función de ayuda para activar el input de archivo del componente padre
+    // Simplemente llama a la prop onObsFileClick
+    function handleObservationFileUploadClick() {
+        if (onObsFileClick) {
+            onObsFileClick();
+        } else {
+            displayModalMessage("Error: La función de transcripción no está disponible (onObsFileClick no se pasó como prop).");
         }
-        displayModalMessage("El proceso de transcripción debe estar gestionado en el componente principal (App.jsx) y pasarse como prop.");
-        setIsTranscribingObservation(true);
-        // La lógica real de transcripción (copiada de App.jsx) debería estar aquí, si este componente estuviera completamente desacoplado y tuviera acceso a firebase/utils/aiServices/etc.
-        // Como no se me proporciona el código de `fileToBase64` y la lógica de la API, y es complejo de pasar, se deja el handler.
-        // **¡ADVERTENCIA!** En un proyecto real, la lógica de `handleObservationFileUpload` *debe* ser replicada completamente aquí o gestionada en el padre.
-        
-        // Simulación de la lógica de actualización
-        // try {
-        //     const file = observationFileInputRef.current.files[0];
-        //     // ... lógica de fileToBase64, fetch, y transcripción de texto ...
-        //     const summary = 'Texto Transcrito de Prueba.';
-        //     const currentObs = localCase.Observaciones || '';
-        //     const newObs = `${currentObs}\n\n--- Análisis de Adjunto (${file.name}) ---\n${summary}`;
-        //     setLocalCase(prev => ({ ...prev, Observaciones: newObs }));
-        //     displayModalMessage('✅ Adjunto analizado y añadido a las observaciones.');
-        // } catch (error) {
-        //     displayModalMessage(`❌ Error al analizar el adjunto: ${error.message}`);
-        // } finally {
-        //     setIsTranscribingObservation(false);
-        // }
     }
 
 
@@ -385,13 +371,15 @@ export default function CaseDetailModal({
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {localCase.SN}</h3>
                 
-                {/* Input de archivo oculto para la transcripción de observaciones */}
-                <input type="file" ref={observationFileInputRef} onChange={e => {
+                {/* Input de archivo oculto para la transcripción de observaciones - ELIMINADO EL REF LOCAL */}
+                {/* <input type="file" ref={observationFileInputRef} onChange={e => {
                      // Llama al handler en el padre si la lógica de la API no está aquí
                      // En este ejemplo, el handler debe ser pasado por el padre y manejar el archivo.
                      // Aquí se simula la llamada al handler local (incompleto)
                      handleObservationFileUpload(e);
-                }} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} />
+                }} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} /> */}
+
+                {/* Se mantiene el input para el escaneo de documentos (documentos de reclamo) */}
                 <input type="file" ref={scanFileRef} style={{ display: 'none' }} />
 
                 {duplicateCasesDetails.length > 0 && (
@@ -567,7 +555,7 @@ export default function CaseDetailModal({
                         <div className="flex flex-col gap-2 mb-2">
                             <textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={localCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." />
                             <div className="flex gap-2 self-end">
-                                <button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>
+                                <button onClick={handleObservationFileUploadClick} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>
                                     {isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}
                                 </button>
                                 <button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button>
