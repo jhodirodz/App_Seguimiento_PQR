@@ -1,3 +1,4 @@
+// src/CaseDetailModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 
 // ===================================================================================
@@ -623,7 +624,18 @@ export default function CaseDetailModal({
                         <div className="flex flex-col gap-2 mb-2">
                             <textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={localCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." />
                             <div className="flex gap-2 self-end">
-                                <button onClick={() => observationFileInputRef.current.click()} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" disabled={isTranscribingObservation}>
+                                <button 
+                                    onClick={() => {
+                                        // APLICAR LA VERIFICACIÓN DE NULIDAD AQUÍ
+                                        if (observationFileInputRef.current) { 
+                                            observationFileInputRef.current.click();
+                                        } else {
+                                            displayModalMessage("Error: El input para transcribir el adjunto no está listo.");
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50" 
+                                    disabled={isTranscribingObservation}
+                                >
                                     {isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}
                                 </button>
                                 <button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button>
@@ -666,21 +678,17 @@ export default function CaseDetailModal({
                 <div className="mt-6 border-t pt-6">
                     <h4 className="text-xl font-semibold mb-4">Gestión del Caso</h4>
                     <div className="flex flex-wrap gap-3 mb-6">
-    {constants.STATUS_BUTTONS.map(b => {
-        const classes = constants.BUTTON_STATUS_CLASSES[b.s];
-        if (!classes) return null; // Prevenir errores si falta una clase
-
-        return (
-            <button 
-                key={b.s} 
-                onClick={() => handleChangeCaseStatus(b.s)} 
-                className={`px-4 py-2 rounded-md font-semibold transition-colors duration-150 ${localCase.Estado_Gestion === b.s ? classes.active : classes.inactive}`}
-            >
-                {b.l}
-            </button>
-        );
-    })}
-</div>
+                        {[{ l: 'Iniciado', s: 'Iniciado', cl: 'indigo' }, { l: 'Lectura', s: 'Lectura', cl: 'blue' }, 
+                          { l: 'Decretado', s: 'Decretado', cl: 'purple' }, { l: 'Traslado SIC', s: 'Traslado SIC', cl: 'orange' }, 
+                          { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes', cl: 'pink' }, { l: 'Resuelto', s: 'Resuelto', cl: 'green' }, 
+                          { l: 'Pendiente', s: 'Pendiente', cl: 'yellow' }, { l: 'Escalado', s: 'Escalado', cl: 'red' }
+                        ].map(b => (
+                            <button key={b.s} onClick={() => handleChangeCaseStatus(b.s)} 
+                                className={`px-4 py-2 rounded-md font-semibold ${localCase.Estado_Gestion === b.s ? `bg-${b.cl}-600 text-white` : `bg-${b.cl}-200 text-${b.cl}-800 hover:bg-${b.cl}-300`} `}>
+                                {b.l}
+                            </button>
+                        ))}
+                    </div>
                     <div className="mb-4">
                         <label className="inline-flex items-center">
                             <input type="checkbox" className="form-checkbox h-5 w-5" checked={localCase.Despacho_Respuesta_Checked || false} onChange={handleDespachoRespuestaChange} />
