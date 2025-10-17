@@ -727,9 +727,16 @@ function App() {
 
     // --- LÓGICA DE ESCANEO DE DOCUMENTOS ---
     function handleScanClick(caseItem) {
-        setCaseToScan(caseItem);
-        scanFileInputRef.current.click();
+    setCaseToScan(caseItem);
+    // APLICAR LA VERIFICACIÓN DE NULIDAD AQUÍ
+    if (scanFileInputRef.current) { //
+        scanFileInputRef.current.click(); //
+    } else {
+        // Manejar error o simplemente ignorar si la ref no está lista
+        console.error("Error: scanFileInputRef.current is null.");
+        displayModalMessage("Error interno: La herramienta de escaneo no se cargó correctamente.");
     }
+}
     
     async function handleScanFileUpload(event) {
         const file = event.target.files[0];
