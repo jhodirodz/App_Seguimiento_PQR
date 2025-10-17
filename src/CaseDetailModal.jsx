@@ -624,9 +624,9 @@ export default function CaseDetailModal({
                         <div className="flex flex-col gap-2 mb-2">
                             <textarea id="observations-input" rows="4" className="block w-full rounded-md p-2 border" value={localCase.Observaciones || ''} onChange={handleObservationsChange} placeholder="Añade observaciones..." />
                             <div className="flex gap-2 self-end">
+                                {/* Botón: Transcribir Adjunto (ya corregido con la verificación de nulidad) */}
                                 <button 
                                     onClick={() => {
-                                        // APLICAR LA VERIFICACIÓN DE NULIDAD AQUÍ
                                         if (observationFileInputRef.current) { 
                                             observationFileInputRef.current.click();
                                         } else {
@@ -638,6 +638,22 @@ export default function CaseDetailModal({
                                 >
                                     {isTranscribingObservation ? 'Transcribiendo...' : '✨ Transcribir Adjunto'}
                                 </button>
+                                
+                                {/* NUEVO BOTÓN AÑADIDO: Escanear Adjunto (Solo se muestra si hay adjunto) */}
+                                {(localCase.Documento_Adjunto === 'Si_Adjunto' || localCase.Documento_Adjunto === 'Transcrito') && (
+                                     <button 
+                                        onClick={() => {
+                                            if (scanFileRef.current) {
+                                                scanFileRef.current.click(); // Llama al input del componente padre (App.jsx)
+                                            } else {
+                                                displayModalMessage("Error: La herramienta de escaneo no está disponible.");
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700" 
+                                    >
+                                        ✨ Escanear Adjunto
+                                    </button>
+                                )}
                                 <button onClick={saveObservation} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar Obs.</button>
                             </div>
                         </div>
