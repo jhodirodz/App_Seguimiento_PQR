@@ -2,26 +2,7 @@
 
 export const ALL_PRIORITY_OPTIONS = ['Alta', 'Media', 'Baja'];
 export const ALL_STATUS_OPTIONS = ['Pendiente', 'Iniciado', 'Lectura', 'Resuelto', 'Finalizado', 'Escalado', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'];
-export const priorityColors = {
-  'Alta': 'bg-red-100 text-red-800',
-  'Media': 'bg-yellow-100 text-yellow-800',
-  'Baja': 'bg-green-100 text-green-800',
-  'Critica': 'bg-red-700 text-white',
-  'N/A': 'bg-gray-100 text-gray-800'
-};
 
-export const statusColors = {
-  'Pendiente': 'bg-yellow-100 text-yellow-800',
-  'Iniciado': 'bg-blue-100 text-blue-800',
-  'Lectura': 'bg-indigo-100 text-indigo-800',
-  'Resuelto': 'bg-green-100 text-green-800',
-  'Finalizado': 'bg-gray-200 text-gray-600',
-  'Escalado': 'bg-red-100 text-red-800',
-  'Decretado': 'bg-purple-100 text-purple-800',
-  'Traslado SIC': 'bg-orange-100 text-orange-800',
-  'Pendiente Ajustes': 'bg-pink-100 text-pink-800',
-  'N/A': 'bg-gray-100 text-gray-800'
-};
 export const MAIN_TABLE_HEADERS = [
     'SN',
     'CUN',
@@ -188,22 +169,4 @@ export const COLOMBIAN_HOLIDAYS = [
   "2026-11-16", // Independencia de Cartagena (trasladado)
   "2026-12-08", // Inmaculada Concepción
   "2026-12-25"  // Navidad
-];
-export const BUTTON_STATUS_CLASSES = {
-    'Iniciado': { active: 'bg-indigo-600 text-white', inactive: 'bg-indigo-200 text-indigo-800 hover:bg-indigo-300' },
-    'Lectura': { active: 'bg-blue-600 text-white', inactive: 'bg-blue-200 text-blue-800 hover:bg-blue-300' },
-    'Decretado': { active: 'bg-purple-600 text-white', inactive: 'bg-purple-200 text-purple-800 hover:bg-purple-300' },
-    'Traslado SIC': { active: 'bg-orange-600 text-white', inactive: 'bg-orange-200 text-orange-800 hover:bg-orange-300' },
-    'Pendiente Ajustes': { active: 'bg-pink-600 text-white', inactive: 'bg-pink-200 text-pink-800 hover:bg-pink-300' },
-    'Resuelto': { active: 'bg-green-600 text-white', inactive: 'bg-green-200 text-green-800 hover:bg-green-300' },
-    'Pendiente': { active: 'bg-yellow-600 text-white', inactive: 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300' },
-    'Escalado': { active: 'bg-red-600 text-white', inactive: 'bg-red-200 text-red-800 hover:bg-red-300' },
-};
-
-// Exportar la lista de botones de estado
-export const STATUS_BUTTONS = [
-    { l: 'Iniciado', s: 'Iniciado' }, { l: 'Lectura', s: 'Lectura' }, 
-    { l: 'Decretado', s: 'Decretado' }, { l: 'Traslado SIC', s: 'Traslado SIC' }, 
-    { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes' }, { l: 'Resuelto', s: 'Resuelto' }, 
-    { l: 'Pendiente', s: 'Pendiente' }, { l: 'Escalado', s: 'Escalado' }
 ];
