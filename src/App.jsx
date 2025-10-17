@@ -896,8 +896,12 @@ async function handleObservationFileChange(event) {
         else { setShowAuthModal(false); }
     }, [loading, userId]);
 
-    useEffect(() => {
-        if (!db || !userId) return;
+useEffect(() => {
+        if (!db || !userId) return; 
+
+        const currentUser = auth.currentUser;
+        if (!currentUser) return; 
+
         const q = query(collection(db, `artifacts/${appId}/users/${userId}/cases`));
         const unsub = onSnapshot(q, async snapshot => {
             let fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
