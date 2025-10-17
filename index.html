@@ -1,24 +1,23 @@
 <!doctype html>
 <html lang="es">
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App Seguimiento PQR</title>
+
+    <link rel="manifest" href="/manifest.json" />
+
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
     <meta name="theme-color" content="#1e40af" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js" defer></script>
-    
-    <script>
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          // Esta verificación es la que te está dando el mensaje en la consola
-          if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
-          } else {
-            console.error("PDF.js no cargó la variable global pdfjsLib a tiempo. Revisa la conexión o el CDN."); 
-          }
-        }, 50); // 50ms de retraso adicional para asegurar la definición
-      });
-    </script>
-    </head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+
+  </head>
 
   <body>
-    </body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
