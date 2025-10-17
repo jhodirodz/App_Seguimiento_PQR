@@ -1232,15 +1232,15 @@ async function handleObservationFileChange(event) {
 
             <input type="file" ref={scanFileInputRef} onChange={handleScanFileUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
             
-            {/* 🚨 CORRECCIÓN 1: Descomentar y asignar los handlers de carga */}
+            {/* 🚨 CORRECCIÓN FINAL: Descomentar y asignar los handlers originales */}
             <input type="file" accept=".csv" ref={contractMarcoFileInputRef} onChange={handleContractMarcoUpload} style={{ display: 'none' }} />
             <input type="file" accept=".csv" ref={reporteCruceFileInputRef} onChange={handleReporteCruceUpload} style={{ display: 'none' }} />
             
-            {/* 🚨 CORRECCIÓN 3: Quitar el onChange. La lógica se maneja en CaseDetailModal.jsx. */}
+            {/* 🚨 CORRECCIÓN: Dejar vacío el handler de observación, la lógica está en el Modal */}
             <input
                 type="file"
                 ref={observationFileInputRef}
-                onChange={() => {}} // Dejar vacío. La función está en el Modal.
+                onChange={() => {}} 
                 accept="image/png, image/jpeg, application/pdf, text/csv, audio/*"
                 style={{ display: 'none' }}
             />
