@@ -189,3 +189,21 @@ export const COLOMBIAN_HOLIDAYS = [
   "2026-12-08", // Inmaculada Concepción
   "2026-12-25"  // Navidad
 ];
+export const BUTTON_STATUS_CLASSES = {
+    'Iniciado': { active: 'bg-indigo-600 text-white', inactive: 'bg-indigo-200 text-indigo-800 hover:bg-indigo-300' },
+    'Lectura': { active: 'bg-blue-600 text-white', inactive: 'bg-blue-200 text-blue-800 hover:bg-blue-300' },
+    'Decretado': { active: 'bg-purple-600 text-white', inactive: 'bg-purple-200 text-purple-800 hover:bg-purple-300' },
+    'Traslado SIC': { active: 'bg-orange-600 text-white', inactive: 'bg-orange-200 text-orange-800 hover:bg-orange-300' },
+    'Pendiente Ajustes': { active: 'bg-pink-600 text-white', inactive: 'bg-pink-200 text-pink-800 hover:bg-pink-300' },
+    'Resuelto': { active: 'bg-green-600 text-white', inactive: 'bg-green-200 text-green-800 hover:bg-green-300' },
+    'Pendiente': { active: 'bg-yellow-600 text-white', inactive: 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300' },
+    'Escalado': { active: 'bg-red-600 text-white', inactive: 'bg-red-200 text-red-800 hover:bg-red-300' },
+};
+
+// Exportar la lista de botones de estado
+export const STATUS_BUTTONS = [
+    { l: 'Iniciado', s: 'Iniciado' }, { l: 'Lectura', s: 'Lectura' }, 
+    { l: 'Decretado', s: 'Decretado' }, { l: 'Traslado SIC', s: 'Traslado SIC' }, 
+    { l: 'Pendiente Ajustes', s: 'Pendiente Ajustes' }, { l: 'Resuelto', s: 'Resuelto' }, 
+    { l: 'Pendiente', s: 'Pendiente' }, { l: 'Escalado', s: 'Escalado' }
+];
