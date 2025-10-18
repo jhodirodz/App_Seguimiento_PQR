@@ -1155,32 +1155,29 @@ async function handleObservationFileChange(event) {
                 reader.readAsText(file);
             });
             summary = `Contenido del archivo de texto:\n${summary}`;
-        } else if (fileType === 'application/pdf') {
-            if (!window.pdfjsLib) throw new Error('La librería PDF.js no está cargada.');
-            const pdfData = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
+} else if (fileType === 'application/pdf') { 
+            
+    // Lógica para PDF: Usar el motor multimodal de Gemini para
+    // garantizar la transcripción, incluso en documentos escaneados.
+    
+    // Convertimos el archivo PDF completo a Base64 para enviarlo a la API de Gemini.
+    const base64Content = await fileToBase64(file); 
+    
+    // Se utiliza un prompt detallado para forzar la transcripción de todo el contenido.
+    const prompt = 'Analiza este documento PDF. Transcribe todo el texto contenido en él, incluyendo cualquier texto en imágenes o tablas, y luego genera un resumen conciso del contenido.';
+    
+    // Llamar a la función que invoca a Gemini con el Base64
+    summary = await processFile(base64Content, file.type, prompt);
 
-            const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
-            }
-            summary = fullText.trim();
-        } else if (fileType.startsWith('image/') || fileType.startsWith('audio/')) {
-            const base64Content = await fileToBase64(file);
-            const prompt = fileType.startsWith('image/')
-                ? 'Analiza esta imagen y transcribe todo el texto relevante.'
-                : 'Transcribe el texto que escuches en el audio.';
-            summary = await processFile(base64Content, file.type, prompt);
-        } else {
-            throw new Error(`Tipo de archivo no soportado para análisis: ${fileType}`);
-        }
+} else if (fileType.startsWith('image/') || fileType.startsWith('audio/')) { 
+    const base64Content = await fileToBase64(file);
+    const prompt = fileType.startsWith('image/')
+        ? 'Analiza esta imagen y transcribe todo el texto relevante.'
+        : 'Transcribe el texto que escuches en el audio.';
+    summary = await processFile(base64Content, file.type, prompt);
+} else {
+    throw new Error(`Tipo de archivo no soportado para análisis: ${fileType}`);
+}
         
         // Formatear y actualizar el caso
         const currentObs = selectedCase.Observaciones || '';
