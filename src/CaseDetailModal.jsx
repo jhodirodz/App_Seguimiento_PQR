@@ -335,8 +335,40 @@ export default function CaseDetailModal({
     async function generateAISummaryHandler() { setIsGeneratingSummary(true); try { const sum = await aiServices.getAISummary(localCase); setLocalCase(prev => ({ ...prev, Resumen_Hechos_IA: sum })); onUpdateCase(localCase.id, { Resumen_Hechos_IA: sum }); } catch (e) { displayModalMessage(`Error AI Summary: ${e.message}`); } finally { setIsGeneratingSummary(false); } }
     async function generateNextActionsHandler() { setIsGeneratingNextActions(true); try { const actions = await aiServices.getAINextActions(localCase); setLocalCase(prev => ({ ...prev, Sugerencias_Accion_IA: actions })); onUpdateCase(localCase.id, { Sugerencias_Accion_IA: actions }); } catch (e) { displayModalMessage(`Error generando próximas acciones: ${e.message}`); } finally { setIsGeneratingNextActions(false); } }
     async function generateRootCauseHandler() { setIsGeneratingRootCause(true); try { const cause = await aiServices.getAIRootCause(localCase); setLocalCase(prev => ({ ...prev, Causa_Raiz_IA: cause })); onUpdateCase(localCase.id, { Causa_Raiz_IA: cause }); } catch (e) { displayModalMessage(`Error generando causa raíz: ${e.message}`); } finally { setIsGeneratingRootCause(false); } }
-    async function handleSuggestEscalation() { setIsSuggestingEscalation(true); displayModalMessage('La IA está sugiriendo una escalación...'); try { const suggestion = await aiServices.getAIEscalationSuggestion(localCase); if (suggestion.area && suggestion.motivo) { const firestoreUpdateData = { areaEscalada: suggestion.area, motivoEscalado: suggestion.motivo }; setLocalCase(prev => ({ ...prev, ...firestoreUpdateData })); onUpdateCase(localCase.id, firestoreUpdateData); displayModalMessage('Sugerencia de escalación aplicada.'); } else { displayModalMessage('No se pudo obtener una sugerencia válida de la IA.'); } } catch (e) { displayModalMessage(`Error con la IA: ${e.message}`); } finally { setIsSuggestingEscalation(false); } }
-    async function generateEscalationEmailHandler() { setIsGeneratingEscalationEmail(true); try { const emailBody = await aiServices.getAIEscalationEmail(localCase); setLocalCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody })); onUpdateCase(localCase.id, { Correo_Escalacion_IA: emailBody }); } catch (e) { displayModalMessage(`Error generando correo de escalación: ${e.message}`); } finally { setIsGeneratingEscalationEmail(false); } }
+async function handleSuggestEscalation() { 
+    setIsSuggestingEscalation(true); 
+    displayModalMessage('La IA está sugiriendo una escalación...'); 
+    try { 
+        const suggestion = await aiServices.getAIEscalationSuggestion(localCase); 
+        if (suggestion.area && suggestion.motivo) { 
+            const firestoreUpdateData = { 
+                areaEscalada: suggestion.area, 
+                motivoEscalado: suggestion.motivo,
+                // Reiniciamos los campos manuales para que la IA sea el punto de partida
+                idEscalado: '',
+                reqGenerado: '',
+                descripcionEscalamiento: '' 
+            }; 
+            
+            // 1. Aplicar la sugerencia a los campos
+            setLocalCase(prev => ({ ...prev, ...firestoreUpdateData })); 
+            // **IMPORTANTE**: Actualizamos Firestore y luego guardamos el historial automáticamente.
+            await new Promise(resolve => onUpdateCase(localCase.id, firestoreUpdateData, resolve)); // Esperamos la actualización
+            
+            // 2. Guardar el historial de escalación inmediatamente después de la sugerencia
+            // Se asume que handleSaveEscalamientoHistory usa el localCase actualizado.
+            await handleSaveEscalamientoHistory(true); // Se usa un flag para evitar el mensaje doble
+            
+            displayModalMessage('Sugerencia de escalación aplicada y guardada en el historial.'); 
+        } else { 
+            displayModalMessage('No se pudo obtener una sugerencia válida de la IA.'); 
+        } 
+    } catch (e) { 
+        displayModalMessage(`Error con la IA: ${e.message}`); 
+    } finally { 
+        setIsSuggestingEscalation(false); 
+    } 
+}    async function generateEscalationEmailHandler() { setIsGeneratingEscalationEmail(true); try { const emailBody = await aiServices.getAIEscalationEmail(localCase); setLocalCase(prev => ({ ...prev, Correo_Escalacion_IA: emailBody })); onUpdateCase(localCase.id, { Correo_Escalacion_IA: emailBody }); } catch (e) { displayModalMessage(`Error generando correo de escalación: ${e.message}`); } finally { setIsGeneratingEscalationEmail(false); } }
     async function generateRiskAnalysisHandler() { setIsGeneratingRiskAnalysis(true); try { const risk = await aiServices.getAIRiskAnalysis(localCase); setLocalCase(prev => ({ ...prev, Riesgo_SIC: risk })); onUpdateCase(localCase.id, { Riesgo_SIC: risk }); } catch (e) { displayModalMessage(`Error generando análisis de riesgo: ${e.message}`); } finally { setIsGeneratingRiskAnalysis(false); } }
     async function generateAIComprehensiveResponseHandler() { setIsGeneratingComprehensiveResponse(true); try { const res = await aiServices.getAIComprehensiveResponse(localCase, localCase.Tipo_Contrato || 'Condiciones Uniformes'); const validation = await aiServices.getAIValidation({ ...localCase, Respuesta_Integral_IA: res }); setLocalCase(prev => ({ ...prev, Respuesta_Integral_IA: res, Validacion_IA: validation })); onUpdateCase(localCase.id, { Respuesta_Integral_IA: res, Validacion_IA: validation }); displayModalMessage('Respuesta integral generada y validada exitosamente.'); } catch (e) { displayModalMessage(`Error AI Comprehensive Response: ${e.message}`); } finally { setIsGeneratingComprehensiveResponse(false); } }
     
