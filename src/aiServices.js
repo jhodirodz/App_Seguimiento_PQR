@@ -21,12 +21,23 @@ async function geminiApiCall(prompt, parts = [], isJson = false, responseSchema 
     payload.generationConfig = { responseMimeType: "application/json", responseSchema };
   }
 
+  // --- INICIO DE LA MODIFICACIÓN CRÍTICA: Implementación de Timeout ---
+  const controller = new AbortController();
+  // El timeout se establece en 30 segundos (30000 milisegundos)
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 30000); 
+
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal // Adjuntar la señal del controlador
     });
+    
+    // Si la llamada fue exitosa o falló con un código HTTP, limpiamos el timeout
+    clearTimeout(timeoutId); 
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -39,10 +50,19 @@ async function geminiApiCall(prompt, parts = [], isJson = false, responseSchema 
     }
     throw new Error('Respuesta de la IA inesperada. No se encontraron candidatos.');
   } catch (error) {
+    // Si el error es un timeout forzado
+    if (error.name === 'AbortError') {
+      console.error("Error calling Gemini API: Timeout exceeded.");
+      throw new Error("La llamada a la IA excedió el tiempo límite (30 segundos). Intente de nuevo.");
+    }
+    // Para otros errores (como problemas de red o fallos en el JSON)
+    clearTimeout(timeoutId); 
     console.error("Error calling Gemini API:", error);
     throw error;
   }
 }
+// --- FIN DE LA MODIFICACIÓN CRÍTICA ---
+
 
 // Exporta todas las funciones de IA
 export async function getAIAnalysisAndCategory(caseData) {
@@ -119,7 +139,7 @@ export async function getAISummary(caseData) {
     ).join('\n');
   const prompt = `Eres un asistente experto que resume casos de reclamos de telecomunicaciones.
         Genera un resumen conciso (máximo 700 caracteres, en primera persona) de los hechos y pretensiones del caso.
-        Tu resumen debe sintetizar la "Observación Principal" y, si se proporcionan, también el "Historial de SN Acumulados" y las "Observaciones del Reclamo Relacionado".
+        Tu resumen debe sintetizar tanto la "Observación Principal" y, si se proporcionan, también el "Historial de SN Acumulados" y las "Observaciones del Reclamo Relacionado".
 
 Instrucciones para el Resumen:
 -   Sintetiza la información tanto de las "Observaciones del Caso Actual" como del "Historial de Reclamos Anteriores" en un relato coherente.
@@ -266,6 +286,40 @@ Responde SOLO con JSON: {"area": "...", "motivo": "..."}`;
     return { area: null, motivo: null };
   }
 }
+
+export async function getAIEscalationEmail(caseData) {
+  // Esta función no estaba en el archivo original pero se necesita para el botón "Redactar Correo (IA)"
+  // Se añade una implementación básica que utiliza geminiApiCall.
+  
+  const prompt = `Eres un asistente de servicio al cliente experto en la redacción de correos formales de escalación.
+Genera el **cuerpo** de un correo electrónico conciso y profesional para escalar un caso a un área interna.
+El correo debe incluir:
+1.  Un resumen breve del problema (hechos).
+2.  La pretensión exacta del cliente.
+3.  La razón específica por la que se requiere la intervención del área de escalación.
+4.  Datos clave del caso: SN, CUN, Cliente, Observaciones, Análisis de la IA.
+
+Detalles del Caso:
+- Área Escalada: ${caseData.areaEscalada || 'N/A'}
+- Motivo/Acción: ${caseData.motivoEscalado || 'N/A'}
+- SN Principal: ${caseData.SN || 'N/A'}
+- CUN: ${caseData.CUN || 'N/A'}
+- Cliente: ${caseData.Nombre_Cliente || 'N/A'}
+- Observaciones: ${caseData.obs || 'N/A'}
+- Análisis IA: ${caseData['Analisis de la IA'] || 'N/A'}
+
+No incluyas el saludo, el asunto o la despedida. Solo el cuerpo del correo.`;
+
+  try {
+    // Nota: Esta llamada es sin JSON (isJson=false) para obtener el cuerpo del correo en texto plano.
+    const result = await geminiApiCall(prompt);
+    return result;
+  } catch (e) {
+    console.error("Error generando correo de escalación:", e);
+    return 'Error: No se pudo generar el correo de escalación. Revise la conexión o el tiempo de espera.';
+  }
+}
+
 
 export async function getAIComprehensiveResponse(caseData, contractType) {
   const internalHistoryInfo = (caseData.Observaciones_Historial || [])
