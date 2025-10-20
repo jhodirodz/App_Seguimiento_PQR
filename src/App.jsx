@@ -17,51 +17,7 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, creat
 import { db, auth } from "./firebaseConfig.js";
 
 const appId = "App_Seguimiento_PQR";
-/**
- * NUEVA FUNCIÓN ROBUSTA PARA FORMATEAR FECHAS A YYYY-MM-DD
- * Maneja formatos DD/MM/YYYY, YYYY-MM-DD, y objetos Date.
- */
-const formatDateToYMD = (dateInput) => {
-    if (!dateInput) return ''; // Devuelve vacío si no hay fecha
 
-    try {
-        let dateObj;
-
-        // Opción 1: Ya es un string YYYY-MM-DD
-        if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-            // Validar que sea una fecha real (evita "2025-26-09")
-            dateObj = new Date(dateInput);
-            if (!isNaN(dateObj.getTime())) {
-                // Si es válido, devolverlo tal cual.
-                // El split/join es para manejar zonas horarias.
-                return dateObj.toISOString().split('T')[0];
-            }
-            // Si no es válido (ej: "2025-26-09"), sigue para intentar parsearlo
-        }
-
-        // Opción 2: Es un string DD/MM/YYYY (ej: "26/09/2025")
-        if (typeof dateInput === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(dateInput)) {
-            const parts = dateInput.split('/');
-            // Ojo al orden: Año, Mes (parts[1]), Día (parts[0])
-            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-        } else {
-            // Opción 3: Es un objeto Date, un ISO string o un formato no reconocido
-            dateObj = new Date(dateInput);
-        }
-
-        // Si después de todo, la fecha es inválida, devuelve vacío
-        if (isNaN(dateObj.getTime())) {
-            return '';
-        }
-
-        // Devuelve el formato YYYY-MM-DD
-        return dateObj.toISOString().split('T')[0];
-
-    } catch (e) {
-        console.error("Error formateando fecha:", dateInput, e);
-        return ''; // Fallback
-    }
-};
 const normalizeTextForSearch = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -360,16 +316,16 @@ function App() {
         
         // Aplica el formato 'YYYY-MM-DD' a las fechas clave para el input type="date"
         if (caseItem['Fecha Radicado']) {
-            formattedCaseItem['Fecha Radicado'] = formatDateToYMD(caseItem['Fecha Radicado']);
+            formattedCaseItem['Fecha Radicado'] = utils.formatDateForInput(caseItem['Fecha Radicado']);
         }
         if (caseItem['Fecha Cierre']) {
-            formattedCaseItem['Fecha Cierre'] = formatDateToYMD(caseItem['Fecha Cierre']);
+            formattedCaseItem['Fecha Cierre'] = utils.formatDateForInput(caseItem['Fecha Cierre']);
         }
         if (caseItem['Fecha Vencimiento']) {
-            formattedCaseItem['Fecha Vencimiento'] = formatDateToYMD(caseItem['Fecha Vencimiento']);
+            formattedCaseItem['Fecha Vencimiento'] = utils.formatDateForInput(caseItem['Fecha Vencimiento']);
         }
         if (caseItem['Fecha_Vencimiento_Decreto']) {
-            formattedCaseItem['Fecha_Vencimiento_Decreto'] = formatDateToYMD(caseItem['Fecha_Vencimiento_Decreto']);
+            formattedCaseItem['Fecha_Vencimiento_Decreto'] = utils.formatDateForInput(caseItem['Fecha_Vencimiento_Decreto']);
         }
         
         setSelectedCase(formattedCaseItem);
@@ -544,24 +500,11 @@ function App() {
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
-                    const parsedFechaRadicado = formatDateToYMD(row['Fecha Radicado']); // <-- CAMBIO AQUÍ
+                    const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
                     let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
-
-                    // Lógica expandida para sumar 2 días
-                    if (calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
-                        const nombreOficina = String(row['nombre_oficina'] || '').toUpperCase().trim();
-                        const acceptStaffNo = String(row['AcceptStaffNo'] || '').toLowerCase().trim();
-
-                        const esOesia = nombreOficina.includes("OESIA");
-                        const esOficinaEnBlanco = nombreOficina === '';
-                        const esDfGomez = acceptStaffNo === 'dfgomez';
-
-                        // Aplica la lógica si es OESIA, O si la oficina está en blanco Y el usuario es dfgomez
-                        if (esOesia || (esOficinaEnBlanco && esDfGomez)) {
-                            calculatedDia += 2;
-                        }
+                    if (String(row['nombre_oficina'] || '').toUpperCase().includes("OESIA") && calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
+                        calculatedDia += 2;
                     }
-                    
                     if (existingCasesMap.has(currentSN)) {
                         const existingCaseData = existingCasesMap.get(currentSN);
                         const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
@@ -833,57 +776,36 @@ function App() {
     const resDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const finalizadosDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const aseguramientosDisp = useMemo(() => casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN), [casesForDisplay]);
-    const getDisplayCaseAge = useCallback((caseItem) => {
-        if (!caseItem) return 'N/A';
-        
-        // 1. Calcula la antigüedad base usando la función de utils
-        let displayAge = utils.calculateCaseAge(caseItem, nonBusinessDays);
-        
-        // 2. Aplica la lógica de ajuste de 2 días
-        if (displayAge !== 'N/A' && !isNaN(displayAge)) {
-            const nombreOficina = String(caseItem['nombre_oficina'] || '').toUpperCase().trim();
-            const acceptStaffNo = String(caseItem['AcceptStaffNo'] || '').toLowerCase().trim();
-            
-            const esOesia = nombreOficina.includes("OESIA");
-            const esOficinaEnBlanco = nombreOficina === '';
-            const esDfGomez = acceptStaffNo === 'dfgomez';
-
-            // Aplica la lógica si es OESIA, O si la oficina está en blanco Y el usuario es dfgomez
-            if (esOesia || (esOficinaEnBlanco && esDfGomez)) {
-                displayAge += 2;
-            }
-        }
-        return displayAge;
-    }, [nonBusinessDays]);
+    
     const counts = {
         total: cases.length,
         resolved: cases.filter(c => c.Estado_Gestion === 'Resuelto').length,
         finalizado: cases.filter(c => c.Estado_Gestion === 'Finalizado').length,
         pending: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion)).length,
         pendienteAjustes: cases.filter(c => c.Estado_Gestion === 'Pendiente Ajustes').length,
-        dia14: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 14).length,
-        dia15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 15).length,
-        diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) > 15).length,
+        dia14: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) === 14).length,
+        dia15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) === 15).length,
+        diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) > 15).length,
         resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === utils.getColombianDateISO()).length,
     };
 
     const renderTable = (data, title) => {
-    return (
-        <PaginatedTable
-            cases={data}
-            title={title}
-            mainTableHeaders={constants.MAIN_TABLE_HEADERS}
-            statusColors={constants.statusColors} // <-- Usa la constante importada
-            priorityColors={constants.priorityColors} // <-- Usa la constante importada
-            selectedCaseIds={selectedCaseIds}
-            handleSelectCase={handleSelectCase}
-            handleOpenCaseDetails={handleOpenCaseDetails}
-            calculateCaseAge={getDisplayCaseAge} // <-- ¡ESTA ES LA LÍNEA CORRECTA!
-            onScanClick={handleScanClick}
-            nonBusinessDays={nonBusinessDays}
-        />
-    );
-};
+        return (
+            <PaginatedTable
+                cases={data}
+                title={title}
+                mainTableHeaders={constants.MAIN_TABLE_HEADERS}
+                statusColors={constants.statusColors} // <-- Usa la constante importada
+                priorityColors={constants.priorityColors} // <-- Usa la constante importada
+                selectedCaseIds={selectedCaseIds}
+                handleSelectCase={handleSelectCase}
+                handleOpenCaseDetails={handleOpenCaseDetails}
+                calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
+                onScanClick={handleScanClick}
+                nonBusinessDays={nonBusinessDays}
+            />
+        );
+    };
 
     // --- LÓGICA DE GRÁFICOS Y TIEMPO ---
     const asignadosPorDiaData = useMemo(() => {
@@ -1496,7 +1418,7 @@ async function handleObservationFileChange(event) {
                 </div>
                 {userId && <p className="text-sm text-center mb-4">User ID: <span className="font-mono bg-gray-200 px-1 rounded">{userId}</span></p>}
                 <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime}</p>
-                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
+                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
                 {activeModule === 'casos' && (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
