@@ -1241,7 +1241,10 @@ async function handleObservationFileChange(event) {
             let fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const updates = fetched.filter(c => c.user === 'jediazro' && c.user !== userId).map(c => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/cases`, c.id), { user: userId }));
             if (updates.length > 0) { await Promise.all(updates).catch(e => console.error("Auto-assign error:", e)); }
-            fetched.sort((a, b) => (new Date(b['Fecha Radicado'] || 0)) - (new Date(a['Fecha Radicado'] || 0) || a.id.localeCompare(b.id)));
+            
+            // CORRECCIÓN: El paréntesis de new Date() se cierra antes del ||
+            fetched.sort((a, b) => (new Date(b['Fecha Radicado'] || 0)) - (new Date(a['Fecha Radicado'] || 0)) || (a.id || '').localeCompare(b.id || ''));
+            
             setCases(fetched);
             setRefreshing(false);
         }, e => { console.error("Fetch cases error (onSnapshot):", e); displayModalMessage(`Error cargando los casos: ${e.message}`); setRefreshing(false); });
