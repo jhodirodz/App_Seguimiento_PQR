@@ -497,9 +497,6 @@ function App() {
                 for (let i = 0; i < csvDataRows.length; i++) {
                     if (cancelUpload.current) { console.log("Carga cancelada por el usuario."); break; }
                     const row = csvDataRows[i];
-                    if ((!row['nombre_oficina'] || String(row['nombre_oficina']).trim() === '') && String(row['AcceptStaffNo'] || '').trim() === 'dfgomez') {
-                        row['nombre_oficina'] = 'OESIA';
-                    }
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
@@ -1241,10 +1238,7 @@ async function handleObservationFileChange(event) {
             let fetched = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const updates = fetched.filter(c => c.user === 'jediazro' && c.user !== userId).map(c => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/cases`, c.id), { user: userId }));
             if (updates.length > 0) { await Promise.all(updates).catch(e => console.error("Auto-assign error:", e)); }
-            
-            // CORRECCIÓN: El paréntesis de new Date() se cierra antes del ||
-            fetched.sort((a, b) => (new Date(b['Fecha Radicado'] || 0)) - (new Date(a['Fecha Radicado'] || 0)) || (a.id || '').localeCompare(b.id || ''));
-            
+            fetched.sort((a, b) => (new Date(b['Fecha Radicado'] || 0)) - (new Date(a['Fecha Radicado'] || 0) || a.id.localeCompare(b.id)));
             setCases(fetched);
             setRefreshing(false);
         }, e => { console.error("Fetch cases error (onSnapshot):", e); displayModalMessage(`Error cargando los casos: ${e.message}`); setRefreshing(false); });
