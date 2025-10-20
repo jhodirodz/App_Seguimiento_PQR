@@ -803,22 +803,22 @@ function App() {
     };
 
     const renderTable = (data, title) => {
-        return (
-            <PaginatedTable
-                cases={data}
-                title={title}
-                mainTableHeaders={constants.MAIN_TABLE_HEADERS}
-                statusColors={constants.statusColors} // <-- Usa la constante importada
-                priorityColors={constants.priorityColors} // <-- Usa la constante importada
-                selectedCaseIds={selectedCaseIds}
-                handleSelectCase={handleSelectCase}
-                handleOpenCaseDetails={handleOpenCaseDetails}
-                calculateCaseAge={(caseItem) => utils.calculateCaseAge(caseItem, nonBusinessDays)}
-                onScanClick={handleScanClick}
-                nonBusinessDays={nonBusinessDays}
-            />
-        );
-    };
+    return (
+        <PaginatedTable
+            cases={data}
+            title={title}
+            mainTableHeaders={constants.MAIN_TABLE_HEADERS}
+            statusColors={constants.statusColors} // <-- Usa la constante importada
+            priorityColors={constants.priorityColors} // <-- Usa la constante importada
+            selectedCaseIds={selectedCaseIds}
+            handleSelectCase={handleSelectCase}
+            handleOpenCaseDetails={handleOpenCaseDetails}
+            calculateCaseAge={getDisplayCaseAge} // <-- ¡ESTA ES LA LÍNEA CORRECTA!
+            onScanClick={handleScanClick}
+            nonBusinessDays={nonBusinessDays}
+        />
+    );
+};
 
     // --- LÓGICA DE GRÁFICOS Y TIEMPO ---
     const asignadosPorDiaData = useMemo(() => {
