@@ -502,9 +502,22 @@ function App() {
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
                     const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
                     let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
-                    if (String(row['nombre_oficina'] || '').toUpperCase().includes("OESIA") && calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
-                        calculatedDia += 2;
+
+                    // Lógica expandida para sumar 2 días
+                    if (calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
+                        const nombreOficina = String(row['nombre_oficina'] || '').toUpperCase().trim();
+                        const acceptStaffNo = String(row['AcceptStaffNo'] || '').toLowerCase().trim();
+
+                        const esOesia = nombreOficina.includes("OESIA");
+                        const esOficinaEnBlanco = nombreOficina === '';
+                        const esDfGomez = acceptStaffNo === 'dfgomez';
+
+                        // Aplica la lógica si es OESIA, O si la oficina está en blanco Y el usuario es dfgomez
+                        if (esOesia || (esOficinaEnBlanco && esDfGomez)) {
+                            calculatedDia += 2;
+                        }
                     }
+                    
                     if (existingCasesMap.has(currentSN)) {
                         const existingCaseData = existingCasesMap.get(currentSN);
                         const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
