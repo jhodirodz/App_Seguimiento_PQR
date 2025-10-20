@@ -92,41 +92,42 @@ export const parseDate = (dateStr) => {
  * @returns {number|string} Los días hábiles transcurridos o 'N/A' si hay un error.
  */
 export const calculateBusinessDays = (startDateStr, endDateStr, nonBusinessDays) => {
-    if (!startDateStr || !endDateStr) return 'N/A';
-
-    let startDate = new Date(startDateStr);
-    let endDate = new Date(endDateStr);
-
-    // Ajustar las fechas para ignorar la hora y la zona horaria
-    startDate = new Date(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate());
-    endDate = new Date(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate());
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'N/A';
-
-    let count = 0;
-
-    // --- INICIO DE LA CORRECCIÓN 1: DÍA DE INICIO ---
-    // 1. Creamos una NUEVA fecha para el iterador (para evitar el error de referencia)
-    // 2. Iniciamos el iterador UN DÍA DESPUÉS del startDate
-    const curDate = new Date(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate());
-    curDate.setDate(curDate.getDate() + 1);
-    // --- FIN DE LA CORRECCIÓN 1 ---
-
-    while (curDate <= endDate) {
-        const dayOfWeek = curDate.getDay();
-
-        // --- INICIO DE LA CORRECCIÓN 2: LÓGICA DE FESTIVOS ---
-        // Tu archivo original tenía esta lógica comentada. 
-        // La reactivamos para que descuente los días festivos.
-        const dateStr = curDate.toISOString().slice(0, 10); 
-        
-        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !nonBusinessDays.has(dateStr)) {
-        // --- FIN DE LA CORRECCIÓN 2 ---
-            count++;
+    try {
+        const startParts = startDateStr.split('-').map(Number);
+        const endParts = endDateStr.split('-').map(Number);
+        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "N/A";
+        if (startDate > endDate) return 0;
+        let currentDate = new Date(startDate);
+        const nonBusinessDaysSet = new Set(nonBusinessDays);
+        currentDate.setDate(currentDate.getDate() + 1);
+        while (true) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                break;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
         }
-        curDate.setDate(curDate.getDate() + 1);
+        let count = 0;
+        let safetyCounter = 0;
+        while (currentDate <= endDate && safetyCounter < 10000) {
+            const dayOfWeek = currentDate.getDay();
+            const dateStr = currentDate.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                count++;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+            safetyCounter++;
+        }
+        return count;
+    } catch (e) {
+        console.error("Error en calculateBusinessDays:", e);
+        return "N/A";
     }
-    return count;
 };
 
 /**
