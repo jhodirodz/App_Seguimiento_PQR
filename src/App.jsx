@@ -17,7 +17,51 @@ import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, creat
 import { db, auth } from "./firebaseConfig.js";
 
 const appId = "App_Seguimiento_PQR";
+/**
+ * NUEVA FUNCIÓN ROBUSTA PARA FORMATEAR FECHAS A YYYY-MM-DD
+ * Maneja formatos DD/MM/YYYY, YYYY-MM-DD, y objetos Date.
+ */
+const formatDateToYMD = (dateInput) => {
+    if (!dateInput) return ''; // Devuelve vacío si no hay fecha
 
+    try {
+        let dateObj;
+
+        // Opción 1: Ya es un string YYYY-MM-DD
+        if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+            // Validar que sea una fecha real (evita "2025-26-09")
+            dateObj = new Date(dateInput);
+            if (!isNaN(dateObj.getTime())) {
+                // Si es válido, devolverlo tal cual.
+                // El split/join es para manejar zonas horarias.
+                return dateObj.toISOString().split('T')[0];
+            }
+            // Si no es válido (ej: "2025-26-09"), sigue para intentar parsearlo
+        }
+
+        // Opción 2: Es un string DD/MM/YYYY (ej: "26/09/2025")
+        if (typeof dateInput === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(dateInput)) {
+            const parts = dateInput.split('/');
+            // Ojo al orden: Año, Mes (parts[1]), Día (parts[0])
+            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+        } else {
+            // Opción 3: Es un objeto Date, un ISO string o un formato no reconocido
+            dateObj = new Date(dateInput);
+        }
+
+        // Si después de todo, la fecha es inválida, devuelve vacío
+        if (isNaN(dateObj.getTime())) {
+            return '';
+        }
+
+        // Devuelve el formato YYYY-MM-DD
+        return dateObj.toISOString().split('T')[0];
+
+    } catch (e) {
+        console.error("Error formateando fecha:", dateInput, e);
+        return ''; // Fallback
+    }
+};
 const normalizeTextForSearch = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -316,16 +360,16 @@ function App() {
         
         // Aplica el formato 'YYYY-MM-DD' a las fechas clave para el input type="date"
         if (caseItem['Fecha Radicado']) {
-            formattedCaseItem['Fecha Radicado'] = utils.formatDateForInput(caseItem['Fecha Radicado']);
+            formattedCaseItem['Fecha Radicado'] = formatDateToYMD(caseItem['Fecha Radicado']);
         }
         if (caseItem['Fecha Cierre']) {
-            formattedCaseItem['Fecha Cierre'] = utils.formatDateForInput(caseItem['Fecha Cierre']);
+            formattedCaseItem['Fecha Cierre'] = formatDateToYMD(caseItem['Fecha Cierre']);
         }
         if (caseItem['Fecha Vencimiento']) {
-            formattedCaseItem['Fecha Vencimiento'] = utils.formatDateForInput(caseItem['Fecha Vencimiento']);
+            formattedCaseItem['Fecha Vencimiento'] = formatDateToYMD(caseItem['Fecha Vencimiento']);
         }
         if (caseItem['Fecha_Vencimiento_Decreto']) {
-            formattedCaseItem['Fecha_Vencimiento_Decreto'] = utils.formatDateForInput(caseItem['Fecha_Vencimiento_Decreto']);
+            formattedCaseItem['Fecha_Vencimiento_Decreto'] = formatDateToYMD(caseItem['Fecha_Vencimiento_Decreto']);
         }
         
         setSelectedCase(formattedCaseItem);
@@ -500,7 +544,7 @@ function App() {
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
-                    const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
+                    const parsedFechaRadicado = formatDateToYMD(row['Fecha Radicado']); // <-- CAMBIO AQUÍ
                     let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
 
                     // Lógica expandida para sumar 2 días
@@ -1452,7 +1496,7 @@ async function handleObservationFileChange(event) {
                 </div>
                 {userId && <p className="text-sm text-center mb-4">User ID: <span className="font-mono bg-gray-200 px-1 rounded">{userId}</span></p>}
                 <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime}</p>
-                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
+                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
                 {activeModule === 'casos' && (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
