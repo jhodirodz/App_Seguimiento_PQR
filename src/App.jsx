@@ -497,6 +497,9 @@ function App() {
                 for (let i = 0; i < csvDataRows.length; i++) {
                     if (cancelUpload.current) { console.log("Carga cancelada por el usuario."); break; }
                     const row = csvDataRows[i];
+                    if ((!row['nombre_oficina'] || String(row['nombre_oficina']).trim() === '') && String(row['AcceptStaffNo'] || '').trim() === 'dfgomez') {
+                        row['nombre_oficina'] = 'OESIA';
+                    }
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
