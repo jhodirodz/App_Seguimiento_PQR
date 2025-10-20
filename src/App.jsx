@@ -789,16 +789,37 @@ function App() {
     const resDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Resuelto' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const finalizadosDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Finalizado' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const aseguramientosDisp = useMemo(() => casesForDisplay.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && Array.isArray(c.Aseguramiento_Historial) && c.Aseguramiento_Historial.length > 0).sort(sortSN), [casesForDisplay]);
-    
+    const getDisplayCaseAge = useCallback((caseItem) => {
+        if (!caseItem) return 'N/A';
+        
+        // 1. Calcula la antigüedad base usando la función de utils
+        let displayAge = utils.calculateCaseAge(caseItem, nonBusinessDays);
+        
+        // 2. Aplica la lógica de ajuste de 2 días
+        if (displayAge !== 'N/A' && !isNaN(displayAge)) {
+            const nombreOficina = String(caseItem['nombre_oficina'] || '').toUpperCase().trim();
+            const acceptStaffNo = String(caseItem['AcceptStaffNo'] || '').toLowerCase().trim();
+            
+            const esOesia = nombreOficina.includes("OESIA");
+            const esOficinaEnBlanco = nombreOficina === '';
+            const esDfGomez = acceptStaffNo === 'dfgomez';
+
+            // Aplica la lógica si es OESIA, O si la oficina está en blanco Y el usuario es dfgomez
+            if (esOesia || (esOficinaEnBlanco && esDfGomez)) {
+                displayAge += 2;
+            }
+        }
+        return displayAge;
+    }, [nonBusinessDays]);
     const counts = {
         total: cases.length,
         resolved: cases.filter(c => c.Estado_Gestion === 'Resuelto').length,
         finalizado: cases.filter(c => c.Estado_Gestion === 'Finalizado').length,
         pending: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion)).length,
         pendienteAjustes: cases.filter(c => c.Estado_Gestion === 'Pendiente Ajustes').length,
-        dia14: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) === 14).length,
-        dia15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) === 15).length,
-        diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && utils.calculateCaseAge(c, nonBusinessDays) > 15).length,
+        dia14: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 14).length,
+        dia15: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 15).length,
+        diaGt15: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) > 15).length,
         resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === utils.getColombianDateISO()).length,
     };
 
