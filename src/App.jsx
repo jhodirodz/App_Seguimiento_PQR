@@ -817,9 +817,9 @@ function App() {
         finalizado: cases.filter(c => c.Estado_Gestion === 'Finalizado').length,
         pending: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion)).length,
         pendienteAjustes: cases.filter(c => c.Estado_Gestion === 'Pendiente Ajustes').length,
-        dia14: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 14).length,
-        dia15: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 15).length,
-        diaGt15: cases.filter(c => [...].includes(c.Estado_Gestion) && getDisplayCaseAge(c) > 15).length,
+        dia14: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 14).length,
+        dia15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) === 15).length,
+        diaGt15: cases.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura', 'Decretado', 'Traslado SIC', 'Pendiente Ajustes'].includes(c.Estado_Gestion) && getDisplayCaseAge(c) > 15).length,
         resolvedToday: cases.filter(c => (c.Estado_Gestion === 'Resuelto' || c.Estado_Gestion === 'Finalizado') && c['Fecha Cierre'] === utils.getColombianDateISO()).length,
     };
 
