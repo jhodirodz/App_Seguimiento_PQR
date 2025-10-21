@@ -56,32 +56,62 @@ export const formatDateForInput = (dateString) => {
 };
 
 /**
+ * Parsea una cadena de fecha intentando asumir el formato MM/DD/YYYY o DD/MM/YYYY.
+ * Esta es la función principal que debe usarse para leer fechas de archivos CSV.
+ * @param {string} dateStr - La cadena de fecha a parsear (ej: '9/29/2025', '29/09/2025').
+ * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
+ */
+export const parseDateFromCSV = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    
+    // Intenta capturar D/M/YYYY, DD/MM/YYYY, M/D/YYYY, etc. (con / o -)
+    let parts = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (!parts) {
+        // Si no coincide con el patrón esperado, retorna la cadena original o si ya es ISO.
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return dateStr;
+        }
+        return dateStr; 
+    }
+    
+    const part1 = parseInt(parts[1], 10);
+    const part2 = parseInt(parts[2], 10);
+    const year = parts[3];
+
+    // Lógica de desambiguación:
+    let day, month;
+    if (part1 > 12 && part2 <= 12) {
+        // Si el primer componente es > 12 y el segundo es <= 12, asumimos DD/MM/YYYY (Ej: 29/09/2025)
+        day = part1;
+        month = part2;
+    } else if (part1 <= 12 && part2 > 12) {
+        // Si el primer componente es <= 12 y el segundo es > 12, asumimos MM/DD/YYYY (Ej: 09/29/2025)
+        month = part1;
+        day = part2;
+    } else if (part1 <= 12 && part2 <= 12) {
+        // Si ambos son <= 12, se prioriza el formato MM/DD/YYYY que es el que se observa en el CSV de ejemplo ('9/29/2025')
+        month = part1;
+        day = part2;
+    } else {
+        // Si ambos son > 12 (ej. 29/30/2025), la fecha es inválida.
+        return dateStr;
+    }
+
+    // Validación de límites básicos
+    if (day > 31 || month > 12 || day === 0 || month === 0) return dateStr;
+
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
+
+/**
  * Parsea una cadena de fecha de DD/MM/YYYY o MM/DD/YYYY a YYYY-MM-DD.
- * Esta función es principalmente utilizada para la carga inicial del CSV.
+ * Esta función *DEBE* llamar a parseDateFromCSV para aprovechar la lógica de desambiguación.
  * @param {string} dateStr - La cadena de fecha a parsear.
  * @returns {string} La fecha en formato 'YYYY-MM-DD' o la cadena original si falla el parseo.
  */
 export const parseDate = (dateStr) => {
-    if (!dateStr || typeof dateStr !== 'string') return '';
-    
-    // Intenta capturar DD/MM/YYYY o MM/DD/YYYY (con / o -)
-    let parts = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-    if (parts) {
-        // Asumiendo DD/MM/YYYY (típico formato en Colombia) en la carga del CSV
-        const day = parts[1].padStart(2, '0');
-        const month = parts[2].padStart(2, '0');
-        const year = parts[3];
-
-        // Retorna el formato estándar YYYY-MM-DD
-        return `${year}-${month}-${day}`;
-    }
-    
-    // Intenta parsear si ya viene en formato ISO (YYYY-MM-DD)
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return dateStr;
-    }
-    
-    return dateStr;
+    // Reemplazamos la lógica original con la llamada a la nueva función robusta
+    return parseDateFromCSV(dateStr);
 };
 
 /**
