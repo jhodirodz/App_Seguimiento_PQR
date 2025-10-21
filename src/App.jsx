@@ -732,7 +732,7 @@ async function handleFileUpload(event) {
     };
 
     // --- FIN FUNCIONES FALTANTES PARA BOTONES DE CARGA ---
-// ** 1. FUNCIÓN DE RECATEGORIZACIÓN MASIVA **
+// // ** 1. FUNCIÓN DE RECATEGORIZACIÓN MASIVA **
     async function handleMassRecategorization() {
         if (!db || !userId) {
             displayModalMessage("Base de datos no disponible o usuario no autenticado.");
@@ -756,48 +756,93 @@ async function handleFileUpload(event) {
                     setMassUpdateTargetStatus('Recategorizando...');
                     setIsMassUpdating(true);
                     let updatedCount = 0;
-                    let currentBatch = writeBatch(db); // Inicializa el lote aquí.
+                    let currentBatch = writeBatch(db); 
+                    const totalCases = casesToRecategorize.length;
+                    
+                    // --- NUEVA LÓGICA DE DELAY Y RETRY ---
+                    const BASE_DELAY_MS = 1000; // 1 segundo de pausa entre peticiones (para ralentizar el proceso)
+                    const MAX_RETRIES = 5; 
+                    // --- FIN NUEVA LÓGICA ---
 
                     try {
-                        for (let i = 0; i < casesToRecategorize.length; i++) {
+                        for (let i = 0; i < totalCases; i++) {
                             const caseItem = casesToRecategorize[i];
-                            displayModalMessage(`Recategorizando ${i + 1}/${casesToRecategorize.length}: SN ${caseItem.SN}...`);
+                            displayModalMessage(`Recategorizando ${i + 1}/${totalCases}: SN ${caseItem.SN}...`);
 
-                            // Llama al servicio de IA para obtener la categoría y el análisis
-                            const aiAnalysisCat = await aiServices.getAIAnalysisAndCategory(caseItem);
+                            let aiAnalysisCat = null;
+                            let retries = 0;
+                            let success = false;
 
-                            // Si la IA devuelve una categoría válida, se procede con la actualización
+                            while (!success && retries < MAX_RETRIES) {
+                                try {
+                                    // 1. Llama al servicio de IA
+                                    aiAnalysisCat = await aiServices.getAIAnalysisAndCategory(caseItem);
+                                    success = true;
+                                } catch (error) {
+                                    retries++;
+                                    console.error(`Intento ${retries} fallido para SN ${caseItem.SN}:`, error);
+
+                                    // 2. Verificar error de cuota (429) o servicio (503)
+                                    const errorMessage = error.message || String(error);
+                                    let delayTime = BASE_DELAY_MS * (retries + 1); // Retraso exponencial básico
+
+                                    if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
+                                        // Intentar extraer el tiempo de reintento sugerido por la API (si está disponible)
+                                        const retryMatch = errorMessage.match(/Please retry in ([0-9]+)s/);
+                                        if (retryMatch && retryMatch[1]) {
+                                            delayTime = (parseInt(retryMatch[1]) + 5) * 1000; // Agregar 5 segundos extra de buffer
+                                        } else {
+                                            delayTime = Math.min(60000, 10000 * retries); // Límite de 60 segundos si no hay tiempo sugerido
+                                        }
+                                        displayModalMessage(`¡CUOTA EXCEDIDA! Pausando ${Math.round(delayTime / 1000)} segundos antes del reintento...`);
+                                        await new Promise(resolve => setTimeout(resolve, delayTime));
+                                    } else if (errorMessage.includes("503") && retries < MAX_RETRIES) {
+                                        // Error de Servicio: solo espera el delay normal
+                                        displayModalMessage(`Error de servicio (503). Pausando ${Math.round(delayTime / 1000)} segundos antes del reintento...`);
+                                        await new Promise(resolve => setTimeout(resolve, delayTime));
+                                    } else {
+                                        // Otro error fatal: detener el bucle de reintentos
+                                        displayModalMessage(`Error fatal para SN ${caseItem.SN}. Omitiendo.`);
+                                        break; 
+                                    }
+                                }
+                            }
+                            
+                            // 3. Procesar resultado
                             if (aiAnalysisCat && aiAnalysisCat['Categoria del reclamo'] && aiAnalysisCat['Categoria del reclamo'] !== 'N/A') {
                                 const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
                                 
-                                // Se añade una observación al historial
                                 const newObservation = { text: `Categoría actualizada por recategorización masiva de la IA: ${aiAnalysisCat['Categoria del reclamo']}`, timestamp: new Date().toISOString() };
                                 const existingHistory = caseItem.Observaciones_Historial || [];
 
                                 const updateData = { 
-                                    ...aiAnalysisCat, // Incluye 'Analisis de la IA' y 'Categoria del reclamo'
+                                    ...aiAnalysisCat, 
                                     Observaciones_Historial: [...existingHistory, newObservation]
                                 };
                                 
                                 currentBatch.update(docRef, updateData);
                                 updatedCount++;
 
-                                // Realiza el commit por lotes cada 500 operaciones para evitar límites
-                                if (updatedCount % 500 === 0) {
+                                if (updatedCount % 50 === 0) { // Commit más frecuente (ej. cada 50) para prevenir timeout
                                     await currentBatch.commit();
-                                    currentBatch = writeBatch(db); // Inicia un nuevo lote
+                                    currentBatch = writeBatch(db); 
                                 }
+                            }
+                            
+                            // 4. Pausa entre casos exitosos para evitar picos de API
+                            if (success && i < totalCases - 1) {
+                                await new Promise(resolve => setTimeout(resolve, BASE_DELAY_MS)); 
                             }
                         }
 
-                        // Commitea el lote final (si hay algo pendiente)
-                        if (updatedCount % 500 !== 0) {
+                        // Commitea el lote final 
+                        if (updatedCount % 50 !== 0) {
                             await currentBatch.commit();
                         }
 
                         displayModalMessage(`Recategorización masiva completada: ${updatedCount} casos actualizados.`);
                     } catch (error) {
-                        console.error("Error en recategorización masiva:", error);
+                        console.error("Error en recategorización masiva (fuera del bucle):", error);
                         displayModalMessage(`Error al recategorizar casos masivamente. Solo se actualizaron ${updatedCount} casos. Error: ${error.message}`);
                     } finally {
                         setMassUpdateTargetStatus('');
