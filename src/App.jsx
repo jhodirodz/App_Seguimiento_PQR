@@ -732,7 +732,81 @@ async function handleFileUpload(event) {
     };
 
     // --- FIN FUNCIONES FALTANTES PARA BOTONES DE CARGA ---
+// ** 1. FUNCIÓN DE RECATEGORIZACIÓN MASIVA **
+    async function handleMassRecategorization() {
+        if (!db || !userId) {
+            displayModalMessage("Base de datos no disponible o usuario no autenticado.");
+            return;
+        }
 
+        const casesToRecategorize = cases.filter(c =>
+            !c['Categoria del reclamo'] || c['Categoria del reclamo'] === 'N/A' || c['Categoria del reclamo'] === 'No especificada'
+        );
+
+        if (casesToRecategorize.length === 0) {
+            displayModalMessage("No se encontraron casos sin categoría de reclamo para procesar.");
+            return;
+        }
+
+        displayConfirmModal(
+            `Se encontraron ${casesToRecategorize.length} casos sin categoría de reclamo. ¿Deseas enviarlos a la IA para recategorización masiva? Esto puede tomar tiempo y consumir recursos de la API.`,
+            {
+                confirmText: 'Sí, Recategorizar',
+                onConfirm: async () => {
+                    setMassUpdateTargetStatus('Recategorizando...');
+                    setIsMassUpdating(true);
+                    let updatedCount = 0;
+                    let currentBatch = writeBatch(db); // Inicializa el lote aquí.
+
+                    try {
+                        for (let i = 0; i < casesToRecategorize.length; i++) {
+                            const caseItem = casesToRecategorize[i];
+                            displayModalMessage(`Recategorizando ${i + 1}/${casesToRecategorize.length}: SN ${caseItem.SN}...`);
+
+                            // Llama al servicio de IA para obtener la categoría y el análisis
+                            const aiAnalysisCat = await aiServices.getAIAnalysisAndCategory(caseItem);
+
+                            // Si la IA devuelve una categoría válida, se procede con la actualización
+                            if (aiAnalysisCat && aiAnalysisCat['Categoria del reclamo'] && aiAnalysisCat['Categoria del reclamo'] !== 'N/A') {
+                                const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, caseItem.id);
+                                
+                                // Se añade una observación al historial
+                                const newObservation = { text: `Categoría actualizada por recategorización masiva de la IA: ${aiAnalysisCat['Categoria del reclamo']}`, timestamp: new Date().toISOString() };
+                                const existingHistory = caseItem.Observaciones_Historial || [];
+
+                                const updateData = { 
+                                    ...aiAnalysisCat, // Incluye 'Analisis de la IA' y 'Categoria del reclamo'
+                                    Observaciones_Historial: [...existingHistory, newObservation]
+                                };
+                                
+                                currentBatch.update(docRef, updateData);
+                                updatedCount++;
+
+                                // Realiza el commit por lotes cada 500 operaciones para evitar límites
+                                if (updatedCount % 500 === 0) {
+                                    await currentBatch.commit();
+                                    currentBatch = writeBatch(db); // Inicia un nuevo lote
+                                }
+                            }
+                        }
+
+                        // Commitea el lote final (si hay algo pendiente)
+                        if (updatedCount % 500 !== 0) {
+                            await currentBatch.commit();
+                        }
+
+                        displayModalMessage(`Recategorización masiva completada: ${updatedCount} casos actualizados.`);
+                    } catch (error) {
+                        console.error("Error en recategorización masiva:", error);
+                        displayModalMessage(`Error al recategorizar casos masivamente. Solo se actualizaron ${updatedCount} casos. Error: ${error.message}`);
+                    } finally {
+                        setMassUpdateTargetStatus('');
+                        setIsMassUpdating(false);
+                    }
+                }
+            }
+        );
+    }
     // ** 1. Definición de handleObservationFileClick **
     function handleObservationFileClick() {
         if (observationFileInputRef.current) {
@@ -1463,6 +1537,13 @@ async function handleObservationFileChange(event) {
                                 <button onClick={forceRefreshCases} className="px-5 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" disabled={refreshing}>{refreshing ? 'Actualizando...' : 'Refrescar Casos'}</button>
                                 <button onClick={() => exportCasesToCSV(false)} className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">Exportar Todos</button>
                                 <button onClick={() => exportCasesToCSV(true)} className="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">Exportar Resueltos Hoy</button>
+                                <button
+        onClick={handleMassRecategorization}
+        className="px-5 py-2 bg-pink-600 text-white font-semibold rounded-lg shadow-md hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75"
+        disabled={uploading || isMassUpdating}
+    >
+        Recategorizar Casos N/A
+    </button>
                                 <button onClick={handleDeleteAllCases} className="px-5 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" disabled={isMassUpdating || cases.length === 0}>Limpieza Total</button>
                             </div>
                         </div>
