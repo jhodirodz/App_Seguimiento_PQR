@@ -476,8 +476,7 @@ function App() {
             downloadCSV(csvActual, `casos_actuales_${filenameSuffix}.csv`);
         }, 500);
     };
-
-    async function handleFileUpload(event) {
+async function handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
         setUploading(true);
@@ -500,7 +499,12 @@ function App() {
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
-                    const parsedFechaRadicado = utils.parseDate(row['Fecha Radicado']);
+
+                    // --- INICIO DE LA CORRECCIÓN CLAVE ---
+                    // Se llama a una nueva función que intenta forzar el parseo como MM/DD/YYYY,
+                    // que es como lo exporta el sistema de origen o Excel por defecto.
+                    const parsedFechaRadicado = utils.parseDateFromCSV(row['Fecha Radicado']);
+                    // --- FIN DE LA CORRECCIÓN CLAVE ---
                     let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
                     if (String(row['nombre_oficina'] || '').toUpperCase().includes("OESIA") && calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
                         calculatedDia += 2;
