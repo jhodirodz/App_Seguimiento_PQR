@@ -1712,7 +1712,72 @@ async function handleObservationFileChange(event) {
                         </div>
                     </div>
                 </div>)}
-
+{/* --- INICIO DE LA ALARMA FALTANTE (DECRETADO / TRASLADO SIC POR ANTIGÜEDAD) --- */}
+            {showAlarmModal && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]">
+                        <div className="flex items-center justify-between pb-3 border-b-2 border-purple-500">
+                            <h3 className="text-2xl font-bold text-purple-700">⚖️ Alarma de Antigüedad (SIC/Decreto)</h3>
+                            <button onClick={() => setShowAlarmModal(false)} className="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+                        </div>
+                        <div className="mt-4">
+                            <p className="text-sm text-gray-600 mb-4">
+                                Los siguientes casos han superado el umbral de antigüedad:
+                                <br />- <strong>Traslado SIC:</strong> 3 días hábiles o más.
+                                <br />- <strong>Decretado:</strong> 7 días hábiles o más.
+                            </p>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                {alarmCases.map(c => (
+                                    <div key={c.id} className="p-3 rounded-md border bg-purple-50 border-purple-200">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-purple-800">SN: {c.SN}</p>
+                                                <p className="text-sm">
+                                                    <span className={`px-2 inline-flex text-xs font-semibold rounded-full ${constants.statusColors[c.Estado_Gestion]}`}>
+                                                        {c.Estado_Gestion}
+                                                    </span>
+                                                </p>
+                                                <p className="text-sm text-gray-700 mt-1">
+                                                    Cliente: {c.Nombre_Cliente || 'N/A'}
+                                                </p>
+                                                <p className="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full inline-block mt-2">
+                                                    Antigüedad: {utils.calculateCaseAge(c, nonBusinessDays)} días
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col items-end space-y-2">
+                                                <button
+                                                    onClick={() => {
+                                                        handleOpenCaseDetails(c);
+                                                        setShowAlarmModal(false); // Opcional: cierra la alarma al ver el caso
+                                                    }}
+                                                    className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 w-full text-center"
+                                                >
+                                                    Ver Caso
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end mt-4">
+                                <button
+                                    onClick={() => {
+                                        const todayISO = utils.getColombianDateISO();
+                                        alarmCases.forEach(c => {
+                                            sessionStorage.setItem(`alarm_dismissed_${c.id}_${todayISO}`, 'true');
+                                        });
+                                        setShowAlarmModal(false);
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Entendido, Cerrar Alertas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* --- FIN DE LA ALARMA FALTANTE --- */}
             {showKeywordAlarmModal && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[100] p-4">
                     <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-auto overflow-y-auto max-h-[95vh]">
