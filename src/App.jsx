@@ -499,7 +499,11 @@ async function handleFileUpload(event) {
                     const currentSN = String(row.SN || '').trim();
                     if (!currentSN) { skippedCount++; continue; }
                     displayModalMessage(`Procesando ${i + 1}/${csvDataRows.length}...`);
-
+// --- INICIO DE LA VALIDACIÓN (OESIA) SOLICITADA ---
+                    if ((!row.nombre_oficina || row.nombre_oficina.trim() === '') && row.AcceptStaffNo === 'dfgomez') {
+                        row.nombre_oficina = 'OESIA';
+                    }
+                    // --- FIN DE LA VALIDACIÓN (OESIA) SOLICITADA ---
                     // --- INICIO DE LA CORRECCIÓN CLAVE ---
                     // Se llama a una nueva función que intenta forzar el parseo como MM/DD/YYYY,
                     // que es como lo exporta el sistema de origen o Excel por defecto.
