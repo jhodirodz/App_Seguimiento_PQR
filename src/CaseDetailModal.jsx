@@ -402,7 +402,19 @@ async function handleSuggestEscalation() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[120] p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-auto overflow-y-auto max-h-[90vh]">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Detalles del Caso: {localCase.SN}</h3>
-                
+                {/* Bloque oculto para forzar a Tailwind a incluir estas clases dinámicas.
+                  No eliminar este comentario, es necesario para que los colores de los botones de estado se generen.
+                */}
+                <div className="hidden">
+                  <span className="bg-indigo-200 text-indigo-800 hover:bg-indigo-300 bg-indigo-600 text-white"></span>
+                  <span className="bg-blue-200 text-blue-800 hover:bg-blue-300 bg-blue-600 text-white"></span>
+                  <span className="bg-purple-200 text-purple-800 hover:bg-purple-300 bg-purple-600 text-white"></span>
+                  <span className="bg-orange-200 text-orange-800 hover:bg-orange-300 bg-orange-600 text-white"></span>
+                  <span className="bg-pink-200 text-pink-800 hover:bg-pink-300 bg-pink-600 text-white"></span>
+                  <span className="bg-green-200 text-green-800 hover:bg-green-300 bg-green-600 text-white"></span>
+                  <span className="bg-yellow-200 text-yellow-800 hover:bg-yellow-300 bg-yellow-600 text-white"></span>
+                  <span className="bg-red-200 text-red-800 hover:bg-red-300 bg-red-600 text-white"></span>
+                </div>
                 {/* Input de archivo oculto para la transcripción de observaciones - ELIMINADO EL REF LOCAL */}
                 {/* <input type="file" ref={observationFileInputRef} onChange={e => {
                      // Llama al handler en el padre si la lógica de la API no está aquí
