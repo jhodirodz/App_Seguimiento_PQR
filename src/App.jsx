@@ -869,7 +869,10 @@ async function handleFileUpload(event) {
     const filteredAndSearchedCases = useMemo(() => {
         const searchTerms = searchTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term !== '');
         return cases.filter(c => {
-            const searchMatch = searchTerms.length === 0 || searchTerms.some(term => ['SN', 'CUN', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Categoria del reclamo', 'Prioridad'].some(f => String(c[f] || '').toLowerCase().includes(term)));
+            const searchMatch = searchTerms.length === 0 || searchTerms.some(term => 
+                ['SN', 'CUN', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Categoria del reclamo', 'Prioridad', 'Analisis de la IA', 'obs'] // <-- CAMPOS AÑADIDOS
+                .some(f => String(c[f] || '').toLowerCase().includes(term))
+            );
             const contractMatch = contractFilter === 'todos' || c.Tipo_Contrato === contractFilter;
             const priorityMatch = priorityFilter === 'todos' || c.Prioridad === priorityFilter;
             const statusMatch = statusFilter === 'todos' || c.Estado_Gestion === statusFilter;
@@ -1545,7 +1548,13 @@ async function handleObservationFileChange(event) {
                 </div>
                 {userId && <p className="text-sm text-center mb-4">User ID: <span className="font-mono bg-gray-200 px-1 rounded">{userId}</span></p>}
                 <p className="text-lg text-center mb-4">Fecha y Hora: {currentDateTime}</p>
-                <input type="text" placeholder="Buscar por SN, CUN, Nuip... (separar con comas para búsqueda masiva)" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} className="p-3 mb-4 border rounded-lg w-full shadow-sm" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar por SN, CUN, Nuip, Obs, Análisis IA... (separar con comas)" // <-- TEXTO ACTUALIZADO
+                    value={searchTerm} 
+                    onChange={e => { setSearchTerm(e.target.value); setActiveFilter('all') }} 
+                    className="p-3 mb-4 border rounded-lg w-full shadow-sm" 
+                />
                 {activeModule === 'casos' && (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
