@@ -107,13 +107,77 @@ function App() {
         reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = error => reject(error);
     });
-const handleManualFormChange = (e) => {
-    const { name, value } = e.target;
-    // La clave es que 'OBS' en el formulario debe actualizar el estado con 'obs' para coincidir con Firestore.
-    // Asumiendo que has corregido el formulario para usar 'obs' o haces un mapeo aquí:
-    const key = name === 'OBS' ? 'obs' : name; 
-    setManualFormData(prev => ({ ...prev, [key]: value }));
-};
+    // --- NUEVAS FUNCIONES PARA EL FORMULARIO MANUAL ---
+    function handleManualFormChange(e) {
+        const { name, value } = e.target;
+        setManualFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    }
+
+    async function handleManualSubmit(e) {
+        e.preventDefault();
+        if (!db || !userId) {
+            displayModalMessage('DB no lista o usuario no autenticado.');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            // Se respeta la hora de Colombia para la fecha de asignación.
+            const today = utils.getColombianDateISO();
+            const nowISO = new Date().toISOString();
+            const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
+
+            const parsedFechaRadicado = utils.parseDate(manualFormData.FechaRadicado);
+            let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
+
+            // Simulación de análisis IA para campos requeridos en la tabla
+            let aiAnalysisCat = { 'Analisis de la IA': manualFormData['Analisis de la IA'] || 'Ingreso manual', 'Categoria del reclamo': manualFormData['Categoria del reclamo'] || 'Ingreso manual' };
+            let aiPrio = manualFormData.Prioridad || 'Media';
+            let aiSentiment = { Sentimiento_IA: 'Neutral' };
+            let relNum = utils.extractRelatedComplaintNumber(manualFormData.OBS);
+            
+            // Validación de campos clave
+            if (!manualFormData.SN || !manualFormData.CUN || !manualFormData.FechaRadicado || !manualFormData.Nro_Nuip_Cliente) {
+                throw new Error("Los campos SN, CUN, Fecha Radicado y Nro_Nuip_Cliente son obligatorios.");
+            }
+
+            // Datos que se añadirán a Firebase
+            const newCaseData = {
+                ...constants.initialManualFormData, // Para asegurar que todos los campos base estén presentes
+                ...manualFormData,
+                'Fecha Radicado': parsedFechaRadicado,
+                'Dia': calculatedDia,
+                'Dia_Original_CSV': manualFormData.Dia, // Guarda el día ingresado manualmente si no se pudo calcular
+                Estado_Gestion: manualFormData.Estado_Gestion || 'Pendiente',
+                Prioridad: aiPrio,
+                ...aiAnalysisCat,
+                ...aiSentiment,
+                Numero_Reclamo_Relacionado: relNum,
+                fecha_asignacion: today,
+                user: userId, // Asigna al usuario actual
+                nombre_oficina: manualFormData.nombre_oficina || 'MANUAL',
+                Observaciones_Historial: [{ text: `Caso ingresado manualmente. Observación inicial: ${manualFormData.OBS}`, timestamp: nowISO }],
+                // Limpiar campos que no deben ir en el caso inicial si fueron heredados o son específicos de gestión
+                Tiempo_Resolucion_Minutos: 'N/A',
+                'Fecha Cierre': '',
+            };
+
+            const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+            await addDoc(collRef, newCaseData);
+
+            displayModalMessage(`Caso SN ${manualFormData.SN} agregado exitosamente.`);
+            setShowManualEntryModal(false);
+            setManualFormData(constants.initialManualFormData); // Resetear el formulario
+        } catch (err) {
+            displayModalMessage(`Error al agregar caso: ${err.message}`);
+        } finally {
+            setUploading(false);
+        }
+    }
+    // --- FIN NUEVAS FUNCIONES PARA EL FORMULARIO MANUAL ---
     // --- LÓGICA DE FIREBASE ---
     async function updateCaseInFirestore(caseId, newData) {
         if (!db || !userId) return;
