@@ -181,7 +181,76 @@ export const calculateCaseAge = (caseItem, nonBusinessDays) => {
     }
     return age;
 };
+/**
+ * Calcula la fecha de vencimiento sumando un número de días hábiles.
+ * El conteo comienza el día hábil siguiente a la fecha de inicio.
+ * @param {string} startDateStr - La fecha de inicio (Fecha Radicado) en formato 'YYYY-MM-DD'.
+ * @param {number} businessDaysToAdd - El número de días hábiles a sumar (ej: 15).
+ * @param {Set<string>} nonBusinessDays - Un conjunto de fechas no laborables en formato 'YYYY-MM-DD'.
+ * @returns {string} La fecha de vencimiento en formato 'YYYY-MM-DD' o 'N/A' si hay un error.
+ */
+export const calculateDueDate = (startDateStr, businessDaysToAdd, nonBusinessDays) => {
+    try {
+        const startParts = startDateStr.split('-').map(Number);
+        const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        if (isNaN(startDate.getTime())) return "N/A";
+        
+        let currentDate = new Date(startDate);
+        const nonBusinessDaysSet = new Set(nonBusinessDays);
+        let daysAdded = 0;
 
+        // 1. Encuentra el primer día hábil después de la fecha de inicio (el día en que empieza a correr el plazo)
+        let firstBusinessDay = new Date(startDate);
+        let safetyCounter = 0;
+
+        // Se avanza al siguiente día, que será el primer día a contar
+        firstBusinessDay.setDate(firstBusinessDay.getDate() + 1);
+
+        while (true && safetyCounter < 100) { // Límite de seguridad
+            const dayOfWeek = firstBusinessDay.getDay();
+            const dateStr = firstBusinessDay.toISOString().slice(0, 10);
+            const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+
+            // 0=Domingo, 6=Sábado. Un día hábil es de Lunes a Viernes y no es festivo.
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                currentDate = firstBusinessDay;
+                break;
+            }
+            firstBusinessDay.setDate(firstBusinessDay.getDate() + 1);
+            safetyCounter++;
+        }
+        
+        if (safetyCounter >= 100) return "N/A"; // Fallo de seguridad
+
+        // 2. Suma los días hábiles a partir de firstBusinessDay (incluyéndolo)
+        // Ya contamos 1 (el primerBusinessDay), por lo que necesitamos sumar businessDaysToAdd - 1 días adicionales
+        daysAdded = 1;
+        
+        // Si solo se debe sumar 1 día (el de inicio), el bucle no es necesario.
+        if (businessDaysToAdd === 1) {
+             // Ya está en currentDate
+        } else {
+            // Recorre para sumar los días restantes.
+            while (daysAdded < businessDaysToAdd && safetyCounter < 1000) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                const dayOfWeek = currentDate.getDay();
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                const isNonBusinessDay = nonBusinessDaysSet.has(dateStr);
+    
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isNonBusinessDay) {
+                    daysAdded++;
+                }
+                safetyCounter++;
+            }
+        }
+        
+        // Formatea la fecha de vencimiento final
+        return currentDate.toISOString().slice(0, 10);
+    } catch (e) {
+        console.error("Error en calculateDueDate:", e);
+        return "N/A";
+    }
+};
 /**
  * Calcula la duración entre dos fechas ISO en minutos.
  * @param {string} startDateISO - La fecha de inicio en formato ISO.
