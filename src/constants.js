@@ -197,3 +197,33 @@ export const priorityColors = {
 };
 
 // --- FIN CONSTANTES DE ESTILO ---
+// --- CONSTANTE FALTANTE PARA EL FORMULARIO MANUAL ---
+export const initialManualFormData = {
+    SN: '',
+    CUN: '',
+    FechaRadicado: '',
+    FechaVencimiento: '',
+    Nro_Nuip_Cliente: '',
+    Nombre_Cliente: '',
+    Dia: 0,
+    Tipo_Contrato: 'Condiciones Uniformes',
+    Estado_Gestion: 'Pendiente',
+    OBS: '',
+    // Campos adicionales comunes del caso, inicializados para evitar errores
+    Prioridad: 'Media',
+    'Analisis de la IA': 'Ingreso manual',
+    'Categoria del reclamo': 'Ingreso manual',
+    Observaciones_Historial: [],
+    SNAcumulados_Historial: [],
+    Escalamiento_Historial: [],
+    Aseguramiento_Historial: [],
+    fecha_asignacion: '',
+    user: 'jediazro', // Provisorio, se actualizará con el ID del usuario
+    Tiempo_Resolucion_Minutos: 'N/A',
+    Dia_Original_CSV: 'N/A',
+    isNabis: false,
+    Radicado_SIC: '',
+    Fecha_Vencimiento_Decreto: '',
+    Numero_Reclamo_Relacionado: 'N/A',
+};
+// --- FIN CONSTANTE FALTANTE ---
