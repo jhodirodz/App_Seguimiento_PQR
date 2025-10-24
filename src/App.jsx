@@ -200,9 +200,18 @@ function App() {
         const today = utils.getColombianDateISO();
         const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
 
-        // 1. Calcular el día de antigüedad
-        const parsedFechaRadicado = manualFormData.FechaRadicado || today;
-        let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
+        // 1. Calcular el día de antigüedad (corregido para usar utils.parseDate)
+const parsedFechaRadicado = utils.parseDate(manualFormData.FechaRadicado) || today;
+let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
+
+// 2. Calcular la fecha de vencimiento si no se proporcionó
+let calculatedDueDate = manualFormData.FechaVencimiento;
+if (!calculatedDueDate || String(calculatedDueDate).trim() === '' || String(calculatedDueDate).trim() === 'N/A' || String(calculatedDueDate).trim() === '0') {
+    // 15 es el plazo reglamentario para PQR.
+    calculatedDueDate = utils.calculateDueDate(parsedFechaRadicado, 15, nonBusinessDaysSet);
+} else {
+    calculatedDueDate = utils.parseDate(calculatedDueDate); // Asegurar formato
+}
         
         // 2. Preparar el nuevo caso
         const newCaseData = {
@@ -211,6 +220,8 @@ function App() {
             user: userId,
             'Fecha Radicado': parsedFechaRadicado,
             'Dia': calculatedDia,
+            // <-- CAMPO AÑADIDO PARA LA FECHA DE VENCIMIENTO -->
+            'Fecha Vencimiento': calculatedDueDate, 
             Estado_Gestion: manualFormData.Estado_Gestion || 'Pendiente',
             // Valores predeterminados para campos esenciales de IA/Historial
             Prioridad: 'Media',
@@ -651,6 +662,16 @@ async function handleFileUpload(event) {
                     if (String(row['nombre_oficina'] || '').toUpperCase().includes("OESIA") && calculatedDia !== 'N/A' && !isNaN(calculatedDia)) {
                         calculatedDia += 2;
                     }
+                    let calculatedDueDate = row['Fecha Vencimiento'] || row['Fecha_Vencimiento']; 
+
+// Si el campo está vacío, calcular los 15 días hábiles.
+if (!calculatedDueDate || calculatedDueDate === 'N/A' || calculatedDueDate === '0') {
+    // 15 es el plazo reglamentario para PQR.
+    calculatedDueDate = utils.calculateDueDate(parsedFechaRadicado, 15, nonBusinessDaysSet);
+} else {
+    // Si existe, asegúrate de que esté en el formato 'YYYY-MM-DD'
+    calculatedDueDate = utils.parseDateFromCSV(calculatedDueDate);
+}
                     if (existingCasesMap.has(currentSN)) {
                         const existingCaseData = existingCasesMap.get(currentSN);
                         const docRef = doc(db, `artifacts/${appId}/users/${userId}/cases`, existingCaseData.id);
@@ -666,7 +687,7 @@ async function handleFileUpload(event) {
                             aiAnalysisCat = analysis; aiPrio = priority; aiSentiment = sentiment; relNum = utils.extractRelatedComplaintNumber(row['obs']);
                         } catch (aiErr) { console.error(`AI Error for new SN ${currentSN}:`, aiErr); }
                         await addDoc(collRef, {
-                            ...row, user: userId, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Estado_Gestion: row.Estado_Gestion || 'Pendiente',
+                            ...row, user: userId, 'Fecha Radicado': parsedFechaRadicado, 'Dia': calculatedDia, Estado_Gestion: row.Estado_Gestion || 'Pendiente','Fecha Vencimiento': calculatedDueDate,
                             ...aiAnalysisCat, ...aiSentiment, Prioridad: aiPrio, Numero_Reclamo_Relacionado: relNum, Observaciones_Reclamo_Relacionado: '',
                             Aseguramiento_Historial: [], Escalamiento_Historial: [], Resumen_Hechos_IA: 'No generado', Proyeccion_Respuesta_IA: 'No generada',
                             Sugerencias_Accion_IA: [], Causa_Raiz_IA: '', Correo_Escalacion_IA: '', Riesgo_SIC: {}, Tipo_Contrato: 'Condiciones Uniformes',
