@@ -107,7 +107,13 @@ function App() {
         reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = error => reject(error);
     });
-
+const handleManualFormChange = (e) => {
+    const { name, value } = e.target;
+    // La clave es que 'OBS' en el formulario debe actualizar el estado con 'obs' para coincidir con Firestore.
+    // Asumiendo que has corregido el formulario para usar 'obs' o haces un mapeo aquí:
+    const key = name === 'OBS' ? 'obs' : name; 
+    setManualFormData(prev => ({ ...prev, [key]: value }));
+};
     // --- LÓGICA DE FIREBASE ---
     async function updateCaseInFirestore(caseId, newData) {
         if (!db || !userId) return;
@@ -119,7 +125,75 @@ function App() {
             displayModalMessage(`Error al guardar: ${e.message}`);
         }
     }
-    
+    async function handleManualSubmit(e) {
+    e.preventDefault();
+    if (!db || !userId) {
+        displayModalMessage('Error: Base de datos no disponible o usuario no autenticado.');
+        return;
+    }
+    setUploading(true);
+    try {
+        const today = utils.getColombianDateISO();
+        const nonBusinessDaysSet = new Set(constants.COLOMBIAN_HOLIDAYS);
+
+        // 1. Calcular el día de antigüedad
+        const parsedFechaRadicado = manualFormData.FechaRadicado || today;
+        let calculatedDia = utils.calculateBusinessDays(parsedFechaRadicado, today, nonBusinessDaysSet);
+        
+        // 2. Preparar el nuevo caso
+        const newCaseData = {
+            ...constants.initialManualFormData,
+            ...manualFormData,
+            user: userId,
+            'Fecha Radicado': parsedFechaRadicado,
+            'Dia': calculatedDia,
+            Estado_Gestion: manualFormData.Estado_Gestion || 'Pendiente',
+            // Valores predeterminados para campos esenciales de IA/Historial
+            Prioridad: 'Media',
+            'Analisis de la IA': 'Pendiente de análisis', 
+            'Categoria del reclamo': 'No especificada',
+            Sentimiento_IA: 'Neutral',
+            Numero_Reclamo_Relacionado: 'N/A',
+            Observaciones_Reclamo_Relacionado: '',
+            Resumen_Hechos_IA: 'No generado',
+            Proyeccion_Respuesta_IA: 'No generada',
+            Sugerencias_Accion_IA: [], 
+            Causa_Raiz_IA: '', 
+            Correo_Escalacion_IA: '', 
+            Riesgo_SIC: { riesgo: 'N/A', justificacion: '' }, 
+            Tipo_Contrato: manualFormData.Tipo_Contrato || 'Condiciones Uniformes',
+            Numero_Contrato_Marco: manualFormData.Tipo_Contrato === 'Contrato Marco' ? (manualFormData.Numero_Contrato_Marco || '') : '',
+            isNabis: false,
+            fecha_asignacion: today,
+            Observaciones_Historial: [{ text: `Caso creado manualmente por el agente. Observación inicial: ${manualFormData.OBS || 'N/A'}`, timestamp: new Date().toISOString() }],
+            SNAcumulados_Historial: [],
+            Aseguramiento_Historial: [], Escalamiento_Historial: [],
+            // Campos de fecha/tiempo
+            'Fecha Cierre': '', 
+            Tiempo_Resolucion_Minutos: 'N/A',
+            Dia_Original_CSV: calculatedDia, 
+            Despacho_Respuesta_Checked: false, 
+            Fecha_Inicio_Gestion: '',
+            // Aseguramiento/Baja/Ajuste (asumidos como falsos/vacíos)
+            Requiere_Aseguramiento_Facturas: false, 
+            requiereBaja: false, 
+            requiereAjuste: false,
+        };
+
+        // 3. Crear el documento en Firestore
+        const collRef = collection(db, `artifacts/${appId}/users/${userId}/cases`);
+        await addDoc(collRef, newCaseData);
+
+        displayModalMessage(`Caso ${manualFormData.SN || 'Nuevo'} agregado exitosamente.`);
+        setManualFormData(constants.initialManualFormData); // Resetear formulario
+        setShowManualEntryModal(false); // Cerrar modal
+    } catch (error) {
+        console.error("Error al crear el caso manual:", error);
+        displayModalMessage(`Error al agregar el caso: ${error.message}`);
+    } finally {
+        setUploading(false);
+    }
+}
     async function signInWithGoogleHandler() {
         if (!auth) { displayModalMessage('Firebase Auth no está listo'); return; }
         setAuthLoading(true);
@@ -898,8 +972,11 @@ async function handleFileUpload(event) {
     }
     const casesForDisplay = applyActiveFilter(filteredAndSearchedCases);
 
-    const sortSN = (a, b) => String(a.SN || '').toLowerCase().localeCompare(String(b.SN || '').toLowerCase());
-
+const sortSN = (a, b) => {
+    const snA = String(a?.SN || '').toLowerCase();
+    const snB = String(b?.SN || '').toLowerCase();
+    return snA.localeCompare(snB);
+};
     const sicDisp = useMemo(() => casesForDisplay.filter(c => (c.Estado_Gestion === 'Decretado' || c.Estado_Gestion === 'Traslado SIC') && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const pendAjustesDisp = useMemo(() => casesForDisplay.filter(c => c.Estado_Gestion === 'Pendiente Ajustes' && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
     const pendEscDisp = useMemo(() => casesForDisplay.filter(c => ['Pendiente', 'Escalado', 'Iniciado', 'Lectura'].includes(c.Estado_Gestion) && c.user === userId).sort(sortSN), [casesForDisplay, userId]);
@@ -1862,19 +1939,59 @@ async function handleObservationFileChange(event) {
                 </div>
             )}
 
-            {showManualEntryModal && (
+{showManualEntryModal && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-auto overflow-y-auto max-h-[90vh]">
                         <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Ingresar Caso Manualmente</h3>
-                        {/* CORRECCIÓN: Se asume que handleManualSubmit, handleManualFormChange y sus utilidades están definidas en otro lugar para que este formulario funcione */}
-                        <form /* onSubmit={handleManualSubmit} */>
+                        
+                        {/* INICIO DEL FORMULARIO CORREGIDO */}
+                        <form onSubmit={handleManualSubmit}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (<div key={f}><label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label><input type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} id={`manual${f}`} name={f} value={manualFormData[f]} /* onChange={handleManualFormChange} */ required={['SN', 'CUN', 'FechaRadicado'].includes(f)} className="block w-full input-form" /></div>))}
-                                <div className="md:col-span-2"><label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label><textarea id="manualOBS" name="OBS" rows="3" value={manualFormData.OBS} /* onChange={handleManualFormChange} */ className="block w-full input-form" /></div>
-                                <div className="md:col-span-2"><label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label><select id="manualTipo_Contrato" name="Tipo_Contrato" value={manualFormData.Tipo_Contrato} /* onChange={handleManualFormChange} */ className="block w-full input-form"><option value="Condiciones Uniformes">Condiciones Uniformes</option><option value="Contrato Marco">Contrato Marco</option></select></div>
+                                {['SN', 'CUN', 'FechaRadicado', 'FechaVencimiento', 'Nro_Nuip_Cliente', 'Nombre_Cliente', 'Dia'].map(f => (
+                                    <div key={f}>
+                                        <label htmlFor={`manual${f}`} className="block text-sm font-medium mb-1">{f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</label>
+                                        <input 
+                                            type={f.includes('Fecha') ? 'date' : (f === 'Dia' ? 'number' : 'text')} 
+                                            id={`manual${f}`} 
+                                            name={f} 
+                                            value={manualFormData[f]} 
+                                            onChange={handleManualFormChange} 
+                                            required={['SN', 'CUN', 'FechaRadicado'].includes(f)} 
+                                            className="block w-full input-form" 
+                                        />
+                                    </div>
+                                ))}
+                                <div className="md:col-span-2">
+                                    <label htmlFor="manualOBS" className="block text-sm font-medium mb-1">OBS:</label>
+                                    <textarea 
+                                        id="manualOBS" 
+                                        name="obs" 
+                                        rows="3" 
+                                        value={manualFormData.obs} 
+                                        onChange={handleManualFormChange} 
+                                        className="block w-full input-form" 
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label htmlFor="manualTipo_Contrato" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Contrato:</label>
+                                    <select 
+                                        id="manualTipo_Contrato" 
+                                        name="Tipo_Contrato" 
+                                        value={manualFormData.Tipo_Contrato} 
+                                        onChange={handleManualFormChange} 
+                                        className="block w-full input-form">
+                                        <option value="Condiciones Uniformes">Condiciones Uniformes</option>
+                                        <option value="Contrato Marco">Contrato Marco</option>
+                                    </select>
+                                </div>
                                 <div className="md:col-span-2">
                                     <label htmlFor="manualEstado_Gestion" className="block text-sm font-medium text-gray-700 mb-1">Estado Gestión Inicial:</label>
-                                    <select id="manualEstado_Gestion" name="Estado_Gestion" value={manualFormData.Estado_Gestion || 'Pendiente'} /* onChange={handleManualFormChange} */ className="block w-full input-form">
+                                    <select 
+                                        id="manualEstado_Gestion" 
+                                        name="Estado_Gestion" 
+                                        value={manualFormData.Estado_Gestion || 'Pendiente'} 
+                                        onChange={handleManualFormChange} 
+                                        className="block w-full input-form">
                                         <option value="Pendiente">Pendiente</option>
                                         <option value="Iniciado">Iniciado</option>
                                         <option value="Lectura">Lectura</option>
@@ -1883,7 +2000,12 @@ async function handleObservationFileChange(event) {
                                     </select>
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>{uploading ? 'Agregando...' : 'Agregar Caso'}</button></div>
+                            <div className="flex justify-end gap-3">
+                                <button type="button" onClick={() => setShowManualEntryModal(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancelar</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" disabled={uploading}>
+                                    {uploading ? 'Agregando...' : 'Agregar Caso'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
