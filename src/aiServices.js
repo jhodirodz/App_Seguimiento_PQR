@@ -197,7 +197,7 @@ Genera una 'Proyección de Respuesta' integral para la empresa (COLOMBIA TELECOM
 3.  **Adherencia a los Hechos:** Céntrate ÚNICA Y EXCLUSIVAMENTE en los hechos y pretensiones mencionados. NO introduzcas información o soluciones no mencionadas.
 4.  **Sustento Normativo:** Fundamenta CADA PARTE de la respuesta con normas colombianas VIGENTES (SIC, CRC, leyes).
 5.  **Formato de Valores Monetarios:** Cuando menciones un valor monetario, el formato exacto debe ser: \`$VALOR (valor en letras pesos) IVA incluido\`. Ejemplo: \`$5.000 (cinco mil pesos) IVA incluido\`.
-6.  ${contractSpecificInstructions}
+6.  **Enfoque de Contrato:** ${contractSpecificInstructions}
 
 **FUENTES DE INFORMACIÓN A CONSIDERAR:**
 ---
@@ -330,8 +330,8 @@ export async function getAIComprehensiveResponse(caseData, contractType) {
   let contractSpecificInstructions = '';
   if (contractType === 'Contrato Marco') {
     contractSpecificInstructions = `
-    **Enfoque Normativo (Contrato Marco):** La respuesta NO DEBE MENCIONAR el Régimen de Protección de Usuarios de Servicios de Comunicaciones (Resolución CRC 5050 de 2016 y sus modificaciones). En su lugar, debe basarse en las disposiciones del Código de Comercio colombiano, los términos y condiciones específicos del contrato marco suscrito entre las partes, y la legislación mercantil aplicable.
-    **Citas de Contrato:** En la primera mención, cita el número del contrato marco usando el campo 'Numero_Contrato_Marco'. En menciones posteriores, refiérete a 'Contrato Marco, cláusula X'.`;
+    **Enfoque Normativo (Contrato Marco):** ESTRICTAMENTE, la respuesta **NO DEBE MENCIONAR** el Régimen de Protección de Usuarios de Servicios de Comunicaciones (Resolución CRC 5050 de 2016 y sus modificaciones). En su lugar, debe basarse en las disposiciones del Código de Comercio colombiano, los términos y condiciones específicos del contrato marco suscrito entre las partes (cítelo usando el campo 'Numero_Contrato_Marco' en la primera mención), y la legislación mercantil aplicable.
+    **PROHIBIDO** incluir cualquier referencia a la Superintendencia de Industria y Comercio (SIC) como vía de recurso.`; // <--- INSTRUCCIÓN REFORZADA
   } else { 
     contractSpecificInstructions = `
     **Enfoque Normativo (Condiciones Uniformes):** La respuesta DEBE basarse principalmente en el Régimen de Protección de los Derechos de los Usuarios de Servicios de Comunicaciones (Establecido por la Comisión de Regulación de Comunicaciones - CRC), la Ley 1480 de 2011 (Estatuto del Consumidor) en lo aplicable, y las directrices de la Superintendencia de Industria y Comercio (SIC).`;
