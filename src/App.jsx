@@ -1855,7 +1855,6 @@ async function handleObservationFileChange(event) {
                     aiServices={aiServices}
                     constants={constants}
                     allCases={cases} // Necesario para la lógica de SN Acumulados
-                    scanFileRef={scanFileInputRef} // Necesario para el escaneo de documentos
                     onObsFileClick={handleObservationFileClick} // <-- NUEVA PROP AÑADIDA
                 />
             )}
