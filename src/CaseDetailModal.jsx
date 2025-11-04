@@ -21,7 +21,6 @@ export default function CaseDetailModal({
     aiServices, // Recibimos los servicios de IA como props
     constants,  // Recibimos las constantes como props
     allCases,   // Necesario para el cálculo de nota de crédito (snToCunMap)
-    scanFileRef, // Ref para el input de escaneo de documentos
     onObsFileClick, // <--- NUEVA PROP: Función que hace click en el input de archivo de observación del padre
 }) {
 
@@ -424,7 +423,6 @@ async function handleSuggestEscalation() {
                 }} accept="image/png, image/jpeg, application/pdf, text/csv, audio/*" style={{ display: 'none' }} /> */}
 
                 {/* Se mantiene el input para el escaneo de documentos (documentos de reclamo) */}
-                <input type="file" ref={scanFileRef} style={{ display: 'none' }} />
 
                 {duplicateCasesDetails.length > 0 && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
