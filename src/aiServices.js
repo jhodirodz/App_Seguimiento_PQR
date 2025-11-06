@@ -343,65 +343,40 @@ export async function getAIComprehensiveResponse(caseData, contractType) {
     ? `Adicionalmente, esta respuesta también atiende a los SN/CUN acumulados: ${caseData.SNAcumulados_Historial.map(s => `${s.sn}/${s.cun}`).join(', ')}.`
     : '';
 
-  const prompt = `Eres un asistente legal experto que genera respuestas para clientes de telecomunicaciones.
-Tu identidad es Colombia Telecomunicaciones S.A. E.S.P BIC - Movistar.
-**Tarea Crítica:** Genera una proyección de respuesta integral para el cliente, que sea exhaustiva, fluida y coherente.
-La respuesta debe ser inmediata, no a futuro, y basarse exclusivamente en la información del caso.
-**Instrucciones Críticas:**
-    1. **Foco en el Servicio:** Revisa el caso e identifica el servicio o línea de reclamo.
-Exclusivamente usa cálculos y explicaciones que se refieran a ese servicio.
-Ignora otros servicios de la cuenta que no estén relacionados.
-2. **Cálculos Precisos:** Si hay un ajuste monetario, muestra la fórmula de cálculo y relaciona el valor que queda posterior a la nota crédito.
-Usa solo los valores del "Resumen Financiero" o "Movimiento de Cuenta" que apliquen directamente al reclamo.
-3. **Contrato Correcto:**
-        ${contractSpecificInstructions}
-    4. **Respuesta Completa:**
-        - Abarca una respuesta para todas las pretensiones y hechos, y da las razones jurídicas, técnicas o económicas en que se apoya la decisión.
-- Si hay SN/CUN acumulados, menciónalos en el primer párrafo y respóndelos de forma unificada.
-- Finaliza con un párrafo sobre los saldos pendientes (tomados del movimiento de cuenta), si existen.
-5. **Inclusión de Contacto:** Al final de la respuesta, incluye un párrafo indicando que la notificación se realizará a los correos electrónicos y/o direcciones postales que se han validado en el expediente.
-**Formato de Salida:** Proporciona solo el texto de la respuesta.
-Comienza con la plantilla obligatoria y genera el contenido en párrafos separados por una línea en blanco.
-**FUENTES DE INFORMACIÓN:**
-    ---
-    **DATOS DEL CASO PRINCIPAL:**
-    - SN Principal: ${caseData.SN || 'N/A'}
-    - CUN: ${caseData.CUN || 'N/A'}
-    - Observación Inicial del Cliente (obs): ${caseData.obs || 'N/A'}
-    - Tipo de Contrato: ${caseData.Tipo_Contrato || 'N/A'}
-    - Número de Contrato Marco: ${caseData.Numero_Contrato_Marco || 'N/A'}
+  const prompt = `Eres un asistente legal experto en regulaciones de telecomunicaciones colombianas.
+Genera una 'Proyección de Respuesta' integral para la empresa (COLOMBIA TELECOMUNICACIONES S.A. E.S.P BIC) dirigida al cliente.
 
-    **HISTORIAL DE GESTIONES INTERNAS:**
-    ${internalHistoryInfo || 'No hay historial de gestiones internas.'}
+**Instrucciones CRÍTICAS para la Proyección de Respuesta:**
+1.  **Contexto Completo y Respuesta Definitiva:** La respuesta DEBE sintetizar la información de TODAS las fuentes. Basa tu conclusión en las gestiones y hallazgos registrados en el "Historial de Gestiones Internas". La respuesta debe ser **definitiva sobre lo que la empresa ya analizó y decidió**.
+2.  **Adherencia a los Hechos:** Céntrate ÚNICA Y EXCLUSIVAMENTE en los hechos y pretensiones mencionados.
+3.  **Sustento Normativo:** Fundamenta CADA PARTE de la respuesta con normas colombianas VIGENTES (SIC, CRC, leyes).
+4.  **Enfoque de Contrato:** ${contractSpecificInstructions}
+5.  **Notificación:** Al final de la respuesta, incluye un párrafo indicando que la notificación se realizará a los correos electrónicos y/o direcciones postales que se han validado.
 
-    **HISTORIAL DE RECLAMOS ACUMULADOS:**
-    ${accumulatedSNInfo || 'No hay reclamos acumulados.'}
+**FUENTES DE INFORMACIÓN A CONSIDERAR:**
+---
+DATOS DEL CASO PRINCIPAL:
+- SN Principal: ${caseData.SN || 'N/A'} (CUN: ${caseData.CUN || 'N/A'})
+- Observación Inicial del Cliente (obs): ${caseData.obs || 'N/A'}
+- Análisis de la IA (Resumen inicial): ${caseData['Analisis de la IA'] || 'N/A'}
+---
+**HISTORIAL DE GESTIONES INTERNAS (OBSERVACIONES):**
+Este es el registro de los análisis y acciones ya realizadas.
+${internalHistoryInfo || 'No hay historial de gestiones internas.'}
+---
+HISTORIAL DE RECLAMOS ACUMULADOS:
+${accumulatedSNInfo || 'No hay reclamos acumulados.'}
+---
+**DATOS DE CONTACTO PARA NOTIFICACIÓN:**
+- Correos Electrónicos del Cliente: ${caseData.Correo_Electronico_Cliente || 'N/A'}
+- Direcciones del Cliente: ${caseData.Direccion_Cliente || 'N/A'}
+- Correo Electrónico Reclamante: ${caseData.Correo_Electronico_Reclamante || 'N/A'}
+- Dirección Reclamante: ${caseData.Direccion_Reclamante || 'N/A'}
+---
 
-    **FUENTES DE INFORMACIÓN ADICIONAL:**
-    - Correos Electrónicos del Cliente: ${caseData.Correo_Electronico_Cliente || 'N/A'}
-    - Direcciones del Cliente: ${caseData.Direccion_Cliente || 'N/A'}
-    - Correo Electrónico Reclamante: ${caseData.Correo_Electronico_Reclamante || 'N/A'}
-    - Dirección Reclamante: ${caseData.Direccion_Reclamante || 'N/A'}
-    ---
-
-    Comienza tu respuesta ahora, siguiendo este formato estricto:
-    ${startTemplate}
-
-    a) Resumen de los hechos (corto y conciso):
-    ...
-
-    b) Acciones adelantadas:
-    ...
-
-    c) Razones (jurídicas, técnicas o económicas):
-    ...
-
-    d) Información sobre recursos y plazos:
-    ...
-
-
-Párrafo de saldos pendientes (si aplica):
-    ...`;
+Comienza tu respuesta ahora. Proporciona solo el texto de la respuesta.
+${startTemplate}
+`;
   return geminiApiCall(prompt);
 }
 
